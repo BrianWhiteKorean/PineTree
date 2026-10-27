@@ -96,6 +96,12 @@
     <Compile Include="Classes\OrderRepository.cs" />
     <Compile Include="Classes\BannerOrderEditorState.cs" />
     <Compile Include="Classes\OrderPostProcessSetting.cs" />
+    <Compile Include="UserControlsOrder\Dialog상하각목.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog상하각목.Designer.cs">
+      <DependentUpon>Dialog상하각목.cs</DependentUpon>
+    </Compile>
     <Compile Include="UserControlsOrder\PostProcessDialogBinding.cs" />
     <Compile Include="UserControlsOrder\UcOrder현수막.PostProcesses.cs">
       <DependentUpon>UcOrder현수막.cs</DependentUpon>
@@ -419,6 +425,9 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <EmbeddedResource Include="UserControlsOrder\Dialog상하각목.resx">
+      <DependentUpon>Dialog상하각목.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="UserControlsOrder\Dialog좌우각목.resx">
       <DependentUpon>Dialog좌우각목.cs</DependentUpon>
     </EmbeddedResource>
