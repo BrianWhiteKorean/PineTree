@@ -301,7 +301,8 @@ namespace PineTree.UserControlsOrder
             double height = PdfNumber(tbTargetHeight, 0);
             double finishedWidth = (double)FinishedWidthMm();
             double outputWidth = finishedWidth + PdfNumber(tbEdgeLeft, 2) + PdfNumber(tbEdgeRight, 2);
-            double outputHeight = height + PdfNumber(tbEdgeTop, 2) + PdfNumber(tbEdgeBottom, 2);
+            double finishedHeight = (double)FinishedHeightMm();
+            double outputHeight = finishedHeight + PdfNumber(tbEdgeTop, 2) + PdfNumber(tbEdgeBottom, 2);
             btnPreview.Enabled = !_generating && !_inspecting && _sourceDetails != null;
             foreach (var input in new[] { tbTargetWidth, tbTargetHeight, tbEdgeTop, tbEdgeBottom, tbEdgeLeft, tbEdgeRight, inputNumericBox4 })
                 input.Enabled = !_generating;
@@ -320,12 +321,12 @@ namespace PineTree.UserControlsOrder
                 if (width <= 0 || height <= 0 || outputWidth > 14400 || outputHeight > 14400)
                     throw new ArgumentException("완성 가로·세로는 양수이며 가장자리를 포함한 출력 크기는 14,400mm 이하여야 합니다.");
                 var hole = _postProcesses.Find(item => item.ProcessCode == "HOLE");
-                int markCount = hole == null ? 0 : hole.GetMarkCount((decimal)finishedWidth, (decimal)height);
+                int markCount = hole == null ? 0 : hole.GetMarkCount((decimal)finishedWidth, (decimal)finishedHeight);
                 _pdfSummary = string.Format("원본 {0:0.###} × {1:0.###} mm · 완성/재단 {2:0.###} × {3:0.###} mm · 출력(도련 포함) {4:0.###} × {5:0.###} mm · 타공 {6}개 · 원본 첫 페이지",
-                    _sourceWidthMm, _sourceHeightMm, finishedWidth, height, outputWidth, outputHeight, markCount);
+                    _sourceWidthMm, _sourceHeightMm, finishedWidth, finishedHeight, outputWidth, outputHeight, markCount);
             }
             catch (ArgumentException ex) { _pdfSummary = ex.Message; }
-            btnPreview.ToolTipText = _pdfSummary + "\n좌우각목·타공·재단을 반영해 출력용 PDF를 생성합니다. 미싱 후가공의 PDF 규칙은 확인 중입니다.";
+            btnPreview.ToolTipText = _pdfSummary + "\n좌우/상하각목·타공·재단을 반영해 출력용 PDF를 생성합니다. 미싱 후가공의 PDF 규칙은 확인 중입니다.";
         }
 
         private void InitializeFileDrop(bool elevated)

@@ -13,9 +13,15 @@ namespace PineTree.Classes
         public PostProcessParameters Parameters { get; set; } = new PostProcessParameters();
         [ScriptIgnore] public string ProcessName { get { return NameFor(ProcessCode); } }
         public OrderPostProcessSetting Copy() { return new JavaScriptSerializer().Deserialize<OrderPostProcessSetting>(new JavaScriptSerializer().Serialize(this)); }
-        public static readonly string[] Codes = { "HOLE", "WOOD", "POLE_SEW", "HEM_SEW", "BAND_SEW", "ROPE_SEW", "CUT" };
-        private static readonly string[] Names = { "타공", "좌우각목", "봉미싱", "사방시접미싱", "밴드미싱", "사방줄미싱", "재단" };
+        public static readonly string[] Codes = { "HOLE", "WOOD", "POLE_SEW", "HEM_SEW", "BAND_SEW", "ROPE_SEW", "CUT", "WOOD_TB" };
+        private static readonly string[] Names = { "타공", "좌우각목", "봉미싱", "사방시접미싱", "밴드미싱", "사방줄미싱", "재단", "상하각목" };
         public static string NameFor(string code) { int i = Array.IndexOf(Codes, code); return i < 0 ? code : Names[i]; }
+        public static string CodeForName(string name)
+        {
+            int index = Array.IndexOf(Names, name);
+            if(index < 0) throw new ArgumentException("지원하지 않는 후가공입니다: " + name);
+            return Codes[index];
+        }
         public static OrderPostProcessSetting Create(string code)
         {
             var item = new OrderPostProcessSetting { ProcessCode = code };
@@ -28,6 +34,7 @@ namespace PineTree.Classes
             {
                 case "HOLE": return new[] { "FOUR_CORNERS", "CUSTOM_SPACING" };
                 case "WOOD": return new[] { "LEFT_RIGHT", "TOP_BOTTOM" };
+                case "WOOD_TB": return new[] { "TOP_BOTTOM" };
                 case "POLE_SEW": return new[] { "LEFT_RIGHT", "TOP_BOTTOM", "TOP", "BOTTOM", "ROUND" };
                 case "HEM_SEW": case "BAND_SEW": return new[] { "SINGLE", "DOUBLE" };
                 case "ROPE_SEW": return new[] { "ROPE_5", "ROPE_8" };
@@ -50,11 +57,11 @@ namespace PineTree.Classes
                 if (p.MarkLeftRightMm < 2.5m || p.MarkTopBottomMm < 2.5m || (p.TypeCode == "CUSTOM_SPACING" && p.HoleSpacingMm <= 0))
                     throw new ArgumentException("타공 안쪽 거리는 2.5mm 이상, 최대 간격은 양수로 입력해주세요.");
             }
-            else if (ProcessCode == "WOOD")
+            else if (ProcessCode == "WOOD" || ProcessCode == "WOOD_TB")
             {
                 decimal extra = p.ExtraLineMm ?? p.DimensionMm;
                 if (extra < 0 || extra > 100000 || p.DesignLineMm < 0 || (p.MakeDesignLine && p.DesignLineMm > extra))
-                    throw new ArgumentException("좌우 각목 여분선은 0 이상으로 입력하고, 디자인선 이격은 추가 여백 이내로 입력해주세요.");
+                    throw new ArgumentException("각목 여분선은 0 이상으로 입력하고, 디자인선 이격은 추가 여백 이내로 입력해주세요.");
             }
             else if (p.DimensionMm <= 0 || p.DimensionMm > 100000) throw new ArgumentException("후가공 치수(mm)는 0 초과 100,000 이하로 입력해주세요.");
         }
@@ -79,8 +86,8 @@ namespace PineTree.Classes
                 catch (ArgumentException) { count = "치수 확인 필요"; }
                 return string.Format("{0} / {1} / 재단선 기준 좌우 {2:0.###}·상하 {3:0.###}mm", p.TypeCode == "FOUR_CORNERS" ? "사방타공" : "최대 " + p.HoleSpacingMm.ToString("0.###") + "mm 간격", count, p.MarkLeftRightMm, p.MarkTopBottomMm);
             }
-            if (ProcessCode == "WOOD") return string.Format("좌우 여분 각 {0:0.###}mm / 디자인선 {1}",
-                p.ExtraLineMm ?? p.DimensionMm, p.MakeDesignLine ? p.DesignLineMm.ToString("0.###") + "mm" : "없음");
+            if (ProcessCode == "WOOD" || ProcessCode == "WOOD_TB") return string.Format("{0} 여분 각 {1:0.###}mm / 디자인선 {2}",
+                ProcessCode == "WOOD_TB" ? "상하" : "좌우", p.ExtraLineMm ?? p.DimensionMm, p.MakeDesignLine ? p.DesignLineMm.ToString("0.###") + "mm" : "없음");
             string[] labels;
             switch(ProcessCode) {
                 case "WOOD": labels = new[] { "좌우각목", "상하각목" }; break;
@@ -94,7 +101,11 @@ namespace PineTree.Classes
         public static List<OrderPostProcessSetting> CopyList(IEnumerable<OrderPostProcessSetting> items)
         {
             var result = items == null ? new List<OrderPostProcessSetting>() : items.Select(x => x.Copy()).ToList();
-            for(int i=0;i<result.Count;i++) result[i].SeqNo = i+1;
+            for(int i=0;i<result.Count;i++) {
+                // Previously stored WOOD/TOP_BOTTOM settings now use the dedicated dialog.
+                if(result[i].ProcessCode == "WOOD" && result[i].Parameters.TypeCode == "TOP_BOTTOM") result[i].ProcessCode = "WOOD_TB";
+                result[i].SeqNo = i+1;
+            }
             return result;
         }
         public static void ValidateList(IEnumerable<OrderPostProcessSetting> items)
@@ -103,8 +114,8 @@ namespace PineTree.Classes
             foreach(var item in items) {
                 if(item == null) throw new ArgumentException("후가공 설정이 비어 있습니다.");
                 item.Validate();
-                if ((item.ProcessCode == "CUT" || item.ProcessCode == "HOLE" || item.ProcessCode == "WOOD") && !single.Add(item.ProcessCode))
-                    throw new ArgumentException("재단·타공·좌우각목은 각각 한 건씩 등록해주세요. 기존 행을 더블클릭하면 수정할 수 있습니다.");
+                if ((item.ProcessCode == "CUT" || item.ProcessCode == "HOLE" || item.ProcessCode == "WOOD" || item.ProcessCode == "WOOD_TB") && !single.Add(item.ProcessCode))
+                    throw new ArgumentException("재단·타공·좌우각목·상하각목은 각각 한 건씩 등록해주세요. 기존 행을 더블클릭하면 수정할 수 있습니다.");
             }
         }
     }

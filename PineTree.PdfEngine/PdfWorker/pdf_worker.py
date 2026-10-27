@@ -322,20 +322,21 @@ def generation_settings(raw=None):
          "EdgeTopMm": 2, "EdgeBottomMm": 2, "EdgeLeftMm": 2, "EdgeRightMm": 2,
          "MakeCutline": True, "LineWidthMm": .18, "SpotColorName": "thru", "MakeHole": True,
          "HoleType": "FOUR_CORNERS", "MarkLeftRightMm": 20, "MarkTopBottomMm": 20, "HoleSpacingMm": 500,
-         "MakeWood": False, "WoodExtraMm": 0, "MakeWoodDesignLine": False, "WoodDesignOffsetMm": 0}
+         "MakeWood": False, "WoodExtraMm": 0, "MakeWoodDesignLine": False, "WoodDesignOffsetMm": 0,
+         "MakeWoodTopBottom": False, "WoodTopBottomExtraMm": 0, "MakeWoodTopBottomDesignLine": False, "WoodTopBottomDesignOffsetMm": 0}
     if raw is not None:
         if not isinstance(raw, dict):
             raise ValueError("PDF 생성 조건은 JSON 객체여야 합니다.")
         s.update({k: v for k, v in raw.items() if k in s and v is not None and v != ""})
     for key in ("TargetWidthMm", "TargetHeightMm", "EdgeTopMm", "EdgeBottomMm", "EdgeLeftMm", "EdgeRightMm",
-                "LineWidthMm", "MarkLeftRightMm", "MarkTopBottomMm", "HoleSpacingMm", "WoodExtraMm", "WoodDesignOffsetMm"):
+                "LineWidthMm", "MarkLeftRightMm", "MarkTopBottomMm", "HoleSpacingMm", "WoodExtraMm", "WoodDesignOffsetMm", "WoodTopBottomExtraMm", "WoodTopBottomDesignOffsetMm"):
         try:
             s[key] = float(s[key])
         except (ValueError, TypeError):
             raise ValueError("숫자가 아닌 PDF 생성 조건입니다: " + key)
         if not math.isfinite(s[key]):
             raise ValueError("유효한 숫자가 아닙니다: " + key)
-    for key in ("MakeCutline", "MakeHole", "MakeWood", "MakeWoodDesignLine"):
+    for key in ("MakeCutline", "MakeHole", "MakeWood", "MakeWoodDesignLine", "MakeWoodTopBottom", "MakeWoodTopBottomDesignLine"):
         if not isinstance(s[key], bool):
             raise ValueError("생성 여부는 true/false 값이어야 합니다.")
     s["SpotColorName"] = str(s["SpotColorName"]).strip() or "thru"
@@ -346,8 +347,12 @@ def generation_settings(raw=None):
     if s["MakeWood"] and (s["WoodExtraMm"] < 0 or s["WoodDesignOffsetMm"] < 0
             or (s["MakeWoodDesignLine"] and s["WoodDesignOffsetMm"] > s["WoodExtraMm"])):
         raise ValueError("각목 여분은 0 이상이며 디자인선 이격은 여분 이내여야 합니다.")
+    if s["MakeWoodTopBottom"] and (s["WoodTopBottomExtraMm"] < 0 or s["WoodTopBottomDesignOffsetMm"] < 0
+            or (s["MakeWoodTopBottomDesignLine"] and s["WoodTopBottomDesignOffsetMm"] > s["WoodTopBottomExtraMm"])):
+        raise ValueError("상하 각목 여분은 0 이상이며 디자인선 이격은 여분 이내여야 합니다.")
+    finished_height = s["TargetHeightMm"] + (2*s["WoodTopBottomExtraMm"] if s["MakeWoodTopBottom"] else 0)
     finished_width = s["TargetWidthMm"] + (2*s["WoodExtraMm"] if s["MakeWood"] else 0)
-    if max(finished_width+s["EdgeLeftMm"]+s["EdgeRightMm"], s["TargetHeightMm"]+s["EdgeTopMm"]+s["EdgeBottomMm"]) > 14400:
+    if max(finished_width+s["EdgeLeftMm"]+s["EdgeRightMm"], finished_height+s["EdgeTopMm"]+s["EdgeBottomMm"]) > 14400:
         raise ValueError("출력 크기는 14,400mm 이하여야 합니다.")
     if s["FitMode"] not in ("CONTAIN", "COVER"):
         raise ValueError("지원하지 않는 배치방식입니다.")
@@ -357,7 +362,7 @@ def generation_settings(raw=None):
     if s["MakeHole"]:
         if s["HoleType"] not in ("FOUR_CORNERS", "CUSTOM_SPACING"):
             raise ValueError("지원하지 않는 타공 배치입니다.")
-        if min(s["MarkLeftRightMm"], s["MarkTopBottomMm"]) < 2.5 or 2*s["MarkLeftRightMm"] >= finished_width or 2*s["MarkTopBottomMm"] >= s["TargetHeightMm"]:
+        if min(s["MarkLeftRightMm"], s["MarkTopBottomMm"]) < 2.5 or 2*s["MarkLeftRightMm"] >= finished_width or 2*s["MarkTopBottomMm"] >= finished_height:
             raise ValueError("마크 안쪽 거리는 2.5mm 이상이며 완성 크기의 절반보다 작아야 합니다.")
         if s["HoleType"] == "CUSTOM_SPACING" and s["HoleSpacingMm"] <= 0:
             raise ValueError("타공 최대 간격은 양수여야 합니다.")
@@ -368,7 +373,7 @@ def mark_positions(s):
     if not s["MakeHole"]:
         return []
     x0, y0 = s["EdgeLeftMm"]+s["MarkLeftRightMm"], s["EdgeBottomMm"]+s["MarkTopBottomMm"]
-    w, h = s["TargetWidthMm"]+(2*s["WoodExtraMm"] if s["MakeWood"] else 0)-2*s["MarkLeftRightMm"], s["TargetHeightMm"]-2*s["MarkTopBottomMm"]
+    w, h = s["TargetWidthMm"]+(2*s["WoodExtraMm"] if s["MakeWood"] else 0)-2*s["MarkLeftRightMm"], s["TargetHeightMm"]+(2*s["WoodTopBottomExtraMm"] if s["MakeWoodTopBottom"] else 0)-2*s["MarkTopBottomMm"]
     if s["HoleType"] == "FOUR_CORNERS":
         return [(x0+x, y0+y) for x in (0, w) for y in (0, h)]
     nx, ny = max(1, math.ceil(w/s["HoleSpacingMm"])), max(1, math.ceil(h/s["HoleSpacingMm"]))
@@ -406,12 +411,13 @@ def generate_pdf(reader, page_index, region, destination, settings=None):
         raise ValueError("선택한 페이지에 출력할 그림이 없습니다.")
     if s["MakeCutline"] and has_thru(source.get("/Resources", {}), spot_name=s["SpotColorName"]):
         raise ValueError("입력파일에 이미 " + s["SpotColorName"] + " 별색 경로가 있습니다. 재단선 생성을 끄거나 후가공 전 원본을 선택해주세요.")
-    if s["MakeWood"]:
+    if s["MakeWood"] or s["MakeWoodTopBottom"]:
         wood_process_colors(source.get("/Resources", {}))
     writer = PdfWriter()
     wood = s["WoodExtraMm"]*MM if s["MakeWood"] else 0
-    image_width = s["TargetWidthMm"]*MM
-    tw, th = image_width+2*wood, s["TargetHeightMm"]*MM
+    wood_y = s["WoodTopBottomExtraMm"]*MM if s["MakeWoodTopBottom"] else 0
+    image_width, image_height = s["TargetWidthMm"]*MM, s["TargetHeightMm"]*MM
+    tw, th = image_width+2*wood, image_height+2*wood_y
     left, bottom = s["EdgeLeftMm"]*MM, s["EdgeBottomMm"]*MM
     pw, ph = tw+left+s["EdgeRightMm"]*MM, th+bottom+s["EdgeTopMm"]*MM
     page = writer.add_blank_page(width=pw, height=ph)
@@ -440,34 +446,35 @@ def generate_pdf(reader, page_index, region, destination, settings=None):
 
     x0, y0, x1, y1 = region
     sw, sh = x1-x0, y1-y0
-    image_left = left+wood
-    factor = (max if s["FitMode"] == "COVER" else min)(image_width/sw, th/sh)
+    image_left, image_bottom = left+wood, bottom+wood_y
+    factor = (max if s["FitMode"] == "COVER" else min)(image_width/sw, image_height/sh)
     w, h = sw*factor, sh*factor
-    x, y = image_left+(image_width-w)/2, bottom+(th-h)/2
+    x, y = image_left+(image_width-w)/2, image_bottom+(image_height-h)/2
     # Keep the main artwork at page level. Wrapping this AI's existing non-isolated
     # transparency groups in another Form changes soft-mask compositing in PDFium.
     imported = copy.copy(source)
     imported.cropbox = RectangleObject(region)
     page.merge_transformed_page(imported, Transformation((factor, 0, 0, factor, x-x0*factor, y-y0*factor)))
-    main_content = (f"q {image_left:.8f} {bottom:.8f} {image_width:.8f} {th:.8f} re W n\n".encode("ascii")
+    main_content = (f"q {image_left:.8f} {image_bottom:.8f} {image_width:.8f} {image_height:.8f} re W n\n".encode("ascii")
                     + page.get_contents().get_data() + b"\nQ\n")
     resources = page["/Resources"]
     # Extend only edge strips; the main design remains a vector at its exact scale.
     # Contain letterboxing stays white when the source aspect ratio differs.
-    if s["FitMode"] == "COVER" or (abs(w-image_width) < .1*MM and abs(h-th) < .1*MM):
+    if s["FitMode"] == "COVER" or (abs(w-image_width) < .1*MM and abs(h-image_height) < .1*MM):
         # Cover uses the visible crop edges, not the parts outside the trim box.
-        x0, y0, x1, y1 = max(x0, x0+(image_left-x)/factor), max(y0, y0+(bottom-y)/factor), min(x1, x1-(x+w-image_left-image_width)/factor), min(y1, y1-(y+h-bottom-th)/factor)
+        x0, y0, x1, y1 = max(x0, x0+(image_left-x)/factor), max(y0, y0+(image_bottom-y)/factor), min(x1, x1-(x+w-image_left-image_width)/factor), min(y1, y1-(y+h-image_bottom-image_height)/factor)
         sw, sh = x1-x0, y1-y0
-        x, y, w, h = image_left, bottom, image_width, th
+        x, y, w, h = image_left, image_bottom, image_width, image_height
         band = min(.1*MM/factor, sw/4, sh/4)
         right, top = pw-x-w, ph-y-h
         # Wood margins remain white instead of repeating stretched edge pixels.
         if not wood:
             stamp((x0, y0, x0+band, y1), (0, y, x, h))
             stamp((x1-band, y0, x1, y1), (x+w, y, right, h))
-        stamp((x0, y0, x1, y0+band), (x, 0, w, y))
-        stamp((x0, y1-band, x1, y1), (x, y+h, w, top))
-        if not wood:
+        if not wood_y:
+            stamp((x0, y0, x1, y0+band), (x, 0, w, y))
+            stamp((x0, y1-band, x1, y1), (x, y+h, w, top))
+        if not wood and not wood_y:
             for sx0, sx1, tx, corner_width in [(x0, x0+band, 0, x), (x1-band, x1, x+w, right)]:
                 for sy0, sy1, ty, corner_height in [(y0, y0+band, 0, y), (y1-band, y1, y+h, top)]:
                     stamp((sx0, sy0, sx1, sy1), (tx, ty, corner_width, corner_height))
@@ -510,6 +517,21 @@ def generate_pdf(reader, page_index, region, destination, settings=None):
             drawn.append(position)
             instructions.append(f"q {white_name} gs 0 0 0 1 K {line_width:g} w "
                                 f"{position:.8f} {bottom:.8f} m {position:.8f} {bottom+th:.8f} l S Q")
+    if s["MakeWoodTopBottom"]:
+        line_width = .17
+        positions = []
+        if wood_y > 0:
+            positions += [bottom+line_width/2, bottom+th-line_width/2]
+        if s["MakeWoodTopBottomDesignLine"]:
+            offset = s["WoodTopBottomDesignOffsetMm"]*MM
+            positions += [image_bottom-offset, image_bottom+image_height+offset]
+        drawn = []
+        for position in sorted(positions):
+            position = max(bottom+line_width/2, min(bottom+th-line_width/2, position))
+            if any(abs(position-prior) < .001 for prior in drawn): continue
+            drawn.append(position)
+            instructions.append(f"q {white_name} gs 0 0 0 1 K {line_width:g} w "
+                                f"{left:.8f} {position:.8f} m {left+tw:.8f} {position:.8f} l S Q")
     for mx, my in marks:
         cx, cy = mx*MM, my*MM
         radius = 2.5*MM
@@ -536,6 +558,7 @@ def generate_pdf(reader, page_index, region, destination, settings=None):
             + ("맞춤" if s["FitMode"] == "CONTAIN" else "채움")
             + (f" / {s['SpotColorName']} 재단선 {s['LineWidthMm']:g}mm" if s["MakeCutline"] else " / 재단선 없음")
             + (f" / 좌우각목 여분 각 {s['WoodExtraMm']:g}mm" if s["MakeWood"] else "")
+            + (f" / 상하각목 여분 각 {s['WoodTopBottomExtraMm']:g}mm" if s["MakeWoodTopBottom"] else "")
             + f" / 십자마크 {len(marks)}개", "Scale": factor, "FitMode": s["FitMode"].lower(), "PageCount": 1,
             "OutputWidthMm": pw/MM, "OutputHeightMm": ph/MM, "MarkCount": len(marks)}
 

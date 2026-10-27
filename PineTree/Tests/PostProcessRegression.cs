@@ -113,6 +113,7 @@ internal static class PostProcessRegression
         }
         await RunCustomerSample(host,editor.GetType(),folder);
         await RunCustomerWood(host,editor.GetType(),folder);
+        await RunTopBottom(host,editor.GetType(),folder);
         Console.WriteLine("PASS: finishing dialogs/grid/roundtrip/PDF/customer sample: "+checks);
     }
     private static async Task RunCustomerSample(Form host,Type editorType,string folder)
@@ -178,6 +179,69 @@ internal static class PostProcessRegression
             settings=Call(editor,"ReadPdfGenerationSettings");
             var moved=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"customer-wood-offset.pdf"),settings);await moved;
             Check(Math.Abs((double)Get(Get(moved,"Result"),"OutputWidthMm")-816.06)<.0001,"design offset changes no output width");
+            host.Controls.Remove(editor);
+        }
+    }
+    private static object MakeSettingList(object setting)
+    {
+        var list=(IList)Activator.CreateInstance(typeof(System.Collections.Generic.List<>).MakeGenericType(settingType));list.Add(setting);return list;
+    }
+    private static async Task RunTopBottom(Form host,Type editorType,string folder)
+    {
+        using(var editor=(UserControl)Activator.CreateInstance(editorType)) {
+            host.Controls.Add(editor);editor.Dock=DockStyle.Fill;editor.BringToFront();
+            object topOption=null;
+            foreach(var option in (IEnumerable)Get(Field(editor,"cbWork"),"Items")) {
+                string text=(string)Get(option,"Text");
+                string code=(string)settingType.GetMethod("CodeForName").Invoke(null,new object[]{text});
+                Check((string)Get(Create(code),"ProcessName")==text,"combo mapping: "+text);
+                if(text=="상하각목")topOption=option;
+            }
+            Check(topOption!=null,"designer top-bottom option present");
+            Set(Field(editor,"cbWork"),"SelectedOption",topOption);
+            using(var timer=new System.Windows.Forms.Timer{Interval=50}) {
+                timer.Tick+=delegate {
+                    foreach(Form form in Application.OpenForms) {
+                        if(form.GetType().Name!="Dialog상하각목")continue;
+                        timer.Stop();Number(form,"tbExtraLine",80);
+                        Check(!(bool)Get(Field(form,"tbDesignLine"),"Enabled"),"top design field starts disabled");
+                        Set(Field(form,"chkDesignLine"),"Checked",true);Number(form,"tbDesignLine",20);
+                        Check((bool)Get(Field(form,"tbDesignLine"),"Enabled"),"top design field toggles on");
+                        Click(form,"btnOK");break;
+                    }
+                };
+                timer.Start();Call(editor,"AddPostProcess");timer.Stop();
+            }
+            var items=(IList)Field(editor,"_postProcesses");
+            Check(items.Count==1 && (string)Get(items[0],"ProcessCode")=="WOOD_TB" && (string)Get(Params(items[0]),"TypeCode")=="TOP_BOTTOM","actual combo Add returns top-bottom settings");
+            using(var empty=(Form)Call(editor,"CreatePostProcessDialog",Create("WOOD_TB"))) {
+                empty.Shown+=delegate{Set(Field(empty,"tbExtraLine"),"Text",string.Empty);Click(empty,"btnOK");};
+                Check(empty.ShowDialog(host)==DialogResult.OK && (decimal)Get(Params(Get(empty,"Setting")),"ExtraLineMm")==0,"top empty margin returns zero");
+            }
+            string sample=Path.GetFullPath("../../1.요구분석/1026/현수막_좌우각목_8000x600_1EA.ai");
+            await (Task)Call(editor,"LoadSourceFileAsync",sample);
+            Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));Number(editor,"tbZoomRate",10);
+            foreach(string name in new[]{"tbEdgeLeft","tbEdgeRight","tbEdgeTop","tbEdgeBottom"})Number(editor,name,0);
+            var settings=Call(editor,"ReadPdfGenerationSettings");
+            Check((bool)Get(settings,"MakeWoodTopBottom") && (double)Get(settings,"WoodTopBottomExtraMm")==80 && (double)Get(settings,"WoodTopBottomDesignOffsetMm")==20,"top settings reach PDF with absolute mm");
+            var task=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"top-bottom.pdf"),settings);await task;
+            var result=Get(task,"Result");
+            Check(Math.Abs((double)Get(result,"OutputWidthMm")-8000)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-750)<.0001,"top margin applies after ten-times zoom");
+            var wood=Create("WOOD");Set(Params(wood),"ExtraLineMm",15m);Set(Params(wood),"MakeDesignLine",true);Set(Params(wood),"DesignLineMm",2m);Call(editor,"CommitPostProcess",-1,wood);
+            settings=Call(editor,"ReadPdfGenerationSettings");
+            task=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"wood-both-axes.pdf"),settings);await task;
+            result=Get(task,"Result");
+            Check(Math.Abs((double)Get(result,"OutputWidthMm")-8030)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-750)<.0001,"both wood axes combine independently");
+            var state=Capture(editor);
+            using(var restored=(UserControl)Activator.CreateInstance(editorType)) {
+                Restore(restored,state);var list=(IList)Field(restored,"_postProcesses");
+                Check(list.Count==2 && (string)Get(list[0],"ProcessCode")=="WOOD_TB" && (decimal)Get(Params(list[0]),"ExtraLineMm")==80,"top and side wood restore independently");
+                Check((decimal)Call(restored,"FinishedWidthMm")==8030 && (decimal)Call(restored,"FinishedHeightMm")==750,"restored dimensions include both axes");
+            }
+            // Persisted pre-dialog WOOD/TOP_BOTTOM entries map to the new dedicated type.
+            var legacy=Create("WOOD");Set(Params(legacy),"TypeCode","TOP_BOTTOM");Set(Params(legacy),"DimensionMm",12m);
+            var copy=settingType.GetMethod("CopyList").Invoke(null,new object[]{MakeSettingList(legacy)});
+            Check((string)Get(((IList)copy)[0],"ProcessCode")=="WOOD_TB","legacy top-bottom maps to dedicated code");
             host.Controls.Remove(editor);
         }
     }

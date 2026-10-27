@@ -36,12 +36,12 @@ namespace PineTree.UserControlsOrder
             this.btnOK = new C1.Win.C1Input.C1Button();
             this.c1InputPanel1 = new C1.Win.C1InputPanel.C1InputPanel();
             this.inputGroupHeader1 = new C1.Win.C1InputPanel.InputGroupHeader();
+            this.inputLabel3 = new C1.Win.C1InputPanel.InputLabel();
             this.tbExtraLine = new C1.Win.C1InputPanel.InputNumericBox();
+            this.inputLabel1 = new C1.Win.C1InputPanel.InputLabel();
             this.chkDesignLine = new C1.Win.C1InputPanel.InputCheckBox();
             this.tbDesignLine = new C1.Win.C1InputPanel.InputNumericBox();
-            this.inputLabel1 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel2 = new C1.Win.C1InputPanel.InputLabel();
-            this.inputLabel3 = new C1.Win.C1InputPanel.InputLabel();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -119,7 +119,15 @@ namespace PineTree.UserControlsOrder
             // inputGroupHeader1
             // 
             this.inputGroupHeader1.Name = "inputGroupHeader1";
-            this.inputGroupHeader1.Text = "좌우각목";
+            this.inputGroupHeader1.Text = "상하각목";
+            // 
+            // inputLabel3
+            // 
+            this.inputLabel3.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
+            this.inputLabel3.Name = "inputLabel3";
+            this.inputLabel3.Padding = new System.Windows.Forms.Padding(0, 40, 0, 0);
+            this.inputLabel3.Text = "여분선";
+            this.inputLabel3.Width = 90;
             // 
             // tbExtraLine
             // 
@@ -131,6 +139,13 @@ namespace PineTree.UserControlsOrder
             0});
             this.tbExtraLine.Name = "tbExtraLine";
             this.tbExtraLine.Padding = new System.Windows.Forms.Padding(10, 40, 0, 0);
+            // 
+            // inputLabel1
+            // 
+            this.inputLabel1.Break = C1.Win.C1InputPanel.BreakType.Row;
+            this.inputLabel1.Name = "inputLabel1";
+            this.inputLabel1.Padding = new System.Windows.Forms.Padding(0, 40, 0, 0);
+            this.inputLabel1.Text = "mm";
             // 
             // chkDesignLine
             // 
@@ -152,26 +167,11 @@ namespace PineTree.UserControlsOrder
             this.tbDesignLine.Padding = new System.Windows.Forms.Padding(10, 20, 0, 0);
             this.tbDesignLine.Width = 98;
             // 
-            // inputLabel1
-            // 
-            this.inputLabel1.Break = C1.Win.C1InputPanel.BreakType.Row;
-            this.inputLabel1.Name = "inputLabel1";
-            this.inputLabel1.Padding = new System.Windows.Forms.Padding(0, 40, 0, 0);
-            this.inputLabel1.Text = "mm";
-            // 
             // inputLabel2
             // 
             this.inputLabel2.Name = "inputLabel2";
             this.inputLabel2.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
             this.inputLabel2.Text = "mm";
-            // 
-            // inputLabel3
-            // 
-            this.inputLabel3.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
-            this.inputLabel3.Name = "inputLabel3";
-            this.inputLabel3.Padding = new System.Windows.Forms.Padding(0, 40, 0, 0);
-            this.inputLabel3.Text = "여분선";
-            this.inputLabel3.Width = 90;
             // 
             // Dialog상하각목
             // 

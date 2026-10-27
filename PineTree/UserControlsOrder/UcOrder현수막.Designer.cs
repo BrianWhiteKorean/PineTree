@@ -33,7 +33,10 @@ namespace PineTree.UserControlsOrder
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UcOrder현수막));
             this.c1SplitContainer1 = new C1.Win.C1SplitContainer.C1SplitContainer();
             this.c1SplitterPanel1 = new C1.Win.C1SplitContainer.C1SplitterPanel();
+            this.panel2 = new System.Windows.Forms.Panel();
+            this.FGrid1 = new C1.Win.C1FlexGrid.C1FlexGrid();
             this.c1InputPanel1 = new C1.Win.C1InputPanel.C1InputPanel();
+            this.inputGroupHeader1 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.inputLabel5 = new C1.Win.C1InputPanel.InputLabel();
             this.inputSeparator1 = new C1.Win.C1InputPanel.InputSeparator();
             this.inputLabel1 = new C1.Win.C1InputPanel.InputLabel();
@@ -63,18 +66,9 @@ namespace PineTree.UserControlsOrder
             this.tbEdgeBottom = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeLeft = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeRight = new C1.Win.C1InputPanel.InputNumericBox();
-            this.c1SplitterPanel2 = new C1.Win.C1SplitContainer.C1SplitterPanel();
-            this.panel1 = new System.Windows.Forms.Panel();
-            this.tbFileInfo = new C1.Win.C1Input.C1TextBox();
-            this.label1 = new System.Windows.Forms.Label();
             this.btnPreview = new C1.Win.C1InputPanel.InputButton();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.inputGroupHeader1 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.inputGroupHeader2 = new C1.Win.C1InputPanel.InputGroupHeader();
-            this.panel2 = new System.Windows.Forms.Panel();
             this.cbWork = new C1.Win.C1InputPanel.InputComboBox();
-            this.btnAdd = new C1.Win.C1InputPanel.InputButton();
-            this.FGrid1 = new C1.Win.C1FlexGrid.C1FlexGrid();
             this.inputOption1 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption2 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption3 = new C1.Win.C1InputPanel.InputOption();
@@ -82,16 +76,23 @@ namespace PineTree.UserControlsOrder
             this.inputOption9 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption10 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption11 = new C1.Win.C1InputPanel.InputOption();
+            this.btnAdd = new C1.Win.C1InputPanel.InputButton();
+            this.c1SplitterPanel2 = new C1.Win.C1SplitContainer.C1SplitterPanel();
+            this.pictureBox1 = new System.Windows.Forms.PictureBox();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.tbFileInfo = new C1.Win.C1Input.C1TextBox();
+            this.label1 = new System.Windows.Forms.Label();
+            this.inputOption12 = new C1.Win.C1InputPanel.InputOption();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel1)).BeginInit();
-            this.c1SplitterPanel2.SuspendLayout();
-            this.panel1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.tbFileInfo)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.FGrid1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel1)).BeginInit();
+            this.c1SplitterPanel2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+            this.panel1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.tbFileInfo)).BeginInit();
             this.SuspendLayout();
             // 
             // c1SplitContainer1
@@ -125,6 +126,27 @@ namespace PineTree.UserControlsOrder
             this.c1SplitterPanel1.TabIndex = 0;
             this.c1SplitterPanel1.Text = "편집정보";
             this.c1SplitterPanel1.Width = 504;
+            // 
+            // panel2
+            // 
+            this.panel2.Controls.Add(this.FGrid1);
+            this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panel2.Location = new System.Drawing.Point(0, 377);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(504, 288);
+            this.panel2.TabIndex = 1;
+            // 
+            // FGrid1
+            // 
+            this.FGrid1.AllowEditing = false;
+            this.FGrid1.AllowSorting = C1.Win.C1FlexGrid.AllowSortingEnum.None;
+            this.FGrid1.ColumnInfo = "10,0,0,0,0,100,Columns:";
+            this.FGrid1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.FGrid1.Location = new System.Drawing.Point(0, 0);
+            this.FGrid1.Name = "FGrid1";
+            this.FGrid1.Rows.DefaultSize = 20;
+            this.FGrid1.Size = new System.Drawing.Size(504, 288);
+            this.FGrid1.TabIndex = 7;
             // 
             // c1InputPanel1
             // 
@@ -165,6 +187,11 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Name = "c1InputPanel1";
             this.c1InputPanel1.Size = new System.Drawing.Size(504, 377);
             this.c1InputPanel1.TabIndex = 0;
+            // 
+            // inputGroupHeader1
+            // 
+            this.inputGroupHeader1.Name = "inputGroupHeader1";
+            this.inputGroupHeader1.Text = "기본 정보";
             // 
             // inputLabel5
             // 
@@ -382,49 +409,6 @@ namespace PineTree.UserControlsOrder
             this.tbEdgeRight.Name = "tbEdgeRight";
             this.tbEdgeRight.Width = 60;
             // 
-            // c1SplitterPanel2
-            // 
-            this.c1SplitterPanel2.Controls.Add(this.pictureBox1);
-            this.c1SplitterPanel2.Controls.Add(this.panel1);
-            this.c1SplitterPanel2.Height = 686;
-            this.c1SplitterPanel2.Location = new System.Drawing.Point(508, 21);
-            this.c1SplitterPanel2.Name = "c1SplitterPanel2";
-            this.c1SplitterPanel2.Size = new System.Drawing.Size(504, 665);
-            this.c1SplitterPanel2.TabIndex = 1;
-            this.c1SplitterPanel2.Text = "미리보기";
-            // 
-            // panel1
-            // 
-            this.panel1.Controls.Add(this.tbFileInfo);
-            this.panel1.Controls.Add(this.label1);
-            this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel1.Location = new System.Drawing.Point(0, 0);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(504, 67);
-            this.panel1.TabIndex = 1;
-            // 
-            // tbFileInfo
-            // 
-            this.tbFileInfo.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tbFileInfo.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.tbFileInfo.Location = new System.Drawing.Point(0, 22);
-            this.tbFileInfo.Multiline = true;
-            this.tbFileInfo.Name = "tbFileInfo";
-            this.tbFileInfo.Size = new System.Drawing.Size(504, 45);
-            this.tbFileInfo.TabIndex = 1;
-            this.tbFileInfo.Tag = null;
-            this.tbFileInfo.TextDetached = true;
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.ForeColor = System.Drawing.Color.White;
-            this.label1.Location = new System.Drawing.Point(4, 5);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(81, 12);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "원본파일 정보";
-            // 
             // btnPreview
             // 
             this.btnPreview.Height = 60;
@@ -434,68 +418,27 @@ namespace PineTree.UserControlsOrder
             this.btnPreview.Text = "출력 미리보기";
             this.btnPreview.Width = 342;
             // 
-            // pictureBox1
-            // 
-            this.pictureBox1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pictureBox1.Location = new System.Drawing.Point(0, 67);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(504, 598);
-            this.pictureBox1.TabIndex = 0;
-            this.pictureBox1.TabStop = false;
-            // 
-            // inputGroupHeader1
-            // 
-            this.inputGroupHeader1.Name = "inputGroupHeader1";
-            this.inputGroupHeader1.Text = "기본 정보";
-            // 
             // inputGroupHeader2
             // 
             this.inputGroupHeader2.Name = "inputGroupHeader2";
             this.inputGroupHeader2.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
             this.inputGroupHeader2.Text = "후가공 목록";
             // 
-            // panel2
-            // 
-            this.panel2.Controls.Add(this.FGrid1);
-            this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel2.Location = new System.Drawing.Point(0, 377);
-            this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(504, 288);
-            this.panel2.TabIndex = 1;
-            // 
             // cbWork
             // 
             this.cbWork.Break = C1.Win.C1InputPanel.BreakType.None;
             this.cbWork.DropDownStyle = C1.Win.C1InputPanel.InputComboBoxStyle.DropDownList;
             this.cbWork.Items.Add(this.inputOption1);
+            this.cbWork.Items.Add(this.inputOption11);
             this.cbWork.Items.Add(this.inputOption2);
+            this.cbWork.Items.Add(this.inputOption12);
             this.cbWork.Items.Add(this.inputOption3);
             this.cbWork.Items.Add(this.inputOption8);
             this.cbWork.Items.Add(this.inputOption9);
             this.cbWork.Items.Add(this.inputOption10);
-            this.cbWork.Items.Add(this.inputOption11);
             this.cbWork.Name = "cbWork";
             this.cbWork.Padding = new System.Windows.Forms.Padding(30, 5, 0, 0);
             this.cbWork.Width = 180;
-            // 
-            // btnAdd
-            // 
-            this.btnAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnAdd.Image")));
-            this.btnAdd.Name = "btnAdd";
-            this.btnAdd.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.btnAdd.Text = "추가";
-            // 
-            // FGrid1
-            // 
-            this.FGrid1.AllowEditing = false;
-            this.FGrid1.AllowSorting = C1.Win.C1FlexGrid.AllowSortingEnum.None;
-            this.FGrid1.ColumnInfo = "10,0,0,0,0,100,Columns:";
-            this.FGrid1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.FGrid1.Location = new System.Drawing.Point(0, 0);
-            this.FGrid1.Name = "FGrid1";
-            this.FGrid1.Rows.DefaultSize = 20;
-            this.FGrid1.Size = new System.Drawing.Size(504, 288);
-            this.FGrid1.TabIndex = 7;
             // 
             // inputOption1
             // 
@@ -532,6 +475,70 @@ namespace PineTree.UserControlsOrder
             this.inputOption11.Name = "inputOption11";
             this.inputOption11.Text = "재단";
             // 
+            // btnAdd
+            // 
+            this.btnAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnAdd.Image")));
+            this.btnAdd.Name = "btnAdd";
+            this.btnAdd.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.btnAdd.Text = "추가";
+            // 
+            // c1SplitterPanel2
+            // 
+            this.c1SplitterPanel2.Controls.Add(this.pictureBox1);
+            this.c1SplitterPanel2.Controls.Add(this.panel1);
+            this.c1SplitterPanel2.Height = 686;
+            this.c1SplitterPanel2.Location = new System.Drawing.Point(508, 21);
+            this.c1SplitterPanel2.Name = "c1SplitterPanel2";
+            this.c1SplitterPanel2.Size = new System.Drawing.Size(504, 665);
+            this.c1SplitterPanel2.TabIndex = 1;
+            this.c1SplitterPanel2.Text = "미리보기";
+            // 
+            // pictureBox1
+            // 
+            this.pictureBox1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pictureBox1.Location = new System.Drawing.Point(0, 67);
+            this.pictureBox1.Name = "pictureBox1";
+            this.pictureBox1.Size = new System.Drawing.Size(504, 598);
+            this.pictureBox1.TabIndex = 0;
+            this.pictureBox1.TabStop = false;
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.tbFileInfo);
+            this.panel1.Controls.Add(this.label1);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panel1.Location = new System.Drawing.Point(0, 0);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(504, 67);
+            this.panel1.TabIndex = 1;
+            // 
+            // tbFileInfo
+            // 
+            this.tbFileInfo.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.tbFileInfo.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.tbFileInfo.Location = new System.Drawing.Point(0, 22);
+            this.tbFileInfo.Multiline = true;
+            this.tbFileInfo.Name = "tbFileInfo";
+            this.tbFileInfo.Size = new System.Drawing.Size(504, 45);
+            this.tbFileInfo.TabIndex = 1;
+            this.tbFileInfo.Tag = null;
+            this.tbFileInfo.TextDetached = true;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.ForeColor = System.Drawing.Color.White;
+            this.label1.Location = new System.Drawing.Point(4, 5);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(81, 12);
+            this.label1.TabIndex = 0;
+            this.label1.Text = "원본파일 정보";
+            // 
+            // inputOption12
+            // 
+            this.inputOption12.Name = "inputOption12";
+            this.inputOption12.Text = "상하각목";
+            // 
             // UcOrder현수막
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
@@ -542,14 +549,14 @@ namespace PineTree.UserControlsOrder
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).EndInit();
             this.c1SplitContainer1.ResumeLayout(false);
             this.c1SplitterPanel1.ResumeLayout(false);
+            this.panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.FGrid1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel1)).EndInit();
             this.c1SplitterPanel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbFileInfo)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
-            this.panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.FGrid1)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -607,5 +614,6 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputOption inputOption9;
         private C1.Win.C1InputPanel.InputOption inputOption10;
         private C1.Win.C1InputPanel.InputOption inputOption11;
+        private C1.Win.C1InputPanel.InputOption inputOption12;
     }
 }

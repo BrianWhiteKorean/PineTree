@@ -35,12 +35,17 @@ namespace PineTree.PdfEngine
         public bool MakeWoodDesignLine { get; set; }
         public double WoodDesignOffsetMm { get; set; }
 
+        public bool MakeWoodTopBottom { get; set; }
+        public double WoodTopBottomExtraMm { get; set; }
+        public bool MakeWoodTopBottomDesignLine { get; set; }
+        public double WoodTopBottomDesignOffsetMm { get; set; }
+
         public int GetMarkCount()
         {
             if (!MakeHole) return 0;
             if (HoleType == "FOUR_CORNERS") return 4;
             double horizontal = Math.Ceiling((TargetWidthMm + (MakeWood ? 2 * WoodExtraMm : 0) - 2 * MarkLeftRightMm) / HoleSpacingMm);
-            double vertical = Math.Ceiling((TargetHeightMm - 2 * MarkTopBottomMm) / HoleSpacingMm);
+            double vertical = Math.Ceiling((TargetHeightMm + (MakeWoodTopBottom ? 2 * WoodTopBottomExtraMm : 0) - 2 * MarkTopBottomMm) / HoleSpacingMm);
             double count = 2 * (horizontal + vertical);
             if (double.IsNaN(count) || double.IsInfinity(count) || count > 2000)
                 throw new ArgumentException("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.");
@@ -50,15 +55,18 @@ namespace PineTree.PdfEngine
         public void Validate()
         {
             foreach (double value in new[] { TargetWidthMm, TargetHeightMm, EdgeTopMm, EdgeBottomMm,
-                EdgeLeftMm, EdgeRightMm, LineWidthMm, MarkLeftRightMm, MarkTopBottomMm, HoleSpacingMm, WoodExtraMm, WoodDesignOffsetMm })
+                EdgeLeftMm, EdgeRightMm, LineWidthMm, MarkLeftRightMm, MarkTopBottomMm, HoleSpacingMm, WoodExtraMm, WoodDesignOffsetMm, WoodTopBottomExtraMm, WoodTopBottomDesignOffsetMm })
                 if (double.IsNaN(value) || double.IsInfinity(value)) throw new ArgumentException("유효한 숫자를 입력해주세요.");
             if (TargetWidthMm <= 0 || TargetHeightMm <= 0 || TargetWidthMm + EdgeLeftMm + EdgeRightMm + (MakeWood ? 2 * WoodExtraMm : 0) > 14400
-                || TargetHeightMm + EdgeTopMm + EdgeBottomMm > 14400)
+                || TargetHeightMm + EdgeTopMm + EdgeBottomMm + (MakeWoodTopBottom ? 2 * WoodTopBottomExtraMm : 0) > 14400)
                 throw new ArgumentException("완성 가로·세로는 양수이며 가장자리를 포함한 출력 크기는 14,400mm 이하여야 합니다.");
             if (EdgeTopMm < 0 || EdgeBottomMm < 0 || EdgeLeftMm < 0 || EdgeRightMm < 0)
                 throw new ArgumentException("가장자리 여유는 0 이상이어야 합니다.");
             if (MakeWood && (WoodExtraMm < 0 || WoodDesignOffsetMm < 0 || (MakeWoodDesignLine && WoodDesignOffsetMm > WoodExtraMm)))
                 throw new ArgumentException("좌우각목 여백은 0 이상, 디자인선 이격은 추가 여백 이내로 입력해주세요.");
+            if (MakeWoodTopBottom && (WoodTopBottomExtraMm < 0 || WoodTopBottomDesignOffsetMm < 0
+                || (MakeWoodTopBottomDesignLine && WoodTopBottomDesignOffsetMm > WoodTopBottomExtraMm)))
+                throw new ArgumentException("상하각목 여백은 0 이상, 디자인선 이격은 추가 여백 이내로 입력해주세요.");
             if (FitMode != "CONTAIN" && FitMode != "COVER") throw new ArgumentException("배치방식을 선택해주세요.");
             if (MakeCutline && (LineWidthMm <= 0 || LineWidthMm > 10 || string.IsNullOrWhiteSpace(SpotColorName)
                 || SpotColorName.Length > 100 || SpotColorName.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0))
@@ -67,7 +75,7 @@ namespace PineTree.PdfEngine
             {
                 if (HoleType != "FOUR_CORNERS" && HoleType != "CUSTOM_SPACING") throw new ArgumentException("타공 배치를 선택해주세요.");
                 if (MarkLeftRightMm < 2.5 || MarkTopBottomMm < 2.5 || 2 * MarkLeftRightMm >= TargetWidthMm + (MakeWood ? 2 * WoodExtraMm : 0)
-                    || 2 * MarkTopBottomMm >= TargetHeightMm)
+                    || 2 * MarkTopBottomMm >= TargetHeightMm + (MakeWoodTopBottom ? 2 * WoodTopBottomExtraMm : 0))
                     throw new ArgumentException("마크 안쪽 거리는 2.5mm 이상이며 완성 가로·세로의 절반보다 작아야 합니다.");
                 if (HoleType == "CUSTOM_SPACING" && HoleSpacingMm <= 0) throw new ArgumentException("타공 최대 간격은 양수여야 합니다.");
                 GetMarkCount();

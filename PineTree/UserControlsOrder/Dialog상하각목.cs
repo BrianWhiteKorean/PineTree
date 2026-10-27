@@ -7,7 +7,7 @@ namespace PineTree.UserControlsOrder
     public partial class Dialog상하각목 : Form, IPostProcessDialog
     {
         public OrderPostProcessSetting Setting { get; private set; }
-        public Dialog상하각목() : this(OrderPostProcessSetting.Create("WOOD")) { }
+        public Dialog상하각목() : this(OrderPostProcessSetting.Create("WOOD_TB")) { }
         public Dialog상하각목(OrderPostProcessSetting setting)
         {
             InitializeComponent();
@@ -18,10 +18,10 @@ namespace PineTree.UserControlsOrder
             tbDesignLine.Enabled = chkDesignLine.Checked;
             chkDesignLine.CheckedChanged += delegate { tbDesignLine.Enabled = chkDesignLine.Checked; };
             tbExtraLine.ToolTipText = "상하 각각 추가할 흰 여백(mm). 빈값은 0 / 원본 그림 크기는 유지합니다.";
-            tbDesignLine.ToolTipText = "원본 이미지의 상하 경계에서 여백 쪽으로 이격(mm). 이 값으로 출력 폭을 더 늘리지 않습니다.";
+            tbDesignLine.ToolTipText = "원본 이미지의 상하 경계에서 여백 쪽으로 이격(mm). 이 값으로 출력 높이를 더 늘리지 않습니다.";
             PostProcessDialogBinding.Bind(this, btnOK, btnCancel, () => {
                 var value = draft.Copy();
-                value.Parameters.TypeCode = "LEFT_RIGHT";
+                value.Parameters.TypeCode = "TOP_BOTTOM";
                 value.Parameters.ExtraLineMm = ReadOrZero(tbExtraLine);
                 value.Parameters.DimensionMm = value.Parameters.ExtraLineMm.Value;
                 value.Parameters.MakeDesignLine = chkDesignLine.Checked;

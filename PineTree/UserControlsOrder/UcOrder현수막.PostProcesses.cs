@@ -65,7 +65,7 @@ namespace PineTree.UserControlsOrder
                 for(int i=0;i<_postProcesses.Count;i++) {
                     var item = _postProcesses[i]; item.SeqNo = i+1; int row = i + FGrid1.Rows.Fixed;
                     FGrid1[row, "SeqNo"] = item.SeqNo; FGrid1[row,"ProcessName"] = item.ProcessName;
-                    FGrid1[row,"Summary"] = item.Summary(FinishedWidthMm(),HeightMm); FGrid1[row,"Delete"] = "삭제";
+                    FGrid1[row,"Summary"] = item.Summary(FinishedWidthMm(),FinishedHeightMm()); FGrid1[row,"Delete"] = "삭제";
                     FGrid1.Rows[row].UserData = item;
                 }
                 if (_postProcesses.Count > 0) FGrid1.Row = Math.Max(FGrid1.Rows.Fixed, Math.Min(selected,FGrid1.Rows.Count-1));
@@ -76,8 +76,9 @@ namespace PineTree.UserControlsOrder
         private Form CreatePostProcessDialog(OrderPostProcessSetting setting)
         {
             switch(setting.ProcessCode) {
-                case "HOLE": return new Dialog타공마크(setting,FinishedWidthMm(),HeightMm);
+                case "HOLE": return new Dialog타공마크(setting,FinishedWidthMm(),FinishedHeightMm());
                 case "WOOD": return new Dialog좌우각목(setting);
+                case "WOOD_TB": return new Dialog상하각목(setting);
                 case "POLE_SEW": return new Dialog봉미싱(setting);
                 case "HEM_SEW": return new Dialog사방시접미싱(setting);
                 case "BAND_SEW": return new Dialog밴드미싱(setting);
@@ -89,9 +90,9 @@ namespace PineTree.UserControlsOrder
         private void AddPostProcess()
         {
             if(_generating || cbWork.SelectedIndex < 0) return;
-            string code = OrderPostProcessSetting.Codes[cbWork.SelectedIndex];
+            string code = OrderPostProcessSetting.CodeForName(cbWork.SelectedOption.Text);
             int existing = _postProcesses.FindIndex(x => x.ProcessCode == code);
-            if((code == "CUT" || code == "HOLE" || code == "WOOD") && existing >= 0) { EditPostProcess(existing); return; }
+            if((code == "CUT" || code == "HOLE" || code == "WOOD" || code == "WOOD_TB") && existing >= 0) { EditPostProcess(existing); return; }
             using(var dialog = CreatePostProcessDialog(OrderPostProcessSetting.Create(code))) {
                 if(dialog.ShowDialog(this) != DialogResult.OK) return;
                 CommitPostProcess(-1, ((IPostProcessDialog)dialog).Setting);
@@ -123,6 +124,11 @@ namespace PineTree.UserControlsOrder
             var wood = _postProcesses.Find(item => item.ProcessCode == "WOOD");
             return WidthMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
         }
+        private decimal FinishedHeightMm()
+        {
+            var wood = _postProcesses.Find(item => item.ProcessCode == "WOOD_TB");
+            return HeightMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
+        }
         private void ApplyPostProcessesToPdf(PdfGenerationSettings settings)
         {
             foreach(var item in _postProcesses) {
@@ -132,17 +138,22 @@ namespace PineTree.UserControlsOrder
                     settings.LineWidthMm = (double)p.LineWidthMm; settings.SpotColorName = p.SpotColorName;
                 }
                 else if(item.ProcessCode == "HOLE") {
-                    item.GetMarkCount(FinishedWidthMm(),HeightMm);
+                    item.GetMarkCount(FinishedWidthMm(),FinishedHeightMm());
                     settings.MakeHole = true; settings.HoleType = p.TypeCode;
                     settings.MarkLeftRightMm = (double)p.MarkLeftRightMm; settings.MarkTopBottomMm = (double)p.MarkTopBottomMm;
                     settings.HoleSpacingMm = (double)p.HoleSpacingMm;
                 }
                 else if(item.ProcessCode == "WOOD") {
-                    if(p.TypeCode != "LEFT_RIGHT") throw new ArgumentException("상하각목은 아직 PDF 규칙이 없습니다. 좌우각목 설정을 다시 선택해주세요.");
                     settings.MakeWood = true;
                     settings.WoodExtraMm = (double)(p.ExtraLineMm ?? p.DimensionMm);
                     settings.MakeWoodDesignLine = p.MakeDesignLine;
                     settings.WoodDesignOffsetMm = (double)p.DesignLineMm;
+                }
+                else if(item.ProcessCode == "WOOD_TB") {
+                    settings.MakeWoodTopBottom = true;
+                    settings.WoodTopBottomExtraMm = (double)(p.ExtraLineMm ?? p.DimensionMm);
+                    settings.MakeWoodTopBottomDesignLine = p.MakeDesignLine;
+                    settings.WoodTopBottomDesignOffsetMm = (double)p.DesignLineMm;
                 }
                 // Sewing PDF rules are pending customer confirmation.
             }

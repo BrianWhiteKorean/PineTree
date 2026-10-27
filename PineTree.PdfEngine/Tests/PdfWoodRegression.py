@@ -13,7 +13,7 @@ SAMPLES=PROJECT.parents[1]/'1.요구분석/1026'
 SOURCE=SAMPLES/'현수막_좌우각목_8000x600_1EA.ai'
 REFERENCE=SOURCE.with_suffix('.pdf')
 
-def vertical_lines(page):
+def guide_lines(page, vertical=True):
     # This reference's guides are page-level process-black straight strokes.
     matrix=(1,0,0,1,0,0);stack=[];width=1;path=[];result=[]
     def point(values):
@@ -31,10 +31,14 @@ def vertical_lines(page):
         elif op==b'S':
             if len(path)==2 and path[0][0]==b'm' and path[1][0]==b'l':
                 a,b=path[0][1],path[1][1]
-                if abs(a[0]-b[0])<.0001:result.append((a[0],min(a[1],b[1]),abs(a[1]-b[1]),width))
+                if vertical and abs(a[0]-b[0])<.0001:result.append((a[0],min(a[1],b[1]),abs(a[1]-b[1]),width))
+                if not vertical and abs(a[1]-b[1])<.0001:result.append((a[1],min(a[0],b[0]),abs(a[0]-b[0]),width))
             path=[]
         elif op in (b'f',b'f*',b'F',b'B',b'B*',b'n',b's',b'b',b'b*'):path=[]
     return sorted(result)
+
+def vertical_lines(page): return guide_lines(page)
+def horizontal_lines(page): return guide_lines(page,False)
 
 class WoodTests(unittest.TestCase):
     def setUp(self):
@@ -85,5 +89,49 @@ class WoodTests(unittest.TestCase):
         for extra,offset in ((-1,0),(8,-1),(8,9)):
             with self.subTest(extra=extra,offset=offset):
                 with self.assertRaises(ValueError):self.generate(extra=extra,offset=offset)
+
+class TopBottomTests(unittest.TestCase):
+    setUp = WoodTests.setUp
+    tearDown = WoodTests.tearDown
+    generate = WoodTests.generate
+    def top(self,extra=12,design=True,offset=4,**changes):
+        return self.generate(extra=0,design=False,MakeWood=False,MakeWoodTopBottom=True,
+            WoodTopBottomExtraMm=extra,MakeWoodTopBottomDesignLine=design,WoodTopBottomDesignOffsetMm=offset,**changes)
+    def test_top_bottom_geometry_and_offset(self):
+        result,reader,_=self.top()
+        self.assertAlmostEqual(result['OutputWidthMm'],800,places=5)
+        self.assertAlmostEqual(result['OutputHeightMm'],83,places=5)
+        lines=horizontal_lines(reader.pages[0]);self.assertEqual(len(lines),4)
+        for line,expected in zip(lines,[.17/worker.MM/2,8,75,83-.17/worker.MM/2]):
+            self.assertAlmostEqual(line[0],expected,places=5)
+            self.assertAlmostEqual(line[2],800,places=5)
+        self.assertEqual(vertical_lines(reader.pages[0]),[])
+        _,page,path=self.top(offset=0)
+        self.assertAlmostEqual(float(page.pages[0].mediabox.height)/worker.MM,83,places=5)
+    def test_top_blank_and_design_off(self):
+        result,page,_=self.top(design=False)
+        self.assertEqual(len(horizontal_lines(page.pages[0])),2)
+        result,page,_=self.top(extra=0,design=False,offset=0)
+        self.assertAlmostEqual(result['OutputHeightMm'],59,places=5)
+        self.assertEqual(horizontal_lines(page.pages[0]),[])
+    def test_top_after_ten_times_zoom_is_absolute(self):
+        result,page,_=self.top(extra=80,offset=20,TargetWidthMm=8000,TargetHeightMm=590)
+        self.assertAlmostEqual(result['OutputHeightMm'],750,places=5)
+        ys=[line[0] for line in horizontal_lines(page.pages[0])]
+        self.assertAlmostEqual(ys[1],60,places=5)
+        self.assertAlmostEqual(ys[2],690,places=5)
+    def test_both_axes_and_cut_holes(self):
+        result,page,_=self.generate(extra=8,design=True,MakeWoodTopBottom=True,WoodTopBottomExtraMm=12,
+            MakeWoodTopBottomDesignLine=True,WoodTopBottomDesignOffsetMm=4,MakeCutline=True,MakeHole=True,
+            EdgeTopMm=2,EdgeBottomMm=2,EdgeLeftMm=2,EdgeRightMm=2)
+        self.assertAlmostEqual(result['OutputWidthMm'],820,places=5)
+        self.assertAlmostEqual(result['OutputHeightMm'],87,places=5)
+        self.assertEqual(result['MarkCount'],4)
+        self.assertEqual(len(vertical_lines(page.pages[0])),4)
+        self.assertEqual(len(horizontal_lines(page.pages[0])),4)
+        self.assertAlmostEqual(float(page.pages[0].trimbox.height)/worker.MM,83,places=5)
+    def test_top_invalid_settings(self):
+        for extra,offset in [(-1,0),(12,-1),(12,13)]:
+            with self.assertRaises(ValueError):self.top(extra=extra,offset=offset)
 
 if __name__=='__main__':unittest.main(verbosity=2)

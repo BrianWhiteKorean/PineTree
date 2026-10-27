@@ -41,6 +41,7 @@ Parameters는 공용 DTO로 직렬화하므로 해당 후가공에서 사용하�
 | HOLE | 타공 | TypeCode, MarkLeftRightMm, MarkTopBottomMm, HoleSpacingMm | 반영 |
 | CUT | 재단 | TypeCode, LineWidthMm, ColorMode, SpotColorName, FromSource | 기존 재단선 기능 반영 |
 | WOOD | 좌우각목 | TypeCode, ExtraLineMm, MakeDesignLine, DesignLineMm | 좌우 흰 여백·여분선·디자인선 반영 |
+| WOOD_TB | 상하각목 | TypeCode, ExtraLineMm, MakeDesignLine, DesignLineMm | 상하 흰 여백·여분선·디자인선 반영 |
 | POLE_SEW | 봉미싱 | TypeCode, DimensionMm, MakeSlit | 입력·저장·표시 |
 | HEM_SEW | 사방시접미싱 | TypeCode, DimensionMm | 입력·저장·표시 |
 | BAND_SEW | 밴드미싱 | TypeCode, DimensionMm | 입력·저장·표시 |
@@ -72,3 +73,14 @@ Parameters는 공용 DTO로 직렬화하므로 해당 후가공에서 사용하�
 - 고객사 샘플은 PDF 내부 치수 기준 원본 약 800×59mm, 좌우 여분 각 8.03mm, 디자인선 이격 0mm, 도련 0일 때 약 816.06×59mm입니다.
 - 고객사 완성본과 동일하게 좌우각목 작업에서는 4채널 CMYK 별칭을 DeviceCMYK로 출력합니다. RGB 프로파일·별색·이미지의 색공간은 유지합니다.
 - 추가 DB 테이블이나 컬럼 변경 없이 기존 StateJSON에서 저장·복원합니다.
+
+## 상하각목
+
+- `ProcessCode = WOOD_TB`, `TypeCode = TOP_BOTTOM`으로 좌우각목과 별도로 저장합니다.
+- `Dialog상하각목`의 여분선 빈값은 0입니다. 상하 각각 입력한 절대 mm만큼 흰 여백을 추가합니다.
+- 디자인선 체크 시 원본 상단에서 위쪽, 하단에서 아래쪽으로 입력 mm만큼 이격합니다. 디자인선 자체로 출력 높이를 더 늘리지 않습니다.
+- 확대비율은 원본 그림에만 적용하고 여분선·디자인선 값에는 곱하지 않습니다.
+- 출력 높이 = 목표 그림 높이 + 2 × 상하 여분 + 상하 도련입니다. 출력 폭에는 상하각목이 영향을 주지 않습니다.
+- 좌우각목과 동시 적용할 수 있고 각각 한 건씩 수정·삭제합니다. 재단·타공은 양쪽 각목을 포함한 완성 영역을 기준으로 합니다.
+- 기존 JSON의 `WOOD/TOP_BOTTOM`은 불러올 때 `WOOD_TB/TOP_BOTTOM`으로 변환합니다. 별도 DB 변경은 없습니다.
+- 콤보박스는 표시 이름과 작업 코드를 연결하므로 디자이너에서 항목 순서를 바꿔도 다른 작업이 호출되지 않습니다.
