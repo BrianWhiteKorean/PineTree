@@ -1,0 +1,4 @@
+﻿에이전트 : Codex 이용
+
+파일 업로드 경로 : /opt/lampp/htdocs/pinetreeupdate/releases
+

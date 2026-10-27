@@ -1,0 +1,564 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="packages\Costura.Fody.6.2.0\build\Costura.Fody.props" Condition="Exists('packages\Costura.Fody.6.2.0\build\Costura.Fody.props')" />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A45F06B2-D0D5-4A42-9A96-C8E89FD81600}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>PineTree</RootNamespace>
+    <AssemblyName>PineTree</AssemblyName>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>PineTree1.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="C1.Win.4, Version=4.0.20171.248, Culture=neutral, PublicKeyToken=944ae1ea0e47ca04" />
+    <Reference Include="C1.Win.C1Command.4, Version=4.0.20171.248, Culture=neutral, PublicKeyToken=e808566f358766d8" />
+    <Reference Include="C1.Win.C1FlexGrid.4, Version=4.0.20171.248, Culture=neutral, PublicKeyToken=79882d576c6336da, processorArchitecture=MSIL" />
+    <Reference Include="C1.Win.C1Input.4, Version=4.0.20171.248, Culture=neutral, PublicKeyToken=7e7ff60f0c214f9a, processorArchitecture=MSIL" />
+    <Reference Include="C1.Win.C1InputPanel.4, Version=4.0.20171.248, Culture=neutral, PublicKeyToken=79882d576c6336da, processorArchitecture=MSIL" />
+    <Reference Include="C1.Win.C1SplitContainer.4, Version=4.0.20171.248, Culture=neutral, PublicKeyToken=79882d576c6336da, processorArchitecture=MSIL" />
+    <Reference Include="Costura, Version=6.2.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
+      <HintPath>packages\Costura.Fody.6.2.0\lib\netstandard2.0\Costura.dll</HintPath>
+    </Reference>
+    <Reference Include="MySql.Data">
+      <HintPath>dll\MySql.Data.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Classes\AppScreen.cs" />
+    <Compile Include="Classes\ClassDefines.cs" />
+    <Compile Include="Classes\iniUtil.cs" />
+    <Compile Include="Classes\NetworkUtility.cs" />
+    <Compile Include="Dialogs\LoginDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\LoginDlg.Designer.cs">
+      <DependentUpon>LoginDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Classes\CommonCodeRepository.cs" />
+    <Compile Include="Classes\ProcessRuleData.cs" />
+    <Compile Include="Classes\ProcessRuleRepository.cs" />
+    <Compile Include="Classes\CustomerRepository.cs" />
+    <Compile Include="Classes\DB.cs" />
+    <Compile Include="Classes\DoubleBufferedPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Classes\INavigationView.cs" />
+    <Compile Include="Classes\NavigationController.cs" />
+    <Compile Include="Classes\NavigationMap.cs" />
+    <Compile Include="Classes\NavigationRequestedEventArgs.cs" />
+    <Compile Include="Classes\MenuItemInfo.cs" />
+    <Compile Include="Classes\MenuSelectedEventArgs.cs" />
+    <Compile Include="Classes\MainStatusBoardLayout.cs" />
+    <Compile Include="Classes\OrderProductionStatus.cs" />
+    <Compile Include="Classes\OrderRepository.cs" />
+    <Compile Include="Classes\BannerOrderEditorState.cs" />
+    <Compile Include="Classes\OrderPostProcessSetting.cs" />
+    <Compile Include="UserControlsOrder\PostProcessDialogBinding.cs" />
+    <Compile Include="UserControlsOrder\UcOrder현수막.PostProcesses.cs">
+      <DependentUpon>UcOrder현수막.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Classes\OrderItemEditorStateRepository.cs" />
+    <Compile Include="Dialogs\DialogDocumentPreview.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Classes\OrderProcessRuleRepository.cs" />
+    <Compile Include="Classes\OrderProcessRuleEditor.cs" />
+    <Compile Include="Classes\PriceItemRepository.cs" />
+    <Compile Include="Classes\ScreenFactory.cs" />
+    <Compile Include="Classes\UiTheme.cs" />
+    <Compile Include="Dialogs\DialogCommonCode.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogCommonCode.designer.cs">
+      <DependentUpon>DialogCommonCode.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderBackup.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderBackup.Designer.cs">
+      <DependentUpon>DialogOrderBackup.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderOld.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderOld.Designer.cs">
+      <DependentUpon>DialogOrderOld.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrder.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrder.Designer.cs">
+      <DependentUpon>DialogOrder.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogPriceItem.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogPriceItem.Designer.cs">
+      <DependentUpon>DialogPriceItem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogCustInfo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogCustInfo.Designer.cs">
+      <DependentUpon>DialogCustInfo.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderItem.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderItem.Designer.cs">
+      <DependentUpon>DialogOrderItem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogPriceItemListExclusive.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogPriceItemListExclusive.Designer.cs">
+      <DependentUpon>DialogPriceItemListExclusive.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogProcessRuleOrder.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogProcessRuleOrder.Designer.cs">
+      <DependentUpon>DialogProcessRuleOrder.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogProcessRule.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogProcessRule.Designer.cs">
+      <DependentUpon>DialogProcessRule.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderInfoEdit.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderInfoEdit.Designer.cs">
+      <DependentUpon>DialogOrderInfoEdit.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogProcessRuleList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogProcessRuleList.Designer.cs">
+      <DependentUpon>DialogProcessRuleList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogPriceItemList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogPriceItemList.Designer.cs">
+      <DependentUpon>DialogPriceItemList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogCustList.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogCustList.Designer.cs">
+      <DependentUpon>DialogCustList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogBase.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogBase.Designer.cs">
+      <DependentUpon>DialogBase.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogProgressbar.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogProgressbar.Designer.cs">
+      <DependentUpon>DialogProgressbar.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\FormMain.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\FormMain.Designer.cs">
+      <DependentUpon>FormMain.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UserControlsOrder\Dialog좌우각목.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog좌우각목.Designer.cs">
+      <DependentUpon>Dialog좌우각목.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog사방줄미싱.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog사방줄미싱.Designer.cs">
+      <DependentUpon>Dialog사방줄미싱.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog밴드미싱.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog밴드미싱.Designer.cs">
+      <DependentUpon>Dialog밴드미싱.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog사방시접미싱.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog사방시접미싱.Designer.cs">
+      <DependentUpon>Dialog사방시접미싱.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog봉미싱.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog봉미싱.Designer.cs">
+      <DependentUpon>Dialog봉미싱.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog타공마크.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog타공마크.Designer.cs">
+      <DependentUpon>Dialog타공마크.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog후가공기본.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog후가공기본.Designer.cs">
+      <DependentUpon>Dialog후가공기본.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog재단선.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dialog재단선.Designer.cs">
+      <DependentUpon>Dialog재단선.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder가격정보.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder가격정보.Designer.cs">
+      <DependentUpon>UcOrder가격정보.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcProcessRule.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcProcessRule.Designer.cs">
+      <DependentUpon>UcProcessRule.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcCommonCode.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcCommonCode.Designer.cs">
+      <DependentUpon>UcCommonCode.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcConfig.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcConfig.Designer.cs">
+      <DependentUpon>UcConfig.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder현수막.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder현수막.Designer.cs">
+      <DependentUpon>UcOrder현수막.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrderBase.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrderBase.Designer.cs">
+      <DependentUpon>UcOrderBase.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcOrderInfo.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcOrderInfo.Designer.cs">
+      <DependentUpon>UcOrderInfo.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcCustInfo.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcCustInfo.Designer.cs">
+      <DependentUpon>UcCustInfo.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcPriceItems.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcPriceItems.Designer.cs">
+      <DependentUpon>UcPriceItems.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\RoundedPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="UserControls\PagedGrid.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcContainer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcDashboardHome.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcMenu.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcMain.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcMain.Designer.cs">
+      <DependentUpon>UcMain.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcPlaceholderPage.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcProcessRuleType1.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcProcessRuleType1.Designer.cs">
+      <DependentUpon>UcProcessRuleType1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcProcessRuleSummary.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcProcessRuleSummary.Designer.cs">
+      <DependentUpon>UcProcessRuleSummary.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcTopBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <EmbeddedResource Include="Dialogs\DialogCommonCode.resx">
+      <DependentUpon>DialogCommonCode.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\LoginDlg.resx">
+      <DependentUpon>LoginDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrderBackup.resx">
+      <DependentUpon>DialogOrderBackup.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrderOld.resx">
+      <DependentUpon>DialogOrderOld.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrder.resx">
+      <DependentUpon>DialogOrder.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogPriceItem.resx">
+      <DependentUpon>DialogPriceItem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogCustInfo.resx">
+      <DependentUpon>DialogCustInfo.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrderItem.resx">
+      <DependentUpon>DialogOrderItem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogPriceItemListExclusive.resx">
+      <DependentUpon>DialogPriceItemListExclusive.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogProcessRuleOrder.resx">
+      <DependentUpon>DialogProcessRuleOrder.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogProcessRule.resx">
+      <DependentUpon>DialogProcessRule.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrderInfoEdit.resx">
+      <DependentUpon>DialogOrderInfoEdit.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogProcessRuleList.resx">
+      <DependentUpon>DialogProcessRuleList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogPriceItemList.resx">
+      <DependentUpon>DialogPriceItemList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogCustList.resx">
+      <DependentUpon>DialogCustList.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogBase.resx">
+      <DependentUpon>DialogBase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogProgressbar.resx">
+      <DependentUpon>DialogProgressbar.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\FormMain.resx">
+      <DependentUpon>FormMain.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\licenses.licx" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <EmbeddedResource Include="UserControlsOrder\Dialog좌우각목.resx">
+      <DependentUpon>Dialog좌우각목.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog사방줄미싱.resx">
+      <DependentUpon>Dialog사방줄미싱.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog밴드미싱.resx">
+      <DependentUpon>Dialog밴드미싱.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog사방시접미싱.resx">
+      <DependentUpon>Dialog사방시접미싱.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog봉미싱.resx">
+      <DependentUpon>Dialog봉미싱.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog타공마크.resx">
+      <DependentUpon>Dialog타공마크.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog후가공기본.resx">
+      <DependentUpon>Dialog후가공기본.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dialog재단선.resx">
+      <DependentUpon>Dialog재단선.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\UcOrder가격정보.resx">
+      <DependentUpon>UcOrder가격정보.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcProcessRule.resx">
+      <DependentUpon>UcProcessRule.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcCommonCode.resx">
+      <DependentUpon>UcCommonCode.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcConfig.resx">
+      <DependentUpon>UcConfig.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\UcOrder현수막.resx">
+      <DependentUpon>UcOrder현수막.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\UcOrderBase.resx">
+      <DependentUpon>UcOrderBase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcOrderInfo.resx">
+      <DependentUpon>UcOrderInfo.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcCustInfo.resx">
+      <DependentUpon>UcCustInfo.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcPriceItems.resx">
+      <DependentUpon>UcPriceItems.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcMain.resx">
+      <DependentUpon>UcMain.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcProcessRuleType1.resx">
+      <DependentUpon>UcProcessRuleType1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcProcessRuleSummary.resx">
+      <DependentUpon>UcProcessRuleSummary.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="dll\MySql.Data.dll" />
+    <None Include="Resources\BackConfig.png" />
+    <None Include="Resources\BackCustInfo_Sample.png" />
+    <None Include="Resources\BackMain_Sample.png" />
+    <None Include="Resources\BackPriceItems_Sample.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BackMain_01.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="FodyWeavers.xml" />
+    <Content Include="PineTree1.ico" />
+    <Content Include="개발메모.txt" />
+    <None Include="Resources\규칙삭제.png" />
+    <None Include="Resources\규칙추가.png" />
+    <None Include="Resources\Check_None.png" />
+    <None Include="Resources\Check_Work.png" />
+    <None Include="Resources\Arrow_Right.png" />
+    <None Include="Resources\Arrow_Left.png" />
+    <None Include="Resources\BackPriceItems.png" />
+    <None Include="Resources\BackCustInfo.png" />
+    <None Include="Resources\환경설정_Selected.png" />
+    <None Include="Resources\환경설정_Normal.png" />
+    <None Include="Resources\출력물관리_Selected.png" />
+    <None Include="Resources\출력물관리_Normal.png" />
+    <None Include="Resources\주문관리_Selected.png" />
+    <None Include="Resources\주문관리_Normal.png" />
+    <None Include="Resources\정산관리_Selected.png" />
+    <None Include="Resources\정산관리_Normal.png" />
+    <None Include="Resources\상품관리_Selected.png" />
+    <None Include="Resources\상품관리_Normal.png" />
+    <None Include="Resources\메인_Selected.png" />
+    <None Include="Resources\메인_Normal.png" />
+    <None Include="Resources\공정관리_Selected.png" />
+    <None Include="Resources\공정관리_Normal.png" />
+    <None Include="Resources\고객정보_Selected.png" />
+    <None Include="Resources\고객정보_Normal.png" />
+    <None Include="Resources\조회_Normal.png" />
+    <None Include="Resources\조회_Clicked.png" />
+    <None Include="Resources\BackMain_02.png" />
+    <None Include="Resources\완료대기_Selected.png" />
+    <None Include="Resources\완료대기_Normal.png" />
+    <None Include="Resources\컷팅대기_Selected.png" />
+    <None Include="Resources\컷팅대기_Normal.png" />
+    <None Include="Resources\출력대기_Selected.png" />
+    <None Include="Resources\출력대기_Normal.png" />
+    <None Include="Resources\현재주문_Selected.png" />
+    <None Include="Resources\현재주문_Normal.png" />
+    <None Include="Resources\새주문등록_Normal.png" />
+    <None Include="Resources\새주문등록_Click.png" />
+    <None Include="Resources\주문번호_거래처검색.png" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\PineTree.PdfEngine\PineTree.PdfEngine.csproj">
+      <Project>{83df8627-f2b9-452e-bc17-78d45acbaf84}</Project>
+      <Name>PineTree.PdfEngine</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="packages\Fody.6.9.3\build\Fody.targets" Condition="Exists('packages\Fody.6.9.3\build\Fody.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>이 프로젝트는 이 컴퓨터에 없는 NuGet 패키지를 참조합니다. 해당 패키지를 다운로드하려면 NuGet 패키지 복원을 사용하십시오. 자세한 내용은 http://go.microsoft.com/fwlink/?LinkID=322105를 참조하십시오. 누락된 파일은 {0}입니다.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\Fody.6.9.3\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Fody.6.9.3\build\Fody.targets'))" />
+    <Error Condition="!Exists('packages\Costura.Fody.6.2.0\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Costura.Fody.6.2.0\build\Costura.Fody.props'))" />
+    <Error Condition="!Exists('packages\Costura.Fody.6.2.0\build\Costura.Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Costura.Fody.6.2.0\build\Costura.Fody.targets'))" />
+  </Target>
+  <Import Project="packages\Costura.Fody.6.2.0\build\Costura.Fody.targets" Condition="Exists('packages\Costura.Fody.6.2.0\build\Costura.Fody.targets')" />
+</Project>

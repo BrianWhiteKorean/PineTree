@@ -1,0 +1,37 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- MSBuild imports this file automatically for this project. Keep the
+       engine's required references and packaging together when VS saves csproj. -->
+  <ItemGroup>
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Web.Extensions" />
+    <None Include="Build\PackPdfWorker.ps1" />
+    <None Include="PdfWorker\pdf_worker.py" />
+    <None Include="PdfWorker\build_runtime.py" />
+    <None Include="PdfWorker\README.md" />
+    <None Include="PdfWorker\ORDER_ITEM_PDF.md" />
+    <None Include="README.md" />
+    <None Include="Tests\PdfSettingsRegression.py" />
+    <None Include="Tests\PdfWorkerRegression.py" />
+    <None Include="Tests\PdfEngineDeploymentRegression.cs" />
+    <None Include="Tests\Test-Deployment.ps1" />
+  </ItemGroup>
+  <Target Name="PackPdfWorker" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_PdfWorkerArchive>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)PdfWorker.zip'))</_PdfWorkerArchive>
+      <_PdfWorkerManifest>$([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)PdfWorker.manifest'))</_PdfWorkerManifest>
+    </PropertyGroup>
+    <Error Condition="'$(_PdfWorkerArchive)' == '' Or '$(_PdfWorkerManifest)' == ''" Text="PDF runtime package paths could not be resolved." />
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Build\PackPdfWorker.ps1&quot; -Source &quot;$(MSBuildProjectDirectory)\PdfWorker&quot; -Archive &quot;$(_PdfWorkerArchive)&quot; -Manifest &quot;$(_PdfWorkerManifest)&quot;" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(_PdfWorkerArchive)">
+        <LogicalName>PineTree.PdfEngine.PdfWorker.zip</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="$(_PdfWorkerManifest)">
+        <LogicalName>PineTree.PdfEngine.PdfWorker.manifest</LogicalName>
+      </EmbeddedResource>
+      <FileWrites Include="$(_PdfWorkerArchive);$(_PdfWorkerManifest)" />
+    </ItemGroup>
+  </Target>
+</Project>
