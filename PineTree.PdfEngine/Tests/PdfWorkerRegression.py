@@ -13,7 +13,7 @@ from pypdf.generic import ContentStream, DictionaryObject, NameObject, FloatObje
 PROJECT = Path(__file__).resolve().parents[1]
 ROOT = PROJECT.parents[1]
 AI = ROOT / "1.요구분석" / "샘플파일" / "페트_재단선+사방타공마크_604X1804_1EA_별색.ai"
-REFERENCE = ROOT / "1.요구분석" / "페트_재단선+사방타공마크_604X1804_1EA_별색.pdf"
+REFERENCE = ROOT / "1.요구분석" / "샘플파일" / "페트_재단선+사방타공마크_604X1804_1EA_별색.pdf"
 spec = importlib.util.spec_from_file_location("pdf_worker", PROJECT / "PdfWorker" / "pdf_worker.py")
 worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
@@ -60,7 +60,7 @@ class PdfWorkerTests(unittest.TestCase):
         output = self.temp / "png-output.pdf"
         result = worker.execute({"Operation": "generate", "SourcePath": str(source), "OutputPath": str(output),
             "Settings": {"TargetWidthMm": 600, "TargetHeightMm": 1800, "MakeCutline": True, "MakeHole": True}})
-        self.assertAlmostEqual(result["OutputWidthMm"], 604)
+        self.assertAlmostEqual(result["OutputWidthMm"], 600)
         self.assertEqual(result["MarkCount"], 4)
         self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), original)
 
@@ -91,7 +91,7 @@ class PdfWorkerTests(unittest.TestCase):
         self.assertTrue(info["HasCutline"])
         self.assertEqual(info["CutlineColorName"], "CutContour")
         self.assertAlmostEqual(info["CutlineWidthMm"], .23, places=5)
-        self.assertAlmostEqual(info["SourceWidthMm"], 604, places=4)
+        self.assertAlmostEqual(info["SourceWidthMm"], 600, places=4)
 
     def test_pdf_metadata(self):
         info = worker.execute({"Operation": "inspect", "SourcePath": str(REFERENCE)})
@@ -124,7 +124,8 @@ class PdfWorkerTests(unittest.TestCase):
 
     def test_sample_geometry_spot_marks_and_vector_bleed(self):
         output = self.temp / "출력 샘플.pdf"
-        result = worker.execute({"Operation": "generate", "SourcePath": str(AI), "OutputPath": str(output)})
+        result = worker.execute({"Operation": "generate", "SourcePath": str(AI), "OutputPath": str(output),
+            "Settings": {"EdgeTopMm": 2, "EdgeBottomMm": 2, "EdgeLeftMm": 2, "EdgeRightMm": 2}})
         reader = PdfReader(output)
         page = reader.pages[0]
         self.assertEqual(len(reader.pages), 1)

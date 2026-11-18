@@ -20,10 +20,14 @@ namespace PineTree.Dialogs
         public DialogCommonCode(string groupName)
         {
             InitializeComponent();
+            tbGroupName.TextChanged += delegate { UpdateItemValueVisibility(); };
             tbGroupName.Text = groupName ?? string.Empty;
             tbGroupName.ReadOnly = true;
             tbItemName.ReadOnly = false;
             tbItemName.MaxLength = 50;
+            tbItemValue.ReadOnly = false;
+            tbItemValue.TabIndex = 2;
+            UpdateItemValueVisibility();
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -61,6 +65,7 @@ namespace PineTree.Dialogs
                     throw new InvalidOperationException("수정할 항목을 찾을 수 없습니다. 다시 조회해주세요.");
                 tbGroupName.Text = Convert.ToString(item["GroupName"]);
                 tbItemName.Text = Convert.ToString(item["ItemName"]);
+                tbItemValue.Text = Convert.ToString(item["ItemValue"]);
                 btnOK.Enabled = true;
                 tbItemName.Select();
             }
@@ -83,12 +88,15 @@ namespace PineTree.Dialogs
             {
                 string groupName = tbGroupName.Text;
                 string itemName = tbItemName.Text;
+                string itemValue = tbItemValue.Text;
                 CommonCodeRepository.ValidateItem(groupName, itemName);
+                if (groupName == "배송방법") CommonCodeRepository.NormalizeDeliveryItemValue(itemValue);
                 _isSaving = true;
                 btnOK.Enabled = false;
                 btnCancel.Enabled = false;
                 tbItemName.Enabled = false;
-                SavedSeqNo = await Task.Run(() => CommonCodeRepository.SaveItem(_seqNo, groupName, itemName));
+                tbItemValue.Enabled = false;
+                SavedSeqNo = await Task.Run(() => CommonCodeRepository.SaveItem(_seqNo, groupName, itemName, itemValue));
                 _isSaving = false;
                 DialogResult = DialogResult.OK;
                 Close();
@@ -106,8 +114,15 @@ namespace PineTree.Dialogs
                     btnOK.Enabled = true;
                     btnCancel.Enabled = true;
                     tbItemName.Enabled = true;
+                    tbItemValue.Enabled = true;
                 }
             }
+        }
+
+        private void UpdateItemValueVisibility()
+        {
+            bool delivery = tbGroupName.Text == "배송방법";
+            labelItemValue.Visible = tbItemValue.Visible = delivery;
         }
 
         private void DialogCommonCode_KeyDown(object sender, KeyEventArgs e)

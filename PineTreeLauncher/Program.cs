@@ -28,7 +28,7 @@ namespace PineTreeLauncher
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
 #if RELEASE
-                    ProgramUpdater.UpdateIfNeeded();
+                    if (!ProgramUpdater.UpdateIfNeeded()) return;
 #endif
                     RunPineTree();
                 }

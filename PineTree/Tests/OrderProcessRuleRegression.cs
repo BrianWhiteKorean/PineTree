@@ -7,6 +7,7 @@ using System.Web.Script.Serialization;
 using MySql.Data.MySqlClient;
 using PineTree.Classes;
 using PineTree.Dialogs;
+using PineTree.UserControls;
 
 internal static class OrderProcessRuleRegression
 {
@@ -70,17 +71,17 @@ internal static class OrderProcessRuleRegression
                 var save = (OrderItemSaveData)Invoke(edit.GetType(), edit, "CreateOrderItemSaveData", edited);
                 Check(save.ProcessRules.Count == 7 && save.RequestFilePath == item.RequestFilePath, "Edit save mapping");
                 // Exercise the parent row mapping without loading a real order.
-                var parent = (DialogOrder)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(DialogOrder));
-                typeof(Form).GetConstructor(Type.EmptyTypes).Invoke(parent, new object[0]);
+                var parent = (UcOrderDesigner)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(UcOrderDesigner));
+                typeof(UserControl).GetConstructor(Type.EmptyTypes).Invoke(parent, new object[0]);
                 try
                 {
-                    Invoke(typeof(DialogOrder), parent, "InitializeComponent");
-                    Invoke(typeof(DialogOrder), parent, "InitOrderItemTable");
-                    Invoke(typeof(DialogOrder), parent, "AddOrderItem", edited, (long?)null);
+                    Invoke(typeof(UcOrderDesigner), parent, "InitializeComponent");
+                    Invoke(typeof(UcOrderDesigner), parent, "InitOrderItemTable");
+                    Invoke(typeof(UcOrderDesigner), parent, "AddOrderItem", edited, (long?)null);
                     var rows = (DataTable)Field(parent, "m_orderItems");
-                    var parentResult = (DialogPriceItemOrderItem)Invoke(typeof(DialogOrder), parent, "CreateDialogOrderItem", rows.Rows[0]);
+                    var parentResult = (DialogPriceItemOrderItem)Invoke(typeof(UcOrderDesigner), parent, "CreateDialogOrderItem", rows.Rows[0]);
                     Check(parentResult.ProcessRules.Count == 7 && parentResult.OutputFilePath == item.OutputFilePath, "Parent row round trip");
-                    var saveItems = (List<OrderItemSaveData>)Invoke(typeof(DialogOrder), parent, "CreateOrderItemSaveDataList");
+                    var saveItems = (List<OrderItemSaveData>)Invoke(typeof(UcOrderDesigner), parent, "CreateOrderItemSaveDataList");
                     Check(saveItems[0].ProcessRules.Count == 7 && saveItems[0].RequestFilePath == item.RequestFilePath, "Parent full-order save mapping");
                 }
                 finally { parent.Dispose(); }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 using PineTree.Classes;
@@ -8,8 +8,8 @@ namespace PineTree.UserControls
 {
     public class UcTopBar : UserControl
     {
-        private const int SearchImageRightOffset = 620;
-        private const int CalendarButtonRightOffset = 150;
+        private const int SearchImageRightOffset = CalendarButtonRightOffset + 470;
+        private const int CalendarButtonRightOffset = UiTheme.ModeSwitchAreaWidth + 35 + 10;
 
         private static readonly Rectangle SearchTextNativeBounds = new Rectangle(45, 17, 205, 20);
         private static readonly Rectangle CalendarIconSourceBounds = new Rectangle(1776, 22, 28, 28);
@@ -19,7 +19,6 @@ namespace PineTree.UserControls
         private readonly Label _dateLabel;
         private readonly PictureBox _nextDateButton;
         private readonly PictureBox _calendarButton;
-        private readonly Label _userButton;
         private readonly FocusSinkControl _focusSink;
         private TextBox _searchInputBox;
         private DateTime _selectedDate = DateTime.Today;
@@ -90,26 +89,9 @@ namespace PineTree.UserControls
             _calendarButton.Click += CalendarButton_Click;
             Controls.Add(_calendarButton);
 
-            _userButton = new Label();
-            _userButton.ForeColor = UiTheme.TextPrimary;
-            _userButton.BackColor = Color.FromArgb(31, 47, 86);
-            _userButton.Font = new Font("맑은 고딕", 9F, FontStyle.Bold, GraphicsUnit.Point, 129);
-            _userButton.TextAlign = ContentAlignment.MiddleCenter;
-            _userButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _userButton.Location = new Point(Width - 90, 15);
-            _userButton.Size = new Size(36, 28);
-            _userButton.MouseDown += TopBar_ExternalMouseDown;
-            Controls.Add(_userButton);
-            RefreshUserInfo();
-
             Resize += UcTopBar_Resize;
             LayoutDateControls();
             SetScreen(AppScreen.Main, "메인 / 현황");
-        }
-
-        public void RefreshUserInfo()
-        {
-            _userButton.Text = Global.UserBadge;
         }
 
         public void SetScreen(AppScreen screen, string title)
@@ -159,7 +141,6 @@ namespace PineTree.UserControls
             _searchImage.Location = GetSearchImageLocation();
             UpdateSearchInputBounds();
             LayoutDateControls();
-            _userButton.Location = new Point(Width - 90, 15);
         }
 
         private void SearchImage_Click(object sender, EventArgs e)

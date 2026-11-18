@@ -1,9 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using C1.Win.C1FlexGrid;
 using PineTree.Classes;
 using PineTree.Dialogs;
 
@@ -12,6 +12,8 @@ namespace PineTree.UserControls
     public partial class UcCustInfo : UserControl, INavigationView
     {
         private readonly NavigationController _navigationController;
+        private DataTable _customers;
+        private long? _selectedCustomerSeqNo;
 
         protected override CreateParams CreateParams
         {
@@ -33,9 +35,11 @@ namespace PineTree.UserControls
             _navigationController.NavigationRequested += NavigationController_NavigationRequested;
             Load += UcCustInfo_Load;
             btnSelect.Click += btnSelect_Click;
+            tbCustName.KeyDown += SearchTextBox_KeyDown;
+            tbCustCode.KeyDown += SearchTextBox_KeyDown;
             btnAdd.Click += btnAdd_Click;
             btnEdit.Click += btnEdit_Click;
-            FGrid1.DoubleClick += FGrid1_DoubleClick;
+            InitializeCustomerGrid();
             chkRecentOrder.CheckedChanged += chkRecentOrder_CheckedChanged;
 
             InitializeDefaultSearchCondition();
@@ -54,9 +58,20 @@ namespace PineTree.UserControls
             LoadCustomers();
         }
 
+        private void SearchTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+            {
+                return;
+            }
+
+            e.SuppressKeyPress = true;
+            LoadCustomers();
+        }
+
         private void btnAdd_Click(object sender, EventArgs e)
         {
-            using (DailogCustInfo dialog = new DailogCustInfo())
+            using (DialogCustInfo dialog = new DialogCustInfo())
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -70,8 +85,9 @@ namespace PineTree.UserControls
             OpenEditDialog();
         }
 
-        private void FGrid1_DoubleClick(object sender, EventArgs e)
+        private void CustomerGrid_CellDoubleClicked(object sender, PagedGridCellClickEventArgs e)
         {
+            SelectCustomer(e);
             OpenEditDialog();
         }
 
@@ -108,73 +124,111 @@ namespace PineTree.UserControls
             }
         }
 
-        private void BindCustomers(DataTable customers)
+        private void InitializeCustomerGrid()
         {
-            PrepareGridData(customers);
-
-            FGrid1.DataSource = customers;
-            InitGrid();
-
-            labelCount.Text = string.Format("조회건수 : {0}건", customers.Rows.Count);
+            customerGrid.PageSize = Math.Max(1, (customerGrid.Height - 36 - 52) / 41);
+            customerGrid.Columns.Add(new PagedGridColumn("No", "번호", 60, ContentAlignment.MiddleCenter));
+            customerGrid.Columns.Add(new PagedGridColumn("CustName", "거래처명", 0, ContentAlignment.MiddleLeft));
+            customerGrid.Columns.Add(new PagedGridColumn("CustCode", "거래처코드", 110, ContentAlignment.MiddleCenter));
+            customerGrid.Columns.Add(new PagedGridColumn("ECountCustomerCode", "이카운트 코드", 150, ContentAlignment.MiddleCenter));
+            customerGrid.Columns.Add(new PagedGridColumn("Phone", "연락처", 150, ContentAlignment.MiddleCenter));
+            customerGrid.Columns.Add(new PagedGridColumn("BusinessNum", "사업자등록번호", 140, ContentAlignment.MiddleCenter));
+            customerGrid.Columns.Add(new PagedGridColumn("RepresentativeName", "대표자", 120, ContentAlignment.MiddleCenter));
+            customerGrid.Columns.Add(new PagedGridColumn("LastOrderDate", "최종주문일", 120, ContentAlignment.MiddleCenter));
+            customerGrid.PageChanged += delegate { BindCustomerPage(); };
+            customerGrid.CellClicked += delegate(object sender, PagedGridCellClickEventArgs e) { SelectCustomer(e); };
+            customerGrid.SelectionChanged += CustomerGrid_SelectionChanged;
+            customerGrid.CellDoubleClicked += CustomerGrid_CellDoubleClicked;
+            customerGrid.KeyDown += CustomerGrid_KeyDown;
+            customerGrid.Resize += delegate
+            {
+                customerGrid.PageSize = Math.Max(1, (customerGrid.Height - 36 - 52) / 41);
+                customerGrid.PageIndex = customerGrid.PageIndex;
+                BindCustomerPage();
+            };
         }
 
-        private void InitGrid()
+        private void CustomerGrid_KeyDown(object sender, KeyEventArgs e)
         {
-            FGrid1.Cols.Fixed = 0;
-            FGrid1.BackColor = Color.MintCream;
-            FGrid1.AllowMergingFixed = AllowMergingEnum.FixedOnly;
-            FGrid1.AllowSorting = AllowSortingEnum.SingleColumn;
-            FGrid1.SelectionMode = SelectionModeEnum.Row;
+            if (e.KeyCode != Keys.Enter || e.Modifiers != Keys.None || customerGrid.SelectedRowIndex < 0)
+            {
+                return;
+            }
 
-            FGrid1.Cols["SeqNo"].Visible = false;
+            e.SuppressKeyPress = true;
+            OpenEditDialog();
+        }
 
-            FGrid1.Cols["IsSelected"].Caption = "선택";
-            FGrid1.Cols["IsSelected"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["IsSelected"].AllowEditing = true;
-            FGrid1.Cols["IsSelected"].Width = 55;
+        private void BindCustomers(DataTable customers)
+        {
+            _customers = customers;
+            customerGrid.TotalCount = customers.Rows.Count;
+            customerGrid.PageIndex = 1;
+            customerGrid.TotalText = string.Format("전체 {0:#,##0}건", customers.Rows.Count);
+            BindCustomerPage();
+        }
 
-            FGrid1.Cols["No"].Caption = "번호";
-            FGrid1.Cols["No"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["No"].AllowEditing = false;
-            FGrid1.Cols["No"].Width = 60;
+        private void BindCustomerPage()
+        {
+            _selectedCustomerSeqNo = null;
+            List<Dictionary<string, PagedGridCell>> rows = new List<Dictionary<string, PagedGridCell>>();
+            if (_customers != null)
+            {
+                int startIndex = (customerGrid.PageIndex - 1) * customerGrid.PageSize;
+                int endIndex = Math.Min(startIndex + customerGrid.PageSize, _customers.Rows.Count);
+                for (int index = startIndex; index < endIndex; index++)
+                {
+                    DataRow customer = _customers.Rows[index];
+                    Dictionary<string, PagedGridCell> row = new Dictionary<string, PagedGridCell>
+                    {
+                        { "SeqNo", new PagedGridCell(Convert.ToString(customer["SeqNo"])) },
+                        { "No", new PagedGridCell((index + 1).ToString()) }
+                    };
+                    foreach (PagedGridColumn column in customerGrid.Columns)
+                    {
+                        if (column.Key == "No")
+                        {
+                            continue;
+                        }
 
-            FGrid1.Cols["CustomerName"].Caption = "거래처명";
-            FGrid1.Cols["CustomerName"].TextAlign = TextAlignEnum.LeftCenter;
-            FGrid1.Cols["CustomerName"].AllowEditing = false;
-            FGrid1.Cols["CustomerName"].Width = 220;
+                        object value = customer[column.Key];
+                        string text = value is DateTime
+                            ? ((DateTime)value).ToString("yyyy-MM-dd")
+                            : Convert.ToString(value);
+                        row.Add(column.Key, new PagedGridCell(text));
+                    }
+                    rows.Add(row);
+                }
+            }
+            customerGrid.SetRows(rows);
+        }
 
-            FGrid1.Cols["CustCode"].Caption = "거래처코드";
-            FGrid1.Cols["CustCode"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["CustCode"].AllowEditing = false;
-            FGrid1.Cols["CustCode"].Width = 110;
+        private void SelectCustomer(PagedGridCellClickEventArgs e)
+        {
+            PagedGridCell seqNoCell;
+            long seqNo;
+            if (e.Row.TryGetValue("SeqNo", out seqNoCell) && long.TryParse(seqNoCell.Text, out seqNo))
+            {
+                _selectedCustomerSeqNo = seqNo;
+                customerGrid.SelectedRowIndex = e.RowIndex;
+            }
+        }
 
-            FGrid1.Cols["ECountCustomerCode"].Caption = "이카운트 코드";
-            FGrid1.Cols["ECountCustomerCode"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["ECountCustomerCode"].AllowEditing = false;
-            FGrid1.Cols["ECountCustomerCode"].Width = 150;
+        private void CustomerGrid_SelectionChanged(object sender, EventArgs e)
+        {
+            _selectedCustomerSeqNo = null;
+            int selectedIndex = customerGrid.SelectedRowIndex;
+            if (_customers == null || selectedIndex < 0)
+            {
+                return;
+            }
 
-            FGrid1.Cols["Phone"].Caption = "연락처";
-            FGrid1.Cols["Phone"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["Phone"].AllowEditing = false;
-            FGrid1.Cols["Phone"].Width = 150;
-
-            FGrid1.Cols["BusinessNum"].Caption = "사업자등록번호";
-            FGrid1.Cols["BusinessNum"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["BusinessNum"].AllowEditing = false;
-            FGrid1.Cols["BusinessNum"].Width = 140;
-
-            FGrid1.Cols["RepresentativeName"].Caption = "대표자";
-            FGrid1.Cols["RepresentativeName"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["RepresentativeName"].AllowEditing = false;
-            FGrid1.Cols["RepresentativeName"].Width = 120;
-
-            FGrid1.Cols["LastOrderDate"].Caption = "최종주문일";
-            FGrid1.Cols["LastOrderDate"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["LastOrderDate"].AllowEditing = false;
-            FGrid1.Cols["LastOrderDate"].Width = 120;
-            FGrid1.Cols["LastOrderDate"].Format = "yyyy-MM-dd";
-
-            FGrid1.Rows[0].TextAlign = TextAlignEnum.CenterCenter;
+            int index = (customerGrid.PageIndex - 1) * customerGrid.PageSize + selectedIndex;
+            long seqNo;
+            if (index < _customers.Rows.Count && long.TryParse(Convert.ToString(_customers.Rows[index]["SeqNo"]), out seqNo))
+            {
+                _selectedCustomerSeqNo = seqNo;
+            }
         }
 
         private void InitializeDefaultSearchCondition()
@@ -212,25 +266,6 @@ namespace PineTree.UserControls
             return null;
         }
 
-        private void PrepareGridData(DataTable customers)
-        {
-            if (!customers.Columns.Contains("IsSelected"))
-            {
-                customers.Columns.Add("IsSelected", typeof(bool)).SetOrdinal(0);
-            }
-
-            if (!customers.Columns.Contains("No"))
-            {
-                customers.Columns.Add("No", typeof(int)).SetOrdinal(1);
-            }
-
-            for (int i = 0; i < customers.Rows.Count; i++)
-            {
-                customers.Rows[i]["IsSelected"] = false;
-                customers.Rows[i]["No"] = i + 1;
-            }
-        }
-
         private void OpenEditDialog()
         {
             long seqNo;
@@ -240,7 +275,7 @@ namespace PineTree.UserControls
                 return;
             }
 
-            using (DailogCustInfo dialog = new DailogCustInfo(seqNo))
+            using (DialogCustInfo dialog = new DialogCustInfo(seqNo))
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -251,16 +286,8 @@ namespace PineTree.UserControls
 
         private bool TryGetCurrentSeqNo(out long seqNo)
         {
-            seqNo = 0;
-
-            if (FGrid1.Row < FGrid1.Rows.Fixed || FGrid1.Rows.Count <= FGrid1.Rows.Fixed)
-            {
-                return false;
-            }
-
-            int seqNoCol = FGrid1.Cols["SeqNo"].Index;
-            object value = FGrid1[FGrid1.Row, seqNoCol];
-            return value != null && long.TryParse(value.ToString(), out seqNo);
+            seqNo = _selectedCustomerSeqNo.GetValueOrDefault();
+            return _selectedCustomerSeqNo.HasValue;
         }
     }
 }

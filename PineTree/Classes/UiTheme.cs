@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace PineTree.Classes
 {
@@ -23,6 +23,7 @@ namespace PineTree.Classes
 
         public const int MenuWidth = 240;
         public const int TopBarHeight = 60;
+        public const int ModeSwitchAreaWidth = 195;
         public const int ContentPadding = 28;
     }
 }

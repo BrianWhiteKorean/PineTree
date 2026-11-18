@@ -78,7 +78,6 @@ namespace PineTree.Dialogs
                 if (dtUserInfo.Rows.Count == 0)
                 {
                     MSG.ShowError("사용자 정보가 존재하지 않습니다");
-                    DialogResult = DialogResult.Abort;
                     return;
                 }
 
@@ -88,7 +87,6 @@ namespace PineTree.Dialogs
                 if (sPassword != rUserInfo["Pwd"].ToString())
                 {
                     MSG.ShowError("비밀번호가 일치하지 않습니다");
-                    DialogResult = DialogResult.Abort;
                     return;
                 }
 
@@ -153,9 +151,12 @@ namespace PineTree.Dialogs
         private void LoginDlg_Load(object sender, EventArgs e)
         {
             LoadLastUserID();
-            tbUserID.Focus();
-
             ReadConfig();
+#if DEBUG
+            tbUserID.Text = "b";
+            tbPassword.Text = "1";
+#endif
+            tbUserID.Focus();
         }
 
         private void LoginDlg_KeyDown(object sender, KeyEventArgs e)

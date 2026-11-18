@@ -19,6 +19,16 @@ namespace PineTree.UserControls
         private DataTable _priceItems;
         private long? _selectedPriceItemSeqNo;
         private int _customerComboLoadVersion;
+        private int _categoryComboLoadVersion;
+        private int _categoryNameComboLoadVersion;
+        private int _priceItemsLoadVersion;
+
+        private sealed class EquipmentFilterItem
+        {
+            public int EquipmentId { get; set; }
+            public string EquipmentName { get; set; }
+            public override string ToString() { return EquipmentName; }
+        }
 
         protected override CreateParams CreateParams
         {
@@ -39,6 +49,10 @@ namespace PineTree.UserControls
             cbCustName.ItemsDisplayMember = "CustName";
             cbCustName.ItemsValueMember = "CustCode";
             BindCustomerCombo(new DataTable(), null);
+            cbEquipment.DropDownStyle = C1.Win.C1Input.DropDownStyle.DropDownList;
+            cbCategoryName.DropDownStyle = C1.Win.C1Input.DropDownStyle.DropDownList;
+            cbEquipment.Items.Add(AllText);
+            cbEquipment.SelectedIndex = 0;
 
             _navigationController = new NavigationController(picBackground);
             _navigationController.NavigationRequested += NavigationController_NavigationRequested;
@@ -49,6 +63,8 @@ namespace PineTree.UserControls
             InitializePriceItemGrid();
             tbPriceItemName.KeyDown += SearchTextBox_KeyDown;
             cbCategory.SelectedIndexChanged += cbCategory_SelectedIndexChanged;
+            cbEquipment.SelectedIndexChanged += cbEquipment_SelectedIndexChanged;
+            cbCategoryName.SelectedIndexChanged += delegate { if (!_isInitializingCombo) ++_priceItemsLoadVersion; };
             PriceItemRepository.DedicatedPriceItemSaved += PriceItemRepository_DedicatedPriceItemSaved;
         }
 
@@ -106,7 +122,25 @@ namespace PineTree.UserControls
                 return;
             }
 
-            await LoadCategoryNameComboAsync();
+            ++_priceItemsLoadVersion;
+            try { await LoadCategoryNameComboAsync(); }
+            catch (Exception ex)
+            {
+                if (!IsDisposed && !Disposing)
+                    MessageBox.Show("품목분류를 불러오지 못했습니다.\r\n" + ex.Message, "상품관리", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private async void cbEquipment_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_isInitializingCombo) return;
+            ++_priceItemsLoadVersion;
+            try { await LoadCategoryComboAsync(AllText); }
+            catch (Exception ex)
+            {
+                if (!IsDisposed && !Disposing)
+                    MessageBox.Show("장비별 분류를 불러오지 못했습니다.\r\n" + ex.Message, "상품관리", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void NavigationController_NavigationRequested(object sender, NavigationRequestedEventArgs e)
@@ -121,11 +155,13 @@ namespace PineTree.UserControls
                 string selectedCategory = cbCategory.Text;
                 string selectedCategoryName = cbCategoryName.Text;
                 string selectedCustCode = GetSelectedCustomerCode();
+                int? selectedEquipmentId = GetSelectedEquipmentId();
 
                 _isInitializingCombo = true;
+                cbEquipment.Enabled = false;
                 await LoadCustomerComboAsync(selectedCustCode);
-                await LoadCategoryComboAsync(selectedCategory);
-                await LoadCategoryNameComboAsync(selectedCategoryName);
+                await LoadEquipmentComboAsync(selectedEquipmentId);
+                await LoadCategoryComboAsync(selectedCategory, selectedCategoryName);
             }
             catch (Exception ex)
             {
@@ -134,6 +170,7 @@ namespace PineTree.UserControls
             finally
             {
                 _isInitializingCombo = false;
+                if (!IsDisposed && !Disposing) cbEquipment.Enabled = true;
             }
         }
 
@@ -212,43 +249,88 @@ namespace PineTree.UserControls
                 : string.Empty;
         }
 
-        private async Task LoadCategoryComboAsync(string selectedText)
+        private int? GetSelectedEquipmentId()
         {
-            cbCategory.Items.Clear();
-            cbCategory.Items.Add(AllText);
+            int index = cbEquipment.SelectedIndex;
+            var item = index >= 0 ? cbEquipment.Items[index] as EquipmentFilterItem : null;
+            return item == null ? (int?)null : item.EquipmentId;
+        }
 
-            DataTable categories = await Task.Run(() => PriceItemRepository.GetPriceCategories());
-            if (IsDisposed)
+        private async Task LoadEquipmentComboAsync(int? selectedEquipmentId)
+        {
+            DataTable equipment = await Task.Run(() => PriceItemRepository.GetEquipment());
+            if (IsDisposed || Disposing) return;
+            cbEquipment.Items.Clear();
+            cbEquipment.Items.Add(AllText);
+            int selectedIndex = 0;
+            foreach (DataRow row in equipment.Rows)
             {
-                return;
+                int id = Convert.ToInt32(row["EquipmentId"]);
+                cbEquipment.Items.Add(new EquipmentFilterItem { EquipmentId = id, EquipmentName = Convert.ToString(row["EquipmentName"]) });
+                if (selectedEquipmentId == id) selectedIndex = cbEquipment.Items.Count - 1;
             }
+            cbEquipment.SelectedIndex = selectedIndex;
+        }
 
-            foreach (DataRow row in categories.Rows)
+        private void BindFilterCombo(C1.Win.C1Input.C1ComboBox combo, DataTable source, string column, string selectedText)
+        {
+            bool wasInitializing = _isInitializingCombo;
+            _isInitializingCombo = true;
+            try
             {
-                cbCategory.Items.Add(row["PriceCategory"].ToString());
+                combo.Items.Clear();
+                combo.Items.Add(AllText);
+                if (source != null)
+                    foreach (DataRow row in source.Rows)
+                    {
+                        string text = Convert.ToString(row[column]);
+                        if (!combo.Items.Contains(text)) combo.Items.Add(text);
+                    }
+                SelectComboItem(combo, selectedText);
             }
+            finally { _isInitializingCombo = wasInitializing; }
+        }
 
-            SelectComboItem(cbCategory, selectedText);
+        private async Task LoadCategoryComboAsync(string selectedText, string selectedCategoryName = AllText)
+        {
+            int version = ++_categoryComboLoadVersion;
+            ++_categoryNameComboLoadVersion;
+            int? equipmentId = GetSelectedEquipmentId();
+            cbCategory.Enabled = cbCategoryName.Enabled = btnSelect.Enabled = false;
+            BindFilterCombo(cbCategory, null, "PriceCategory", AllText);
+            BindFilterCombo(cbCategoryName, null, "CategoryName", AllText);
+            try
+            {
+                DataTable categories = await Task.Run(() => PriceItemRepository.GetPriceCategories(equipmentId));
+                if (IsDisposed || Disposing || version != _categoryComboLoadVersion) return;
+                BindFilterCombo(cbCategory, categories, "PriceCategory", selectedText);
+                await LoadCategoryNameComboAsync(selectedCategoryName);
+            }
+            finally
+            {
+                if (!IsDisposed && !Disposing && version == _categoryComboLoadVersion)
+                    cbCategory.Enabled = cbCategoryName.Enabled = btnSelect.Enabled = true;
+            }
         }
 
         private async Task LoadCategoryNameComboAsync(string selectedText)
         {
-            cbCategoryName.Items.Clear();
-            cbCategoryName.Items.Add(AllText);
-
+            int version = ++_categoryNameComboLoadVersion;
+            int? equipmentId = GetSelectedEquipmentId();
             string priceCategory = GetSelectedValue(cbCategory);
-            DataTable categoryNames = await Task.Run(() => PriceItemRepository.GetCategoryNames(priceCategory));
-            if (IsDisposed)
+            cbCategoryName.Enabled = btnSelect.Enabled = false;
+            BindFilterCombo(cbCategoryName, null, "CategoryName", AllText);
+            try
             {
-                return;
+                DataTable categoryNames = await Task.Run(() => PriceItemRepository.GetCategoryNames(priceCategory, equipmentId));
+                if (IsDisposed || Disposing || version != _categoryNameComboLoadVersion) return;
+                BindFilterCombo(cbCategoryName, categoryNames, "CategoryName", selectedText);
             }
-
-            foreach (DataRow row in categoryNames.Rows)
+            finally
             {
-                cbCategoryName.Items.Add(row["CategoryName"].ToString());
+                if (!IsDisposed && !Disposing && version == _categoryNameComboLoadVersion)
+                    cbCategoryName.Enabled = btnSelect.Enabled = true;
             }
-
-            SelectComboItem(cbCategoryName, selectedText);
         }
 
         private Task LoadCategoryNameComboAsync()
@@ -258,20 +340,24 @@ namespace PineTree.UserControls
 
         private async Task LoadPriceItemsAsync()
         {
+            if (!btnSelect.Enabled) return;
+            int version = ++_priceItemsLoadVersion;
             try
             {
                 string priceCategory = GetSelectedValue(cbCategory);
                 string categoryName = GetSelectedValue(cbCategoryName);
                 string priceItemName = tbPriceItemName.Text;
                 string custCode = GetSelectedCustomerCode();
+                int? equipmentId = GetSelectedEquipmentId();
 
                 DataTable priceItems = await Task.Run(() => PriceItemRepository.GetPriceItemsForCustomer(
                     priceCategory,
                     categoryName,
                     priceItemName,
-                    custCode));
+                    custCode,
+                    equipmentId));
 
-                if (IsDisposed)
+                if (IsDisposed || Disposing || version != _priceItemsLoadVersion)
                 {
                     return;
                 }

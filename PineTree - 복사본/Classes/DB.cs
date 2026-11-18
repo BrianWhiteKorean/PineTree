@@ -20,6 +20,11 @@ namespace PineTree.Classes
                 + ";Charset=utf8mb4";
         }
 
+        public static MySqlConnection CreateConnection()
+        {
+            return new MySqlConnection(GetMySqlDBConfig());
+        }
+
         public static DataTable MySqlQueryRead(string query, ParamValuePair[] parameters)
         {
             using (MySqlConnection conn = new MySqlConnection(GetMySqlDBConfig()))
@@ -35,6 +40,56 @@ namespace PineTree.Classes
                     return dt;
                 }
             }
+        }
+
+        public static DataTable MySqlCallProcedure(string sQuery)
+        {
+            DataSet ds = MySqlQueryRead(sQuery);
+            return ds.Tables[0];
+        }
+
+        public static DataSet MySqlQueryRead(string strQuery)
+        {
+            DataSet dt = new DataSet();
+            try
+            {
+                MySqlConnection conn = new MySqlConnection(GetMySqlDBConfig());
+                MySqlDataAdapter adapter = new MySqlDataAdapter(strQuery, conn);
+                DataSet customers = new DataSet();
+                dt = new DataSet();
+                adapter.Fill(dt, "tbl");
+
+                conn.Close();
+            }
+            catch (Exception ex)
+            {
+                string s = ex.Message;
+            }
+
+            return dt;
+
+        }
+
+        public static void MySqlQueryExecute(string strQuery)
+        {
+
+            //string sConnect = getDBConfig;
+            MySqlConnection conn = new MySqlConnection(GetMySqlDBConfig());
+
+
+            //Execute
+            conn.Open();
+            MySqlCommand comm = new MySqlCommand(strQuery, conn);
+
+            //for¹®
+            //comm.Parameters.AddWithValue("@PlantCode",PlantCode);
+
+            //for¹®
+
+            comm.ExecuteNonQuery();
+            conn.Close();
+
+
         }
 
         public static int Execute(string query, ParamValuePair[] parameters)

@@ -40,6 +40,10 @@ internal static class PostProcessRegression
                     Number(dialog,"tbExtraLine",35);Set(Field(dialog,"chkDesignLine"),"Checked",true);Number(dialog,"tbDesignLine",10);
                     Check((bool)Get(Field(dialog,"tbDesignLine"),"Enabled"),"wood design input follows checkbox");
                 }
+                else if(code=="ROPE_SEW") {
+                    foreach(string field in new[]{"tbTop","tbBottom","tbLeft","tbRight"})Number(dialog,field,35);
+                    Set(Field(dialog,"cbType"),"SelectedIndex",1);
+                }
                 else if(code!="HOLE") {
                     string number=(code=="WOOD"||code=="BAND_SEW")?"tbLineWidth":"tbLength";
                     Number(dialog,number,35);Set(Field(dialog,"cbType"),"SelectedIndex",1);
@@ -83,7 +87,7 @@ internal static class PostProcessRegression
         var work=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"finishing.pdf"),settings);await work;
         Check(File.Exists(Path.Combine(folder,"finishing.pdf")),"real editor PDF generation");
         Check((int)Get(Get(work,"Result"),"MarkCount")==4,"PDF includes four actual hole marks");
-        Check(Math.Abs((double)Get(Get(work,"Result"),"OutputWidthMm")-674)<.0001,"original bleed and output dimensions preserved");
+        Check(Math.Abs((double)Get(Get(work,"Result"),"OutputWidthMm")-(744+.17*25.4/72))<.0001,"rope margins extend the original wood and bleed output dimensions");
         // Pending work must not alter the engine settings or the generated vector PDF.
         for(int i=list.Count-1;i>=0;i--) if((string)Get(list[i],"ProcessCode")!="HOLE" && (string)Get(list[i],"ProcessCode")!="CUT" && (string)Get(list[i],"ProcessCode")!="WOOD")Call(editor,"RemovePostProcess",i);
         var onlyPdfSettings=Call(editor,"ReadPdfGenerationSettings");
@@ -254,7 +258,7 @@ internal static class PostProcessRegression
             Assembly.LoadFrom(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(dll),"../../../PineTree.PdfEngine/bin/Debug/PineTree.PdfEngine.dll")));
             app=Assembly.LoadFrom(dll);settingType=app.GetType("PineTree.Classes.OrderPostProcessSetting",true);
             using(var host=new Form{Width=1200,Height=900,ShowInTaskbar=false,StartPosition=FormStartPosition.Manual,Left=-4000,Top=-4000})
-            using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder.UcOrder현수막",true))) {
+            using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A",true))) {
                 host.Controls.Add(editor);editor.Dock=DockStyle.Fill;
                 host.Shown+=async delegate { try{await Run(host,editor,source,folder);}catch(Exception e){Console.Error.WriteLine(e);result=1;}finally{host.Close();} };
                 Application.Run(host);

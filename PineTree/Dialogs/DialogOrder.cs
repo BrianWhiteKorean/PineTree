@@ -23,10 +23,13 @@ namespace PineTree.Dialogs
         private UserControl m_orderEditor;
         private Dictionary<DataRow, UserControl> m_orderItemEditors;
         private UserControl m_defaultOrderEditor;
+        private Panel m_materialPanel;
+        private UcOrderSourcePreview m_sourcePreview;
 
         public DialogOrder()
         {
             InitializeComponent();
+            tbOrderNo.Text = "저장 시 자동 할당됩니다";
             InitOrderItemTable();
             InitOrderEditor();
             InitPreviewEvent();
@@ -40,6 +43,7 @@ namespace PineTree.Dialogs
         public DialogOrder(long seqNo)
         {
             InitializeComponent();
+            tbOrderNo.Text = "저장 시 자동 할당됩니다";
             InitOrderItemTable();
             InitOrderEditor();
             InitPreviewEvent();
@@ -124,11 +128,17 @@ namespace PineTree.Dialogs
 
         private void InitOrderEditor()
         {
+            m_materialPanel = new Panel { Dock = DockStyle.Left, Width = 455 };
+            m_sourcePreview = new UcOrderSourcePreview();
+            panelEdit.Controls.Add(m_sourcePreview);
+            panelEdit.Controls.Add(m_materialPanel);
             // 품목분류별 편집 컨트롤은 이 목록에 등록한다.
             m_orderEditorFactories = new Dictionary<string, Func<UserControl>>(StringComparer.Ordinal)
             {
                 { string.Empty, () => new UcOrderBase() },
-                { "현수막", () => new UcOrder현수막() }
+                { "현수막", () => new UcOrder수성_그룹A() },
+                { "합성지", () => new UcOrder수성_그룹A() },
+                { "페트", () => new UcOrder페트() }
             };
             m_orderItemEditors = new Dictionary<DataRow, UserControl>();
             Disposed += delegate { DisposeOrderEditors(); };
@@ -162,7 +172,9 @@ namespace PineTree.Dialogs
 
         private void ShowOrderItemEditor(string categoryName, DataRow orderItem)
         {
-            string editorCategory = m_orderEditorFactories.ContainsKey(categoryName) ? categoryName : string.Empty;
+            bool hasEditor = m_orderEditorFactories.ContainsKey(categoryName)
+                && (categoryName != "합성지" || Convert.ToString(orderItem?["PriceCategory"]).Trim() == "수성");
+            string editorCategory = hasEditor ? categoryName : string.Empty;
             UserControl nextEditor;
             if (orderItem == null || editorCategory.Length == 0)
             {
@@ -173,7 +185,7 @@ namespace PineTree.Dialogs
             {
                 nextEditor = m_orderEditorFactories[editorCategory]();
                 m_orderItemEditors.Add(orderItem, nextEditor);
-                var banner = nextEditor as UcOrder현수막;
+                var banner = nextEditor as IOrderItemEditor;
                 if (banner != null)
                 {
                     string json = orderItem["EditorStateJson"].ToString();
@@ -183,11 +195,16 @@ namespace PineTree.Dialogs
                         SourceFilePath = orderItem["RequestFilePath"] == DBNull.Value ? null : orderItem["RequestFilePath"].ToString()
                     };
                     // Typed item columns remain authoritative for legacy item-edit dialogs.
-                    if (state.WidthMm != GetDecimal(orderItem["WidthMm"]) || state.HeightMm != GetDecimal(orderItem["HeightMm"])) state.ZoomType = null;
+                    if (state.WidthMm != GetDecimal(orderItem["WidthMm"]) || state.HeightMm != GetDecimal(orderItem["HeightMm"]))
+                        state.OutputServerFile = null;
+                    if (state.ZoomType != "FIXED_SIZE" && (state.WidthMm != GetDecimal(orderItem["WidthMm"]) || state.HeightMm != GetDecimal(orderItem["HeightMm"]))) state.ZoomType = null;
                     state.WidthMm = GetDecimal(orderItem["WidthMm"]);
                     state.HeightMm = GetDecimal(orderItem["HeightMm"]);
                     state.Quantity = GetDecimal(orderItem["Qty"]);
-                    state.SourceFilePath = orderItem["RequestFilePath"] == DBNull.Value ? null : orderItem["RequestFilePath"].ToString();
+                    string storedSourcePath = orderItem["RequestFilePath"] == DBNull.Value ? null : orderItem["RequestFilePath"].ToString();
+                    if (!string.Equals(state.SourceFilePath, storedSourcePath, StringComparison.OrdinalIgnoreCase))
+                        state.SourceServerFile = state.OutputServerFile = null;
+                    state.SourceFilePath = storedSourcePath;
                     banner.RestoreEditorState(state);
                     banner.OrderValuesChanged += delegate { UpdateBannerOrderValues(orderItem, banner); };
                 }
@@ -197,15 +214,17 @@ namespace PineTree.Dialogs
             panelEdit.SuspendLayout();
             try
             {
-                if (m_orderEditor != null) panelEdit.Controls.Remove(m_orderEditor);
+                if (m_orderEditor != null) m_materialPanel.Controls.Remove(m_orderEditor);
                 m_orderEditor = nextEditor;
                 m_orderEditorCategory = editorCategory;
-                panelEdit.Controls.Add(m_orderEditor);
+                m_materialPanel.Controls.Add(m_orderEditor);
+                var sourceEditor = m_orderEditor as IOrderSourceEditor;
+                m_sourcePreview.Bind(sourceEditor == null ? null : sourceEditor.SourceDocument);
             }
             finally { panelEdit.ResumeLayout(true); }
         }
 
-        private void UpdateBannerOrderValues(DataRow row, UcOrder현수막 editor)
+        private void UpdateBannerOrderValues(DataRow row, IOrderItemEditor editor)
         {
             if (IsDisposed || row.RowState == DataRowState.Detached || row.RowState == DataRowState.Deleted) return;
             row["WidthMm"] = editor.WidthMm;
@@ -232,7 +251,7 @@ namespace PineTree.Dialogs
             {
                 if (row.RowState != DataRowState.Detached && row.RowState != DataRowState.Deleted) continue;
                 UserControl editor = m_orderItemEditors[row];
-                panelEdit.Controls.Remove(editor);
+                m_materialPanel.Controls.Remove(editor);
                 if (m_orderEditor == editor) m_orderEditor = null;
                 editor.Dispose();
                 m_orderItemEditors.Remove(row);
@@ -545,17 +564,22 @@ namespace PineTree.Dialogs
             UserControl cached;
             if (m_orderItemEditors != null && m_orderItemEditors.TryGetValue(row, out cached))
             {
-                var banner = cached as UcOrder현수막;
+                var banner = cached as IOrderItemEditor;
                 if (banner != null)
                 {
                     var state = banner.CaptureEditorState();
-                    state.ZoomType = null;
+                    if (state.ZoomType != "FIXED_SIZE") state.ZoomType = null;
+                    if (state.WidthMm != GetDecimal(row["WidthMm"]) || state.HeightMm != GetDecimal(row["HeightMm"]))
+                        state.OutputServerFile = null;
                     state.WidthMm = GetDecimal(row["WidthMm"]); state.HeightMm = GetDecimal(row["HeightMm"]);
                     state.Quantity = GetDecimal(row["Qty"]);
-                    state.SourceFilePath = row["RequestFilePath"] == DBNull.Value ? null : row["RequestFilePath"].ToString();
+                    string nextSourcePath = row["RequestFilePath"] == DBNull.Value ? null : row["RequestFilePath"].ToString();
+                    if (!string.Equals(state.SourceFilePath, nextSourcePath, StringComparison.OrdinalIgnoreCase))
+                        state.SourceServerFile = state.OutputServerFile = null;
+                    state.SourceFilePath = nextSourcePath;
                     row["EditorStateJson"] = state.ToJson();
                 }
-                panelEdit.Controls.Remove(cached);
+                m_materialPanel.Controls.Remove(cached);
                 if (m_orderEditor == cached) m_orderEditor = null;
                 cached.Dispose(); m_orderItemEditors.Remove(row);
             }
@@ -811,7 +835,7 @@ namespace PineTree.Dialogs
                 UserControl cached;
                 if (m_orderItemEditors != null && m_orderItemEditors.TryGetValue(row, out cached))
                 {
-                    var banner = cached as UcOrder현수막;
+                    var banner = cached as IOrderItemEditor;
                     if (banner != null)
                     {
                         var state = banner.CaptureEditorState();
@@ -877,6 +901,7 @@ namespace PineTree.Dialogs
         private void ApplyLoadedOrder(DataRow row)
         {
             m_isInitializing = true;
+            tbOrderNo.Text = Convert.ToString(row["OrderNo"]);
             dtmOrder.Value = GetDateValue(row["OrderDate"]) ?? DateTime.Today;
             tbCustName.Text = row["CustName"].ToString();
             tbCustCode.Text = row["CustCode"].ToString();
@@ -958,7 +983,7 @@ namespace PineTree.Dialogs
             if (m_orderItemEditors != null)
                 foreach (UserControl editor in m_orderItemEditors.Values)
                 {
-                    var banner = editor as UcOrder현수막;
+                    var banner = editor as IOrderItemEditor;
                     if (banner != null && banner.IsProcessing)
                     {
                         MessageBox.Show("파일 처리가 완료된 후 저장해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);

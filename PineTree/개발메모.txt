@@ -2,3 +2,7 @@
 
 파일 업로드 경로 : /opt/lampp/htdocs/pinetreeupdate/releases
 
+[서버접속정보]
+211.45.163.175
+root / deepnoh0@
+

@@ -1,0 +1,192 @@
+{
+  "ai": {
+    "bytes": 74607350,
+    "pages": 1,
+    "metadata": {
+      "/CreationDate": "D:20261020174039+10'00'",
+      "/Creator": "Adobe Illustrator 27.6 (Windows)",
+      "/ModDate": "D:20261020174046+09'00'",
+      "/Producer": "Adobe PDF library 17.00",
+      "/Title": "AL족자_상하여백_904X1514_1EA_별색"
+    },
+    "rotation": 0,
+    "userUnit": 1,
+    "boxes_mm": {
+      "mediabox": [
+        0.0,
+        0.0,
+        2101.38081,
+        3519.34639
+      ],
+      "cropbox": [
+        0.0,
+        0.0,
+        2101.38081,
+        3519.34639
+      ],
+      "trimbox": [
+        0.0,
+        0.0,
+        2101.38081,
+        3519.34639
+      ],
+      "bleedbox": [
+        0.0,
+        0.0,
+        2101.38081,
+        3519.34639
+      ],
+      "artbox": [
+        398.25436,
+        1265.49503,
+        1345.22633,
+        2776.88322
+      ]
+    },
+    "cutline": {
+      "HasCutline": false,
+      "CutlineColorName": "",
+      "CutlineWidthMm": null
+    },
+    "page_keys": [
+      "/ArtBox",
+      "/BleedBox",
+      "/Contents",
+      "/CropBox",
+      "/Group",
+      "/LastModified",
+      "/MediaBox",
+      "/Parent",
+      "/Resources",
+      "/Thumb",
+      "/TrimBox",
+      "/Type",
+      "/PieceInfo"
+    ],
+    "content_hash": "11f4061fb0dbd3fb1bb22e51f466b35370ef348a29747dcfca36d696a74bea3c",
+    "content_length": 17490,
+    "colors": {},
+    "xobjects": {
+      "/Fm0": {
+        "type": "/Form",
+        "bbox": "[1179.92, 7789, 3742.44, 7457.7]",
+        "length": 150,
+        "hash": "198266809a28ab268bc92119e4982bd5d2d9ff54bec4262920934f931098e8f0"
+      },
+      "/Fm1": {
+        "type": "/Form",
+        "bbox": "[1179.92, 5308.48, 3742.44, 4977.18]",
+        "length": 150,
+        "hash": "cd7372c94da8b6cdbe5303887b3c61b8296a496bddaf920e5318bce9bbf0f62d"
+      },
+      "/Im0": {
+        "type": "/Image",
+        "bbox": "None",
+        "length": 62037284,
+        "hash": "2af81b598c01621ea031a3d8a68ec919cf907b8e10e8329edcd8219a6418a905"
+      },
+      "/Im1": {
+        "type": "/Image",
+        "bbox": "None",
+        "length": 62037284,
+        "hash": "2af81b598c01621ea031a3d8a68ec919cf907b8e10e8329edcd8219a6418a905"
+      }
+    }
+  },
+  "pdf": {
+    "bytes": 74603529,
+    "pages": 1,
+    "metadata": {
+      "/CreationDate": "D:20260915160527+10'00'",
+      "/Creator": "Adobe Illustrator 27.6 (Windows)",
+      "/ModDate": "D:20260915160528+09'00'",
+      "/Producer": "Adobe PDF library 17.00",
+      "/Title": "AL족자 쫄대작어시_904X1514_1EA_별색"
+    },
+    "rotation": 0,
+    "userUnit": 1,
+    "boxes_mm": {
+      "mediabox": [
+        0.0,
+        0.0,
+        904.00011,
+        1513.99875
+      ],
+      "cropbox": [
+        0.0,
+        0.0,
+        904.00011,
+        1513.99875
+      ],
+      "trimbox": [
+        0.0,
+        0.0,
+        904.00011,
+        1513.99875
+      ],
+      "bleedbox": [
+        0.0,
+        0.0,
+        904.00011,
+        1513.99875
+      ],
+      "artbox": [
+        0.0,
+        0.0,
+        904.00011,
+        1513.99875
+      ]
+    },
+    "cutline": {
+      "HasCutline": true,
+      "CutlineColorName": "thru",
+      "CutlineWidthMm": 0.179917
+    },
+    "page_keys": [
+      "/ArtBox",
+      "/BleedBox",
+      "/Contents",
+      "/CropBox",
+      "/Group",
+      "/LastModified",
+      "/MediaBox",
+      "/Parent",
+      "/Resources",
+      "/Thumb",
+      "/TrimBox",
+      "/Type",
+      "/PieceInfo"
+    ],
+    "content_hash": "c9620a605d48d40fc2a10356af7805e60f7f0dc4c4fff7674c6eff1491cb88a8",
+    "content_length": 17467,
+    "colors": {
+      "/CS0": "['/Separation', '/thru', '/DeviceCMYK', {'/C0': [0.0, 0.0, 0.0, 0.0], '/C1': [1, 0.0, 0.0, 0.0], '/Domain': [0, 1], '/FunctionType': 2, '/N': 1, '/Range': [0.0, 1, 0.0, 1, 0.0, 1, 0.0, 1]}]"
+    },
+    "xobjects": {
+      "/Fm0": {
+        "type": "/Form",
+        "bbox": "[-0.000198364, 4215.94, 2562.53, 3884.64]",
+        "length": 143,
+        "hash": "2089b86f6eedeb3a9991a836be24e00d701467f97fb2889bedcca1eb501ccb14"
+      },
+      "/Fm1": {
+        "type": "/Form",
+        "bbox": "[-0.000198364, 1735.42, 2562.53, 1404.11]",
+        "length": 150,
+        "hash": "93c7747feed35aef023e45369888d8ba8b7764353d8d57a3398a7aa2ad6fcaaf"
+      },
+      "/Im0": {
+        "type": "/Image",
+        "bbox": "None",
+        "length": 62037284,
+        "hash": "2af81b598c01621ea031a3d8a68ec919cf907b8e10e8329edcd8219a6418a905"
+      },
+      "/Im1": {
+        "type": "/Image",
+        "bbox": "None",
+        "length": 62037284,
+        "hash": "2af81b598c01621ea031a3d8a68ec919cf907b8e10e8329edcd8219a6418a905"
+      }
+    }
+  }
+}

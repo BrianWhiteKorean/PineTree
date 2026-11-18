@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 using PineTree.Classes;
@@ -45,10 +45,18 @@ namespace PineTree.UserControls
             NavigateTo(AppScreen.Main);
         }
 
+        public void RefreshDashboardOrders()
+        {
+            foreach (Control control in _contentPanel.Controls)
+            {
+                UcDashboardHome dashboard = control as UcDashboardHome;
+                if (dashboard != null) dashboard.RefreshOrders();
+            }
+        }
+
         public void RefreshUserInfo()
         {
             _menu.RefreshUserInfo();
-            _topBar.RefreshUserInfo();
         }
 
         private void RightPanel_Resize(object sender, EventArgs e)
@@ -65,6 +73,8 @@ namespace PineTree.UserControls
             _contentPanel.Size = new Size(_rightPanel.Width, Math.Max(0, _rightPanel.Height - UiTheme.TopBarHeight));
         }
 
+
+        // 화면에 보여줄 UC 들을 생성하고 보여준다
         public void NavigateTo(AppScreen screen)
         {
             if (_contentPanel.Controls.Count > 0 && _currentScreen == screen)

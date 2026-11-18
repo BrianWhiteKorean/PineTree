@@ -65,6 +65,8 @@
             this.inputGroupHeader2 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.btnOrderHist = new C1.Win.C1InputPanel.InputButton();
             this.btnCustList = new C1.Win.C1InputPanel.InputButton();
+            this.inputLabel3 = new C1.Win.C1InputPanel.InputLabel();
+            this.tbOrderNo = new C1.Win.C1InputPanel.InputTextBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
@@ -90,6 +92,8 @@
             this.c1InputPanel1.Font = new System.Drawing.Font("맑은 고딕", 9F);
             this.c1InputPanel1.Items.Add(this.inputGroupHeader1);
             this.c1InputPanel1.Items.Add(this.inputLabel1);
+            this.c1InputPanel1.Items.Add(this.tbOrderNo);
+            this.c1InputPanel1.Items.Add(this.inputLabel3);
             this.c1InputPanel1.Items.Add(this.dtmOrder);
             this.c1InputPanel1.Items.Add(this.inputLabel17);
             this.c1InputPanel1.Items.Add(this.dtmDelivery);
@@ -121,36 +125,36 @@
             // 
             this.inputLabel1.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel1.Name = "inputLabel1";
-            this.inputLabel1.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
-            this.inputLabel1.Text = "주문일";
+            this.inputLabel1.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            this.inputLabel1.Text = "주문번호";
             this.inputLabel1.Width = 70;
             // 
             // dtmOrder
             // 
             this.dtmOrder.Break = C1.Win.C1InputPanel.BreakType.None;
             this.dtmOrder.Name = "dtmOrder";
-            this.dtmOrder.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
+            this.dtmOrder.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.dtmOrder.Width = 120;
             // 
             // inputLabel17
             // 
             this.inputLabel17.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel17.Name = "inputLabel17";
-            this.inputLabel17.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
+            this.inputLabel17.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.inputLabel17.Text = "납기";
             this.inputLabel17.Width = 60;
             // 
             // dtmDelivery
             // 
             this.dtmDelivery.Name = "dtmDelivery";
-            this.dtmDelivery.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
+            this.dtmDelivery.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.dtmDelivery.Width = 120;
             // 
             // inputLabel7
             // 
             this.inputLabel7.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel7.Name = "inputLabel7";
-            this.inputLabel7.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel7.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.inputLabel7.Text = "거래처";
             this.inputLabel7.Width = 70;
             // 
@@ -158,13 +162,13 @@
             // 
             this.tbCustName.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbCustName.Name = "tbCustName";
-            this.tbCustName.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.tbCustName.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.tbCustName.Width = 190;
             // 
             // tbCustCode
             // 
             this.tbCustCode.Name = "tbCustCode";
-            this.tbCustCode.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.tbCustCode.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.tbCustCode.ReadOnly = true;
             this.tbCustCode.Width = 50;
             // 
@@ -172,7 +176,7 @@
             // 
             this.inputLabel2.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel2.Name = "inputLabel2";
-            this.inputLabel2.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel2.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.inputLabel2.Text = "주문채널";
             this.inputLabel2.Width = 70;
             // 
@@ -181,14 +185,14 @@
             this.cbChannel.Break = C1.Win.C1InputPanel.BreakType.None;
             this.cbChannel.DropDownStyle = C1.Win.C1InputPanel.InputComboBoxStyle.DropDownList;
             this.cbChannel.Name = "cbChannel";
-            this.cbChannel.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.cbChannel.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.cbChannel.Width = 120;
             // 
             // inputLabel15
             // 
             this.inputLabel15.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel15.Name = "inputLabel15";
-            this.inputLabel15.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel15.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.inputLabel15.Text = "배송방법";
             this.inputLabel15.Width = 60;
             // 
@@ -196,14 +200,14 @@
             // 
             this.cbDeliveryType.DropDownStyle = C1.Win.C1InputPanel.InputComboBoxStyle.DropDownList;
             this.cbDeliveryType.Name = "cbDeliveryType";
-            this.cbDeliveryType.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.cbDeliveryType.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.cbDeliveryType.Width = 120;
             // 
             // inputLabel21
             // 
             this.inputLabel21.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel21.Name = "inputLabel21";
-            this.inputLabel21.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel21.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.inputLabel21.Text = "택배비";
             this.inputLabel21.Width = 70;
             // 
@@ -216,13 +220,13 @@
             0,
             0});
             this.tbDeliveryFee.Name = "tbDeliveryFee";
-            this.tbDeliveryFee.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.tbDeliveryFee.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             // 
             // inputLabel14
             // 
             this.inputLabel14.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel14.Name = "inputLabel14";
-            this.inputLabel14.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel14.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.inputLabel14.Text = "비고";
             this.inputLabel14.Width = 70;
             // 
@@ -232,7 +236,7 @@
             this.tbRemark.Height = 60;
             this.tbRemark.Multiline = true;
             this.tbRemark.Name = "tbRemark";
-            this.tbRemark.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.tbRemark.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             this.tbRemark.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
             this.tbRemark.Width = 345;
             // 
@@ -434,6 +438,21 @@
             this.btnCustList.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
             this.btnCustList.Text = "검색";
             // 
+            // inputLabel3
+            // 
+            this.inputLabel3.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
+            this.inputLabel3.Name = "inputLabel3";
+            this.inputLabel3.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
+            this.inputLabel3.Text = "주문일";
+            this.inputLabel3.Width = 70;
+            // 
+            // tbOrderNo
+            // 
+            this.tbOrderNo.Name = "tbOrderNo";
+            this.tbOrderNo.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            this.tbOrderNo.ReadOnly = true;
+            this.tbOrderNo.Width = 308;
+            // 
             // DialogOrder
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
@@ -504,5 +523,7 @@
         private C1.Win.C1Input.C1Button btnAdd;
         private C1.Win.C1InputPanel.InputButton btnOrderHist;
         private C1.Win.C1InputPanel.InputButton btnCustList;
+        private C1.Win.C1InputPanel.InputTextBox tbOrderNo;
+        private C1.Win.C1InputPanel.InputLabel inputLabel3;
     }
 }

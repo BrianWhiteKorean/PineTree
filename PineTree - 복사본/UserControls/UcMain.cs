@@ -21,6 +21,8 @@ namespace PineTree.UserControls
         {
             InitializeComponent();
 
+            picBackground.Image = global::PineTree.Properties.Resources.BackMain_02;
+
             _navigationController = new NavigationController(picBackground);
             _navigationController.NavigationRequested += NavigationController_NavigationRequested;
             InitStatusBoard();
@@ -116,7 +118,7 @@ namespace PineTree.UserControls
         private void BindTodayOrders(DataTable orders)
         {
             PrepareTodayOrderGridData(orders);
-            FGrid1.DataSource = orders;
+            //FGrid1.DataSource = orders;
             InitTodayOrderGrid();
         }
 
@@ -135,43 +137,43 @@ namespace PineTree.UserControls
 
         private void InitTodayOrderGrid()
         {
-            FGrid1.Cols.Fixed = 0;
-            FGrid1.BackColor = Color.MintCream;
-            FGrid1.AllowMergingFixed = AllowMergingEnum.FixedOnly;
-            FGrid1.AllowSorting = AllowSortingEnum.SingleColumn;
-            FGrid1.SelectionMode = SelectionModeEnum.Row;
-            FGrid1.Rows[0].TextAlign = TextAlignEnum.CenterCenter;
+            //FGrid1.Cols.Fixed = 0;
+            //FGrid1.BackColor = Color.MintCream;
+            //FGrid1.AllowMergingFixed = AllowMergingEnum.FixedOnly;
+            //FGrid1.AllowSorting = AllowSortingEnum.SingleColumn;
+            //FGrid1.SelectionMode = SelectionModeEnum.Row;
+            //FGrid1.Rows[0].TextAlign = TextAlignEnum.CenterCenter;
 
-            SetColumn("OrderId", string.Empty, 0, TextAlignEnum.CenterCenter, false, false);
-            SetColumn("No", "번호", 60, TextAlignEnum.CenterCenter, false, true);
-            SetColumn("OrderDate", "주문일", 100, TextAlignEnum.CenterCenter, false, true, "yyyy-MM-dd");
-            SetColumn("ReceivedAt", "접수일시", 140, TextAlignEnum.CenterCenter, false, true, "yyyy-MM-dd HH:mm");
-            SetColumn("CustomerName", "거래처명", 180, TextAlignEnum.LeftCenter, false, true);
-            SetColumn("CustCode", "거래처코드", 100, TextAlignEnum.CenterCenter, false, true);
-            SetColumn("OrderNo", "주문번호", 150, TextAlignEnum.CenterCenter, false, true);
-            SetColumn("OrderTitle", "주문명", 280, TextAlignEnum.LeftCenter, false, true);
-            SetColumn("ProductionStatus", "진행상태", 110, TextAlignEnum.CenterCenter, false, true);
-            SetColumn("RequestedDueAt", "요청납기", 140, TextAlignEnum.CenterCenter, false, true, "yyyy-MM-dd HH:mm");
-            SetColumn("SourceChannel", "접수채널", 100, TextAlignEnum.CenterCenter, false, true);
+            //SetColumn("OrderId", string.Empty, 0, TextAlignEnum.CenterCenter, false, false);
+            //SetColumn("No", "번호", 60, TextAlignEnum.CenterCenter, false, true);
+            //SetColumn("OrderDate", "주문일", 100, TextAlignEnum.CenterCenter, false, true, "yyyy-MM-dd");
+            //SetColumn("ReceivedAt", "접수일시", 140, TextAlignEnum.CenterCenter, false, true, "yyyy-MM-dd HH:mm");
+            //SetColumn("CustName", "거래처명", 180, TextAlignEnum.LeftCenter, false, true);
+            //SetColumn("CustCode", "거래처코드", 100, TextAlignEnum.CenterCenter, false, true);
+            //SetColumn("OrderNo", "주문번호", 150, TextAlignEnum.CenterCenter, false, true);
+            //SetColumn("OrderTitle", "주문명", 280, TextAlignEnum.LeftCenter, false, true);
+            //SetColumn("ProductionStatus", "진행상태", 110, TextAlignEnum.CenterCenter, false, true);
+            //SetColumn("RequestedDueAt", "요청납기", 140, TextAlignEnum.CenterCenter, false, true, "yyyy-MM-dd HH:mm");
+            //SetColumn("SourceChannel", "접수채널", 100, TextAlignEnum.CenterCenter, false, true);
         }
 
-        private void SetColumn(string columnName, string caption, int width, TextAlignEnum textAlign, bool allowEditing, bool visible, string format = null)
-        {
-            if (!FGrid1.Cols.Contains(columnName))
-            {
-                return;
-            }
+        //private void SetColumn(string columnName, string caption, int width, TextAlignEnum textAlign, bool allowEditing, bool visible, string format = null)
+        //{
+        //    if (!FGrid1.Cols.Contains(columnName))
+        //    {
+        //        return;
+        //    }
 
-            FGrid1.Cols[columnName].Caption = caption;
-            FGrid1.Cols[columnName].TextAlign = textAlign;
-            FGrid1.Cols[columnName].AllowEditing = allowEditing;
-            FGrid1.Cols[columnName].Visible = visible;
-            FGrid1.Cols[columnName].Width = width;
+        //    FGrid1.Cols[columnName].Caption = caption;
+        //    FGrid1.Cols[columnName].TextAlign = textAlign;
+        //    FGrid1.Cols[columnName].AllowEditing = allowEditing;
+        //    FGrid1.Cols[columnName].Visible = visible;
+        //    FGrid1.Cols[columnName].Width = width;
 
-            if (!string.IsNullOrWhiteSpace(format))
-            {
-                FGrid1.Cols[columnName].Format = format;
-            }
-        }
+        //    if (!string.IsNullOrWhiteSpace(format))
+        //    {
+        //        FGrid1.Cols[columnName].Format = format;
+        //    }
+        //}
     }
 }

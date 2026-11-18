@@ -18,7 +18,7 @@ internal static class BannerOrderValuesRegression
     private static void Number(object o, string n, decimal value) { Set(Field(o, n), "Value", value); }
     private static decimal Value(object o, string n) { return Convert.ToDecimal(Get(Field(o,n), "Value")); }
     private static void Check(bool value, string message) { if (!value) throw new Exception(message); checks++; }
-    private static async Task Run(Form parent, Assembly assembly, string folder)
+    private static async Task Run(Control parent, Assembly assembly, string folder)
     {
         Call(parent, "InitOrderItemTable"); Call(parent, "InitOrderEditor"); Call(parent, "InitPreviewEvent");
         var table=(DataTable)Field(parent,"m_orderItems");
@@ -67,10 +67,10 @@ internal static class BannerOrderValuesRegression
         int exit=0;
         try {
             Application.EnableVisualStyles();Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
-            var assembly=Assembly.LoadFrom(Path.GetFullPath(args[0]));var type=assembly.GetType("PineTree.Dialogs.DialogOrder",true);
-            var parent=(Form)FormatterServices.GetUninitializedObject(type);typeof(Form).GetConstructor(Type.EmptyTypes).Invoke(parent,new object[0]);
-            Call(parent,"InitializeComponent");parent.StartPosition=FormStartPosition.Manual;parent.Location=new Point(-4000,-4000);parent.ShowInTaskbar=false;
-            using(parent){parent.Shown+=async delegate{try{await Run(parent,assembly,Path.GetFullPath(args[1]));}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{parent.Close();}};Application.Run(parent);}
+            var assembly=Assembly.LoadFrom(Path.GetFullPath(args[0]));var type=assembly.GetType("PineTree.UserControls.UcOrderDesigner",true);
+            var parent=(UserControl)FormatterServices.GetUninitializedObject(type);typeof(UserControl).GetConstructor(Type.EmptyTypes).Invoke(parent,new object[0]);
+            Call(parent,"InitializeComponent");
+            using(parent) using(var host=new Form { ClientSize=parent.Size, ShowInTaskbar=false, StartPosition=FormStartPosition.Manual, Left=-4000, Top=-4000 }) { host.Controls.Add(parent);host.Shown+=async delegate{try{await Run(parent,assembly,Path.GetFullPath(args[1]));}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{host.Close();}};Application.Run(host);}
         } catch(Exception e){Console.Error.WriteLine(e);return 1;}
         return exit;
     }

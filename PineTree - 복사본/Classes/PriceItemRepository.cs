@@ -1,3 +1,4 @@
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -7,6 +8,15 @@ namespace PineTree.Classes
 {
     public static class PriceItemRepository
     {
+        public static event EventHandler DedicatedPriceItemSaved;
+
+        public class DedicatedPriceItemSaveResult
+        {
+            public long PriceItemSeqNo { get; set; }
+            public long PriceItemPriceId { get; set; }
+            public string ItemCode { get; set; }
+        }
+
         public static DataTable GetPriceCategories()
         {
             string sql = @"
@@ -50,13 +60,67 @@ ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.Pr
             return DB.MySqlQueryRead(sql.ToString(), parameters.ToArray());
         }
 
+        public static DataTable GetPriceItemCustomers()
+        {
+            string sql = @"
+SELECT DISTINCT c.CustCode, c.CustName
+FROM PriceItems pi
+INNER JOIN Customers c ON c.CustCode = pi.CustCode
+WHERE pi.CustCode IS NOT NULL
+AND pi.CustCode <> ''
+ORDER BY c.CustName, c.CustCode";
+
+            return DB.MySqlQueryRead(sql, null);
+        }
+
+        public static DataTable GetPriceItemsForCustomer(string priceCategory, string categoryName, string priceItemName, string custCode)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, custCode, true, string.IsNullOrWhiteSpace(custCode));
+        }
+
         public static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, null, false);
+        }
+
+        public static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, custCode, false);
+        }
+
+        public static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode, bool dedicatedOnly)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, custCode, dedicatedOnly, false);
+        }
+
+        public static DataTable GetBasicPriceItems(string priceCategory, string categoryName, string priceItemName)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, null, false, true);
+        }
+
+        public static DataTable GetBasicPriceItems()
+        {
+            return GetPriceItems(null, null, null, null, false, false, true);
+        }
+
+        private static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode, bool dedicatedOnly, bool basicOnly, bool nullCustomerOnly = false)
         {
             StringBuilder sql = new StringBuilder();
             List<ParamValuePair> parameters = new List<ParamValuePair>();
 
             sql.AppendLine("SELECT");
+            if (nullCustomerOnly)
+            {
+                sql.AppendLine("    EXISTS (");
+                sql.AppendLine("        SELECT 1 FROM PriceItemProcessRule mapping");
+                sql.AppendLine("        INNER JOIN ProcessRule rule ON rule.RuleID = mapping.RuleID");
+                sql.AppendLine("        WHERE mapping.PriceItemSeqNo = pi.SeqNo");
+                sql.AppendLine("        AND mapping.IsActive = 1 AND rule.IsActive = 1");
+                sql.AppendLine("    ) AS HasProcessRule,");
+            }
             sql.AppendLine("    pi.SeqNo,");
+            sql.AppendLine("    pi.CustCode,");
+            sql.AppendLine("    c.CustName AS SpecialCustName,");
             sql.AppendLine("    pi.PriceCategory,");
             sql.AppendLine("    pi.CategoryName,");
             sql.AppendLine("    pi.PriceItemName,");
@@ -64,6 +128,7 @@ ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.Pr
             sql.AppendLine("    pi.SpecText,");
             sql.AppendLine("    pi.UnitName,");
             sql.AppendLine("    pi.BillingBasis,");
+            sql.AppendLine("    price.PriceItemPriceId,");
             sql.AppendLine("    price.PriceName,");
             sql.AppendLine("    price.UnitPrice AS CurrentUnitPrice,");
             sql.AppendLine("    price.ApplyFrom,");
@@ -75,6 +140,8 @@ ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.Pr
             sql.AppendLine("LEFT JOIN ProductCategory pcChild");
             sql.AppendLine("    ON pcChild.Category = pi.CategoryName");
             sql.AppendLine("    AND pcChild.ParentName = pi.PriceCategory");
+            sql.AppendLine("LEFT JOIN Customers c");
+            sql.AppendLine("    ON c.CustCode = pi.CustCode");
             sql.AppendLine("LEFT JOIN PriceItemPrices price");
             sql.AppendLine("    ON price.PriceItemPriceId = (");
             sql.AppendLine("        SELECT p2.PriceItemPriceId");
@@ -86,6 +153,20 @@ ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.Pr
             sql.AppendLine("        LIMIT 1");
             sql.AppendLine("    )");
             sql.AppendLine("WHERE pi.IsActive = 1");
+
+            if (nullCustomerOnly)
+            {
+                sql.AppendLine("AND pi.CustCode IS NULL");
+            }
+            else if (basicOnly)
+            {
+                sql.AppendLine("AND (pi.CustCode IS NULL OR pi.CustCode = '')");
+            }
+            else if (!string.IsNullOrWhiteSpace(custCode) && dedicatedOnly)
+            {
+                sql.AppendLine("AND pi.CustCode = @CustCode");
+                parameters.Add(new ParamValuePair("@CustCode", custCode.Trim()));
+            }
 
             if (!string.IsNullOrWhiteSpace(priceCategory))
             {
@@ -112,6 +193,8 @@ ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.Pr
             sql.AppendLine("    pcChild.SortOrder IS NULL,");
             sql.AppendLine("    CAST(NULLIF(pcChild.SortOrder, '') AS UNSIGNED),");
             sql.AppendLine("    pi.CategoryName,");
+            sql.AppendLine("    pi.CustCode IS NULL,");
+            sql.AppendLine("    c.CustName,");
             sql.AppendLine("    pi.ItemCode,");
             sql.AppendLine("    pi.PriceItemName");
 
@@ -191,6 +274,29 @@ WHERE pi.SeqNo = @SeqNo";
             });
 
             return dt.Rows.Count == 0 ? null : dt.Rows[0];
+        }
+
+        public static string GetNextItemCode(int year)
+        {
+            string prefix = year.ToString("D4", System.Globalization.CultureInfo.InvariantCulture) + "-";
+            string sql = @"
+SELECT COALESCE(MAX(CAST(RIGHT(ItemCode, 4) AS UNSIGNED)), 0)
+FROM PriceItems
+WHERE CHAR_LENGTH(ItemCode) = 9
+AND ItemCode REGEXP @ItemCodePattern";
+
+            object value = DB.Scalar(sql, new[]
+            {
+                new ParamValuePair("@ItemCodePattern", "^" + prefix + "[0-9]{4}$")
+            });
+
+            int maxNumber = Convert.ToInt32(value);
+            if (maxNumber >= 9999)
+            {
+                throw new InvalidOperationException("올해의 품목코드 일련번호가 9999에 도달하여 자동할당할 수 없습니다.");
+            }
+
+            return prefix + (maxNumber + 1).ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
         }
 
         public static bool ExistsItemCode(string itemCode, long? exceptSeqNo)
@@ -367,6 +473,238 @@ ON DUPLICATE KEY UPDATE
                 new ParamValuePair("@ApplyFrom", applyFrom.Date),
                 new ParamValuePair("@PriceName", priceName.Trim())
             });
+        }
+
+        public static DedicatedPriceItemSaveResult InsertDedicatedPriceItem(
+            string custCode,
+            string priceCategory,
+            string categoryName,
+            string priceItemName,
+            string baseItemCode,
+            string specText,
+            string unitName,
+            string billingBasis,
+            decimal? defaultWidth,
+            decimal? defaultHeight,
+            string priceName,
+            decimal unitPrice,
+            DateTime applyFrom,
+            string remark)
+        {
+            DedicatedPriceItemSaveResult result;
+            using (MySqlConnection conn = DB.CreateConnection())
+            {
+                conn.Open();
+                using (MySqlTransaction transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        string dedicatedItemCode = CreateDedicatedItemCode(conn, transaction, baseItemCode, custCode);
+                        long priceItemSeqNo = InsertDedicatedPriceItem(conn, transaction, custCode, priceCategory, categoryName, priceItemName, dedicatedItemCode, specText, unitName, billingBasis, defaultWidth, defaultHeight);
+                        long priceItemPriceId = InsertDedicatedPriceItemPrice(conn, transaction, priceItemSeqNo, priceName, unitPrice, applyFrom, remark);
+                        transaction.Commit();
+
+                        result = new DedicatedPriceItemSaveResult
+                        {
+                            PriceItemSeqNo = priceItemSeqNo,
+                            PriceItemPriceId = priceItemPriceId,
+                            ItemCode = dedicatedItemCode
+                        };
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+
+            // 저장이 확정되고 연결이 해제된 뒤에 화면에 변경을 알립니다.
+            DedicatedPriceItemSaved?.Invoke(null, EventArgs.Empty);
+            return result;
+        }
+
+        private static long InsertDedicatedPriceItem(
+            MySqlConnection conn,
+            MySqlTransaction transaction,
+            string custCode,
+            string priceCategory,
+            string categoryName,
+            string priceItemName,
+            string itemCode,
+            string specText,
+            string unitName,
+            string billingBasis,
+            decimal? defaultWidth,
+            decimal? defaultHeight)
+        {
+            string sql = @"
+INSERT INTO PriceItems
+(
+    CustCode,
+    PriceCategory,
+    CategoryName,
+    PriceItemName,
+    NormalizedPriceItemName,
+    ItemCode,
+    SpecText,
+    UnitName,
+    BillingBasis,
+    DefaultWidth,
+    DefaultHeight,
+    DefaultAreaPerQty,
+    IsActive
+)
+VALUES
+(
+    @CustCode,
+    @PriceCategory,
+    @CategoryName,
+    @PriceItemName,
+    @NormalizedPriceItemName,
+    @ItemCode,
+    @SpecText,
+    @UnitName,
+    @BillingBasis,
+    @DefaultWidth,
+    @DefaultHeight,
+    @DefaultAreaPerQty,
+    1
+);
+SELECT LAST_INSERT_ID();";
+
+            object value = Scalar(conn, transaction, sql, new[]
+            {
+                new ParamValuePair("@CustCode", custCode),
+                new ParamValuePair("@PriceCategory", priceCategory.Trim()),
+                new ParamValuePair("@CategoryName", EmptyToNull(categoryName)),
+                new ParamValuePair("@PriceItemName", priceItemName.Trim()),
+                new ParamValuePair("@NormalizedPriceItemName", NormalizePriceItemName(priceItemName)),
+                new ParamValuePair("@ItemCode", EmptyToNull(itemCode)),
+                new ParamValuePair("@SpecText", EmptyToNull(specText)),
+                new ParamValuePair("@UnitName", EmptyToNull(unitName)),
+                new ParamValuePair("@BillingBasis", string.IsNullOrWhiteSpace(billingBasis) ? "AREA" : billingBasis.Trim()),
+                new ParamValuePair("@DefaultWidth", defaultWidth),
+                new ParamValuePair("@DefaultHeight", defaultHeight),
+                new ParamValuePair("@DefaultAreaPerQty", GetDefaultAreaPerQty(defaultWidth, defaultHeight))
+            });
+
+            return Convert.ToInt64(value);
+        }
+
+        private static long InsertDedicatedPriceItemPrice(
+            MySqlConnection conn,
+            MySqlTransaction transaction,
+            long priceItemSeqNo,
+            string priceName,
+            decimal unitPrice,
+            DateTime applyFrom,
+            string remark)
+        {
+            string sql = @"
+INSERT INTO PriceItemPrices
+(
+    PriceItemSeqNo,
+    UnitPrice,
+    Remark,
+    ApplyFrom,
+    PriceName,
+    SourceRowNo
+)
+VALUES
+(
+    @PriceItemSeqNo,
+    @UnitPrice,
+    @Remark,
+    @ApplyFrom,
+    @PriceName,
+    0
+);
+SELECT LAST_INSERT_ID();";
+
+            object value = Scalar(conn, transaction, sql, new[]
+            {
+                new ParamValuePair("@PriceItemSeqNo", priceItemSeqNo),
+                new ParamValuePair("@UnitPrice", unitPrice),
+                new ParamValuePair("@Remark", EmptyToNull(remark)),
+                new ParamValuePair("@ApplyFrom", applyFrom.Date),
+                new ParamValuePair("@PriceName", string.IsNullOrWhiteSpace(priceName) ? "거래처 전용 단가표" : priceName.Trim())
+            });
+
+            return Convert.ToInt64(value);
+        }
+
+        private static string CreateDedicatedItemCode(MySqlConnection conn, MySqlTransaction transaction, string baseItemCode, string custCode)
+        {
+            string baseCode = string.IsNullOrWhiteSpace(baseItemCode) ? "ITEM" : baseItemCode.Trim();
+            string normalizedCustCode = string.IsNullOrWhiteSpace(custCode) ? "CUST" : custCode.Trim();
+            string prefix = baseCode + "-" + normalizedCustCode;
+            string candidate = TruncateItemCode(prefix);
+            int suffix = 2;
+
+            while (ItemCodeExists(conn, transaction, candidate))
+            {
+                string suffixText = "-" + suffix.ToString();
+                candidate = TruncateItemCode(prefix, suffixText);
+                suffix++;
+            }
+
+            return candidate;
+        }
+
+        private static string TruncateItemCode(string itemCode)
+        {
+            if (string.IsNullOrWhiteSpace(itemCode))
+            {
+                return string.Empty;
+            }
+
+            return itemCode.Length <= 50 ? itemCode : itemCode.Substring(0, 50);
+        }
+
+        private static string TruncateItemCode(string itemCode, string suffix)
+        {
+            string value = itemCode ?? string.Empty;
+            string tail = suffix ?? string.Empty;
+            int maxPrefixLength = Math.Max(0, 50 - tail.Length);
+
+            if (value.Length > maxPrefixLength)
+            {
+                value = value.Substring(0, maxPrefixLength);
+            }
+
+            return value + tail;
+        }
+
+        private static bool ItemCodeExists(MySqlConnection conn, MySqlTransaction transaction, string itemCode)
+        {
+            object value = Scalar(conn, transaction, @"
+SELECT COUNT(*)
+FROM PriceItems
+WHERE ItemCode = @ItemCode", new[]
+            {
+                new ParamValuePair("@ItemCode", itemCode)
+            });
+
+            int count;
+            return value != null && value != DBNull.Value && int.TryParse(value.ToString(), out count) && count > 0;
+        }
+
+        private static object Scalar(MySqlConnection conn, MySqlTransaction transaction, string sql, ParamValuePair[] parameters)
+        {
+            using (MySqlCommand cmd = new MySqlCommand(sql, conn, transaction))
+            {
+                AddParameters(cmd, parameters);
+                return cmd.ExecuteScalar();
+            }
+        }
+
+        private static void AddParameters(MySqlCommand cmd, ParamValuePair[] parameters)
+        {
+            foreach (ParamValuePair parameter in parameters)
+            {
+                cmd.Parameters.AddWithValue(parameter.ParameterName, parameter.Value ?? DBNull.Value);
+            }
         }
 
         private static object EmptyToNull(string value)

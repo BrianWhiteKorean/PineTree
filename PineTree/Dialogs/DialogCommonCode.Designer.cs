@@ -40,6 +40,8 @@ namespace PineTree.Dialogs
             this.panel1 = new System.Windows.Forms.Panel();
             this.btnCancel = new C1.Win.C1Input.C1Button();
             this.btnOK = new C1.Win.C1Input.C1Button();
+            this.labelItemValue = new System.Windows.Forms.Label();
+            this.tbItemValue = new C1.Win.C1Input.C1TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -49,6 +51,7 @@ namespace PineTree.Dialogs
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.btnCancel)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnOK)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbItemValue)).BeginInit();
             this.SuspendLayout();
             // 
             // c1SplitContainer1
@@ -82,6 +85,8 @@ namespace PineTree.Dialogs
             // 
             // panel2
             // 
+            this.panel2.Controls.Add(this.tbItemValue);
+            this.panel2.Controls.Add(this.labelItemValue);
             this.panel2.Controls.Add(this.tbItemName);
             this.panel2.Controls.Add(this.labelItemName);
             this.panel2.Controls.Add(this.tbGroupName);
@@ -165,6 +170,29 @@ namespace PineTree.Dialogs
             this.btnOK.Text = "확인";
             this.btnOK.UseVisualStyleBackColor = true;
             // 
+            // labelItemValue
+            // 
+            this.labelItemValue.AutoSize = true;
+            this.labelItemValue.ForeColor = System.Drawing.Color.White;
+            this.labelItemValue.Location = new System.Drawing.Point(67, 121);
+            this.labelItemValue.Name = "labelItemValue";
+            this.labelItemValue.Size = new System.Drawing.Size(29, 12);
+            this.labelItemValue.TabIndex = 0;
+            this.labelItemValue.Text = "금액";
+            this.labelItemValue.Visible = false;
+            // 
+            // tbItemValue
+            // 
+            this.tbItemValue.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.tbItemValue.Location = new System.Drawing.Point(104, 119);
+            this.tbItemValue.Name = "tbItemValue";
+            this.tbItemValue.ReadOnly = true;
+            this.tbItemValue.Size = new System.Drawing.Size(168, 19);
+            this.tbItemValue.TabIndex = 1;
+            this.tbItemValue.Tag = null;
+            this.tbItemValue.TextDetached = true;
+            this.tbItemValue.Visible = false;
+            // 
             // DialogCommonCode
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
@@ -186,6 +214,7 @@ namespace PineTree.Dialogs
             this.panel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.btnCancel)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnOK)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.tbItemValue)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -202,5 +231,7 @@ namespace PineTree.Dialogs
         private System.Windows.Forms.Label labelItemName;
         private C1.Win.C1Input.C1TextBox tbGroupName;
         private System.Windows.Forms.Label labelGroupName;
+        private C1.Win.C1Input.C1TextBox tbItemValue;
+        private System.Windows.Forms.Label labelItemValue;
     }
 }

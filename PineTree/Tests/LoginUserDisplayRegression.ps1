@@ -15,9 +15,9 @@ function CheckText($control, $fieldName, $expected) {
 }
 SetUser $null $null $null
 $menu = [Activator]::CreateInstance($assembly.GetType('PineTree.UserControls.UcMenu', $true))
-$topBar = [Activator]::CreateInstance($assembly.GetType('PineTree.UserControls.UcTopBar', $true))
+
 try {
-    CheckText $topBar '_userButton' ''
+
     CheckText $menu '_userAvatar' ''
     CheckText $menu '_userName' ''
     CheckText $menu '_userRole' ''
@@ -32,8 +32,7 @@ try {
     foreach ($case in $cases) {
         SetUser $case.ID $case.Auth $case.Company
         $menu.RefreshUserInfo()
-        $topBar.RefreshUserInfo()
-        CheckText $topBar '_userButton' $case.Badge
+
         CheckText $menu '_userAvatar' $case.Badge
         CheckText $menu '_userName' $case.Title
         CheckText $menu '_userRole' $case.Detail
@@ -41,6 +40,6 @@ try {
     }
 } finally {
     $menu.Dispose()
-    $topBar.Dispose()
+
     SetUser $null $null $null
 }

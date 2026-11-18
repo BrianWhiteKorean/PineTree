@@ -24,7 +24,7 @@ internal static class BannerOrderInitializationRegression
         try
         {
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
-            var type = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("PineTree.UserControlsOrder.UcOrder현수막", true);
+            var type = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A", true);
             CheckEngineNotLoaded("type lookup");
             for (int i = 0; i < 3; i++)
             {

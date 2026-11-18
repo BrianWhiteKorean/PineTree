@@ -4,6 +4,11 @@ namespace PineTree.Classes
     {
         Main,
         CustInfo,
-        PriceItems
+        PriceItems,
+        Order,
+        Print,
+        Process,
+        Settlement,
+        Settings
     }
 }

@@ -37,13 +37,11 @@ namespace PineTree.UserControls
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(UcCustInfo));
             this.c1SplitContainer1 = new C1.Win.C1SplitContainer.C1SplitContainer();
             this.c1SplitterPanel1 = new C1.Win.C1SplitContainer.C1SplitterPanel();
+            this.customerGrid = new PineTree.UserControls.PagedGrid();
+            this.label5 = new System.Windows.Forms.Label();
             this.dtmFrom = new C1.Win.C1Input.C1DateEdit();
             this.chkRecentOrder = new System.Windows.Forms.CheckBox();
             this.labelCount = new System.Windows.Forms.Label();
-            this.panel2 = new System.Windows.Forms.Panel();
-            this.FGrid1 = new C1.Win.C1FlexGrid.C1FlexGrid();
-            this.panel1 = new System.Windows.Forms.Panel();
-            this.label5 = new System.Windows.Forms.Label();
             this.btnDelete = new C1.Win.C1Input.C1Button();
             this.btnEdit = new C1.Win.C1Input.C1Button();
             this.btnAdd = new C1.Win.C1Input.C1Button();
@@ -59,9 +57,6 @@ namespace PineTree.UserControls
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dtmFrom)).BeginInit();
-            this.panel2.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.FGrid1)).BeginInit();
-            this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.btnDelete)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnEdit)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnAdd)).BeginInit();
@@ -94,11 +89,11 @@ namespace PineTree.UserControls
             // c1SplitterPanel1
             // 
             this.c1SplitterPanel1.BackColor = System.Drawing.Color.LightGray;
+            this.c1SplitterPanel1.Controls.Add(this.customerGrid);
+            this.c1SplitterPanel1.Controls.Add(this.label5);
             this.c1SplitterPanel1.Controls.Add(this.dtmFrom);
             this.c1SplitterPanel1.Controls.Add(this.chkRecentOrder);
             this.c1SplitterPanel1.Controls.Add(this.labelCount);
-            this.c1SplitterPanel1.Controls.Add(this.panel2);
-            this.c1SplitterPanel1.Controls.Add(this.panel1);
             this.c1SplitterPanel1.Controls.Add(this.btnDelete);
             this.c1SplitterPanel1.Controls.Add(this.btnEdit);
             this.c1SplitterPanel1.Controls.Add(this.btnAdd);
@@ -116,6 +111,34 @@ namespace PineTree.UserControls
             this.c1SplitterPanel1.Size = new System.Drawing.Size(1912, 1004);
             this.c1SplitterPanel1.TabIndex = 0;
             // 
+            // customerGrid
+            // 
+            this.customerGrid.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(33)))), ((int)(((byte)(60)))));
+            this.customerGrid.CountPrefix = "조회건수";
+            this.customerGrid.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.customerGrid.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(238)))), ((int)(((byte)(247)))), ((int)(((byte)(255)))));
+            this.customerGrid.Location = new System.Drawing.Point(57, 310);
+            this.customerGrid.Name = "customerGrid";
+            this.customerGrid.PageIndex = 1;
+            this.customerGrid.PageSize = 7;
+            this.customerGrid.SelectedRowIndex = -1;
+            this.customerGrid.Size = new System.Drawing.Size(1480, 587);
+            this.customerGrid.TabIndex = 10;
+            this.customerGrid.TotalCount = 0;
+            this.customerGrid.TotalText = "";
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.label5.Font = new System.Drawing.Font("맑은 고딕", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.label5.ForeColor = System.Drawing.Color.White;
+            this.label5.Location = new System.Drawing.Point(52, 271);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(88, 25);
+            this.label5.TabIndex = 1;
+            this.label5.Text = "조회결과";
+            // 
             // dtmFrom
             // 
             this.dtmFrom.AllowSpinLoop = false;
@@ -128,7 +151,7 @@ namespace PineTree.UserControls
             this.dtmFrom.Calendar.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             this.dtmFrom.FormatType = C1.Win.C1Input.FormatTypeEnum.ShortDate;
             this.dtmFrom.ImagePadding = new System.Windows.Forms.Padding(0);
-            this.dtmFrom.Location = new System.Drawing.Point(594, 180);
+            this.dtmFrom.Location = new System.Drawing.Point(269, 180);
             this.dtmFrom.Name = "dtmFrom";
             this.dtmFrom.Size = new System.Drawing.Size(120, 19);
             this.dtmFrom.TabIndex = 9;
@@ -138,12 +161,14 @@ namespace PineTree.UserControls
             // chkRecentOrder
             // 
             this.chkRecentOrder.AutoSize = true;
-            this.chkRecentOrder.Location = new System.Drawing.Point(594, 163);
+            this.chkRecentOrder.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.chkRecentOrder.ForeColor = System.Drawing.Color.White;
+            this.chkRecentOrder.Location = new System.Drawing.Point(269, 163);
             this.chkRecentOrder.Name = "chkRecentOrder";
             this.chkRecentOrder.Size = new System.Drawing.Size(76, 16);
             this.chkRecentOrder.TabIndex = 8;
             this.chkRecentOrder.Text = "최근 주문";
-            this.chkRecentOrder.UseVisualStyleBackColor = true;
+            this.chkRecentOrder.UseVisualStyleBackColor = false;
             // 
             // labelCount
             // 
@@ -154,99 +179,83 @@ namespace PineTree.UserControls
             this.labelCount.Size = new System.Drawing.Size(39, 12);
             this.labelCount.TabIndex = 7;
             this.labelCount.Text = "총 0건";
-            // 
-            // panel2
-            // 
-            this.panel2.BackColor = System.Drawing.Color.LightGray;
-            this.panel2.Controls.Add(this.FGrid1);
-            this.panel2.Location = new System.Drawing.Point(383, 300);
-            this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(1480, 635);
-            this.panel2.TabIndex = 6;
-            // 
-            // FGrid1
-            // 
-            this.FGrid1.AllowEditing = false;
-            this.FGrid1.AllowSorting = C1.Win.C1FlexGrid.AllowSortingEnum.None;
-            this.FGrid1.ColumnInfo = "10,0,0,0,0,100,Columns:";
-            this.FGrid1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.FGrid1.Location = new System.Drawing.Point(0, 0);
-            this.FGrid1.Name = "FGrid1";
-            this.FGrid1.Rows.DefaultSize = 20;
-            this.FGrid1.Size = new System.Drawing.Size(1480, 635);
-            this.FGrid1.TabIndex = 5;
-            // 
-            // panel1
-            // 
-            this.panel1.BackColor = System.Drawing.Color.LightGray;
-            this.panel1.Controls.Add(this.label5);
-            this.panel1.Location = new System.Drawing.Point(383, 262);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1480, 32);
-            this.panel1.TabIndex = 6;
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.BackColor = System.Drawing.Color.LightGray;
-            this.label5.Font = new System.Drawing.Font("맑은 고딕", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.label5.Location = new System.Drawing.Point(11, 3);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(88, 25);
-            this.label5.TabIndex = 1;
-            this.label5.Text = "조회결과";
+            this.labelCount.Visible = false;
             // 
             // btnDelete
             // 
+            this.btnDelete.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnDelete.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnDelete.FlatAppearance.BorderSize = 0;
+            this.btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDelete.Font = new System.Drawing.Font("맑은 고딕", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.btnDelete.ForeColor = System.Drawing.Color.White;
             this.btnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDelete.Image")));
             this.btnDelete.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnDelete.Location = new System.Drawing.Point(1172, 165);
+            this.btnDelete.Location = new System.Drawing.Point(838, 165);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(90, 34);
             this.btnDelete.TabIndex = 4;
             this.btnDelete.Text = "삭제";
             this.btnDelete.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btnDelete.UseVisualStyleBackColor = true;
+            this.btnDelete.UseVisualStyleBackColor = false;
+            this.btnDelete.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             // 
             // btnEdit
             // 
+            this.btnEdit.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnEdit.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnEdit.FlatAppearance.BorderSize = 0;
+            this.btnEdit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnEdit.Font = new System.Drawing.Font("맑은 고딕", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.btnEdit.ForeColor = System.Drawing.Color.White;
             this.btnEdit.Image = ((System.Drawing.Image)(resources.GetObject("btnEdit.Image")));
             this.btnEdit.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnEdit.Location = new System.Drawing.Point(1076, 165);
+            this.btnEdit.Location = new System.Drawing.Point(742, 165);
             this.btnEdit.Name = "btnEdit";
             this.btnEdit.Size = new System.Drawing.Size(90, 34);
             this.btnEdit.TabIndex = 4;
             this.btnEdit.Text = "수정";
             this.btnEdit.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btnEdit.UseVisualStyleBackColor = true;
+            this.btnEdit.UseVisualStyleBackColor = false;
+            this.btnEdit.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             // 
             // btnAdd
             // 
+            this.btnAdd.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnAdd.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnAdd.FlatAppearance.BorderSize = 0;
+            this.btnAdd.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnAdd.Font = new System.Drawing.Font("맑은 고딕", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.btnAdd.ForeColor = System.Drawing.Color.White;
             this.btnAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnAdd.Image")));
             this.btnAdd.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnAdd.Location = new System.Drawing.Point(980, 165);
+            this.btnAdd.Location = new System.Drawing.Point(646, 165);
             this.btnAdd.Name = "btnAdd";
             this.btnAdd.Size = new System.Drawing.Size(90, 34);
             this.btnAdd.TabIndex = 4;
             this.btnAdd.Text = "신규";
             this.btnAdd.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btnAdd.UseVisualStyleBackColor = true;
+            this.btnAdd.UseVisualStyleBackColor = false;
+            this.btnAdd.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             // 
             // btnSelect
             // 
+            this.btnSelect.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnSelect.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(108)))), ((int)(((byte)(180)))));
+            this.btnSelect.FlatAppearance.BorderSize = 0;
+            this.btnSelect.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSelect.Font = new System.Drawing.Font("맑은 고딕", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.btnSelect.ForeColor = System.Drawing.Color.White;
             this.btnSelect.Image = ((System.Drawing.Image)(resources.GetObject("btnSelect.Image")));
             this.btnSelect.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnSelect.Location = new System.Drawing.Point(884, 165);
+            this.btnSelect.Location = new System.Drawing.Point(550, 165);
             this.btnSelect.Name = "btnSelect";
             this.btnSelect.Size = new System.Drawing.Size(90, 34);
             this.btnSelect.TabIndex = 4;
             this.btnSelect.Text = "조회";
             this.btnSelect.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.btnSelect.UseVisualStyleBackColor = true;
+            this.btnSelect.UseVisualStyleBackColor = false;
+            this.btnSelect.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             // 
             // dtmTo
             // 
@@ -260,7 +269,7 @@ namespace PineTree.UserControls
             this.dtmTo.Calendar.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             this.dtmTo.FormatType = C1.Win.C1Input.FormatTypeEnum.ShortDate;
             this.dtmTo.ImagePadding = new System.Windows.Forms.Padding(0);
-            this.dtmTo.Location = new System.Drawing.Point(740, 180);
+            this.dtmTo.Location = new System.Drawing.Point(415, 180);
             this.dtmTo.Name = "dtmTo";
             this.dtmTo.Size = new System.Drawing.Size(120, 19);
             this.dtmTo.TabIndex = 3;
@@ -270,7 +279,7 @@ namespace PineTree.UserControls
             // tbCustCode
             // 
             this.tbCustCode.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tbCustCode.Location = new System.Drawing.Point(488, 180);
+            this.tbCustCode.Location = new System.Drawing.Point(163, 180);
             this.tbCustCode.Name = "tbCustCode";
             this.tbCustCode.Size = new System.Drawing.Size(100, 19);
             this.tbCustCode.TabIndex = 2;
@@ -279,8 +288,9 @@ namespace PineTree.UserControls
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.BackColor = System.Drawing.Color.LightGray;
-            this.label4.Location = new System.Drawing.Point(720, 182);
+            this.label4.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.label4.ForeColor = System.Drawing.Color.White;
+            this.label4.Location = new System.Drawing.Point(395, 182);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(14, 12);
             this.label4.TabIndex = 1;
@@ -289,8 +299,9 @@ namespace PineTree.UserControls
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.BackColor = System.Drawing.Color.LightGray;
-            this.label2.Location = new System.Drawing.Point(486, 165);
+            this.label2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.label2.ForeColor = System.Drawing.Color.White;
+            this.label2.Location = new System.Drawing.Point(161, 165);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(65, 12);
             this.label2.TabIndex = 1;
@@ -299,7 +310,7 @@ namespace PineTree.UserControls
             // tbCustName
             // 
             this.tbCustName.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tbCustName.Location = new System.Drawing.Point(382, 180);
+            this.tbCustName.Location = new System.Drawing.Point(57, 180);
             this.tbCustName.Name = "tbCustName";
             this.tbCustName.Size = new System.Drawing.Size(100, 19);
             this.tbCustName.TabIndex = 2;
@@ -308,8 +319,9 @@ namespace PineTree.UserControls
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.BackColor = System.Drawing.Color.LightGray;
-            this.label1.Location = new System.Drawing.Point(380, 165);
+            this.label1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.label1.ForeColor = System.Drawing.Color.White;
+            this.label1.Location = new System.Drawing.Point(55, 165);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(53, 12);
             this.label1.TabIndex = 1;
@@ -318,7 +330,7 @@ namespace PineTree.UserControls
             // picBackground
             // 
             this.picBackground.BackColor = System.Drawing.Color.LightGray;
-            this.picBackground.Image = global::PineTree.Properties.Resources.BackCustInfo_Sample;
+            this.picBackground.Image = global::PineTree.Properties.Resources.BackCustInfo;
             this.picBackground.Location = new System.Drawing.Point(0, 0);
             this.picBackground.Name = "picBackground";
             this.picBackground.Size = new System.Drawing.Size(1912, 1004);
@@ -336,10 +348,6 @@ namespace PineTree.UserControls
             this.c1SplitterPanel1.ResumeLayout(false);
             this.c1SplitterPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dtmFrom)).EndInit();
-            this.panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.FGrid1)).EndInit();
-            this.panel1.ResumeLayout(false);
-            this.panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.btnDelete)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnEdit)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnAdd)).EndInit();
@@ -355,6 +363,7 @@ namespace PineTree.UserControls
         #endregion
 
         private System.Windows.Forms.PictureBox picBackground;
+        private PineTree.UserControls.PagedGrid customerGrid;
         private C1.Win.C1SplitContainer.C1SplitContainer c1SplitContainer1;
         private C1.Win.C1SplitContainer.C1SplitterPanel c1SplitterPanel1;
         private C1.Win.C1Input.C1TextBox tbCustCode;
@@ -362,9 +371,6 @@ namespace PineTree.UserControls
         private System.Windows.Forms.Label label2;
         private C1.Win.C1Input.C1TextBox tbCustName;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Panel panel2;
-        private System.Windows.Forms.Panel panel1;
-        private C1.Win.C1FlexGrid.C1FlexGrid FGrid1;
         private C1.Win.C1Input.C1Button btnDelete;
         private C1.Win.C1Input.C1Button btnEdit;
         private C1.Win.C1Input.C1Button btnAdd;

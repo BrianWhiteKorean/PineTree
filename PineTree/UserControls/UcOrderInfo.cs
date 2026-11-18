@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PineTree.Classes;
@@ -131,8 +132,34 @@ namespace PineTree.UserControls
 
         private void OrderGrid_CellDoubleClicked(object sender, PagedGridCellClickEventArgs e)
         {
+            if (e.ColumnKey == "WorkSheet")
+            {
+                return;
+            }
+
             SelectOrder(e);
             OpenEditDialog();
+        }
+
+        private void OrderGrid_CellClicked(object sender, PagedGridCellClickEventArgs e)
+        {
+            SelectOrder(e);
+            if (e.ColumnKey != "WorkSheet" || _orders == null || e.Row == null
+                || !e.Row.ContainsKey("WorkSheet") || e.Row["WorkSheet"].CellType != PagedGridCellType.Button)
+            {
+                return;
+            }
+
+            int index = (orderGrid.PageIndex - 1) * orderGrid.PageSize + e.RowIndex;
+            if (index < 0 || index >= _orders.Rows.Count)
+            {
+                return;
+            }
+
+            using (DialogPrint dialog = new DialogPrint(_orders.Rows[index]))
+            {
+                dialog.ShowDialog(this);
+            }
         }
 
         private void NavigationController_NavigationRequested(object sender, NavigationRequestedEventArgs e)
@@ -176,17 +203,24 @@ namespace PineTree.UserControls
             }
         }
 
+        //
+
+
+
+
         private void InitializeOrderGrid()
         {
+            orderGrid.RowGroupKey = "OrderId";
             orderGrid.PageSize = Math.Max(1, (orderGrid.Height - 36 - 52) / 41);
             orderGrid.Columns.Add(new PagedGridColumn("OrderNo", "주문번호", 210, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Customer", "거래처명", 240, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Item", "품목", 260, ContentAlignment.MiddleLeft));
-            orderGrid.Columns.Add(new PagedGridColumn("Size", "규격 (mm)", 215, ContentAlignment.MiddleLeft));
+            orderGrid.Columns.Add(new PagedGridColumn("Size", "규격", 215, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Quantity", "수량/회배", 150, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Status", "진행상태", 0, ContentAlignment.MiddleLeft));
+            orderGrid.Columns.Add(new PagedGridColumn("WorkSheet", "작업서", 100, ContentAlignment.MiddleCenter));
             orderGrid.PageChanged += delegate { BindOrderPage(); };
-            orderGrid.CellClicked += delegate(object sender, PagedGridCellClickEventArgs e) { SelectOrder(e); };
+            orderGrid.CellClicked += OrderGrid_CellClicked;
             orderGrid.SelectionChanged += OrderGrid_SelectionChanged;
             orderGrid.CellDoubleClicked += OrderGrid_CellDoubleClicked;
             orderGrid.KeyDown += OrderGrid_KeyDown;
@@ -214,8 +248,17 @@ namespace PineTree.UserControls
             _orders = orders;
             orderGrid.TotalCount = orders.Rows.Count;
             orderGrid.PageIndex = 1;
-            orderGrid.TotalText = string.Format("전체 {0:#,##0}건", orders.Rows.Count);
+            int orderCount = orders.AsEnumerable().Select(row => row["OrderId"]).Distinct().Count();
+            orderGrid.TotalText = string.Format("전체 {0:#,##0}건 / 품목 {1:#,##0}개", orderCount, orders.Rows.Count);
             BindOrderPage();
+        }
+
+        private static string GetOrderItemDisplayName(DataRow row, bool firstItem)
+        {
+            string title = row.Table.Columns.Contains("OrderTitle") ? Convert.ToString(row["OrderTitle"]) : string.Empty;
+            if (firstItem && !string.IsNullOrWhiteSpace(title)) return title;
+            string customName = row.Table.Columns.Contains("CustomName") ? Convert.ToString(row["CustomName"]) : string.Empty;
+            return string.IsNullOrWhiteSpace(customName) ? Convert.ToString(row["ItemName"]) : customName;
         }
 
         private void BindOrderPage()
@@ -229,15 +272,17 @@ namespace PineTree.UserControls
                 for (int index = startIndex; index < endIndex; index++)
                 {
                     DataRow order = _orders.Rows[index];
+                    bool firstItem = index == 0 || !Equals(order["OrderId"], _orders.Rows[index - 1]["OrderId"]);
                     Dictionary<string, PagedGridCell> row = new Dictionary<string, PagedGridCell>
                     {
                         { "OrderId", new PagedGridCell(Convert.ToString(order["OrderId"])) },
-                        { "OrderNo", new PagedGridCell(Convert.ToString(order["OrderNo"])) },
+                        { "OrderNo", new PagedGridCell(firstItem ? Convert.ToString(order["OrderNo"]) : string.Empty) },
                         { "Customer", new PagedGridCell(Convert.ToString(order["CustName"])) },
-                        { "Item", new PagedGridCell(Convert.ToString(order["ItemName"])) },
+                        { "Item", new PagedGridCell(GetOrderItemDisplayName(order, firstItem)) },
                         { "Size", new PagedGridCell(CreateSizeText(order)) },
                         { "Quantity", new PagedGridCell(CreateQuantityText(order)) },
-                        { "Status", new PagedGridCell(CreateStatusText(Convert.ToString(order["ProductionStatus"]))) { CellType = PagedGridCellType.Badge } }
+                        { "Status", new PagedGridCell(CreateStatusText(Convert.ToString(order["ProductionStatus"]))) { CellType = PagedGridCellType.Badge } },
+                        { "WorkSheet", firstItem ? new PagedGridCell("보기") { CellType = PagedGridCellType.Button } : new PagedGridCell(string.Empty) }
                     };
                     rows.Add(row);
                 }

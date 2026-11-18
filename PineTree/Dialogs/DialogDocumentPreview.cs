@@ -1,5 +1,6 @@
 ﻿using PineTree.PdfEngine;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Threading;
@@ -18,10 +19,11 @@ namespace PineTree.Dialogs
         private readonly ToolStripButton _previous = new ToolStripButton("이전");
         private readonly ToolStripButton _next = new ToolStripButton("다음");
         private readonly ToolStripButton _full = new ToolStripButton("전체 캔버스") { CheckOnClick = true };
-        private readonly ToolStripButton _save = new ToolStripButton("파일 저장") { Name = "btnSavePdf", ToolTipText = "현재 출력용 PDF를 파일로 저장합니다." };
+        private readonly ToolStripButton _save = new ToolStripButton("파일 저장") { Name = "btnSavePdf", ToolTipText = "현재 출력용 PDF의 전체 페이지를 하나의 파일로 저장합니다." };
         private readonly Label _status = new Label { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(8), AutoEllipsis = true };
         private readonly CancellationTokenSource _saveLifetime = new CancellationTokenSource();
         private CancellationTokenSource _render;
+        private DialogProgressbar _renderProgress;
         private readonly System.Windows.Forms.Timer _detailTimer = new System.Windows.Forms.Timer { Interval = 250 };
         private CancellationTokenSource _detailRender;
         private int _detailVersion;
@@ -37,6 +39,11 @@ namespace PineTree.Dialogs
         private bool _closeAfterSaving;
         private bool _resourcesDisposed;
         private string _lastSavedPath;
+        private readonly CancellationTokenSource _previewLifetime = new CancellationTokenSource();
+        private readonly Dictionary<int, Task<OrderDocumentResult>> _pageLoads = new Dictionary<int, Task<OrderDocumentResult>>();
+        private readonly Dictionary<int, OrderDocumentResult> _pageCache = new Dictionary<int, OrderDocumentResult>();
+        private readonly List<int> _pageLru = new List<int>();
+        private readonly SemaphoreSlim _pageGate = new SemaphoreSlim(1, 1);
 
         public DialogDocumentPreview(string source) : this(source, false) { }
 
@@ -61,8 +68,8 @@ namespace PineTree.Dialogs
             Controls.Add(_viewport);
             Controls.Add(_status);
             Controls.Add(toolbar);
-            _previous.Click += delegate { if (_page > 0) { --_page; Render(); } };
-            _next.Click += delegate { if (_page + 1 < _pageCount) { ++_page; Render(); } };
+            _previous.Click += delegate { if (_page > 0) SelectPage(_page - 1); };
+            _next.Click += delegate { if (_page + 1 < _pageCount) SelectPage(_page + 1); };
             _full.CheckedChanged += delegate { Render(); };
             fit.Click += delegate { Fit(); };
             enlarge.Click += delegate { SetZoom(_zoom * 1.25); };
@@ -86,29 +93,30 @@ namespace PineTree.Dialogs
         {
             ClearDetail();
             int version = ++_version;
-            if (_render != null) _render.Cancel();
             var cancellation = new CancellationTokenSource();
             _render = cancellation;
-            var previousImage = _picture.Image;
             _picture.Image = null;
-            if (previousImage != null) previousImage.Dispose();
+            int page = _page;
+            bool full = _full.Checked;
             _status.Text = "미리보기 이미지를 만드는 중입니다…";
             UpdatePages();
             try
             {
-                var result = await OrderDocumentService.PreviewAsync(_source, _page, 2000, _full.Checked, cancellation.Token);
-                if (IsDisposed || version != _version)
+                if (!_pageCache.ContainsKey(page * 2 + (full ? 1 : 0)) && (_renderProgress == null || _renderProgress.IsDisposed))
                 {
-                    result.PreviewImage.Dispose();
-                    return;
+                    _renderProgress = new DialogProgressbar();
+                    _renderProgress.ReportProgress("PDF 미리보기 이미지를 만드는 중입니다…");
+                    _renderProgress.Show(this);
+                    _renderProgress.Update();
                 }
-                var old = _picture.Image;
+                var result = await GetPageAsync(page, full);
+                if (result.IsCanceled || _resourcesDisposed || version != _version) return;
                 _picture.Image = result.PreviewImage;
-                if (old != null) old.Dispose();
                 _pageCount = result.PageCount;
                 _status.Text = result.FileInfo + Environment.NewLine + (_full.Checked ? "전체 캔버스" : result.RegionDescription);
                 Fit();
                 UpdatePages();
+                WarmNextPage(page, full);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -119,14 +127,84 @@ namespace PineTree.Dialogs
             {
                 cancellation.Dispose();
                 if (_render == cancellation) _render = null;
+                if (version == _version) CloseRenderProgress();
             }
+        }
+
+        private Task<OrderDocumentResult> GetPageAsync(int page, bool full)
+        {
+            int key = page * 2 + (full ? 1 : 0);
+            OrderDocumentResult cached;
+            if (_pageCache.TryGetValue(key, out cached))
+            {
+                _pageLru.Remove(key); _pageLru.Add(key);
+                return Task.FromResult(cached);
+            }
+            Task<OrderDocumentResult> pending;
+            if (_pageLoads.TryGetValue(key, out pending)) return pending;
+            pending = LoadPageAsync(page, full, key, _previewLifetime.Token);
+            _pageLoads[key] = pending;
+            return pending;
+        }
+
+        private async Task<OrderDocumentResult> LoadPageAsync(int page, bool full, int key, CancellationToken token)
+        {
+            await Task.Yield();
+            bool entered = false;
+            try
+            {
+                await _pageGate.WaitAsync(); entered = true;
+                if (token.IsCancellationRequested) return new OrderDocumentResult { IsCanceled = true };
+                var result = await OrderDocumentService.PreviewPageAsync(_source, page, 2000, full, token);
+                if (result.IsCanceled) return result;
+                if (_resourcesDisposed)
+                {
+                    result.PreviewImage.Dispose();
+                    return new OrderDocumentResult { IsCanceled = true };
+                }
+                _pageCache[key] = result;
+                _pageLru.Remove(key); _pageLru.Add(key);
+                // At most four screen-resolution previews (~64 MB). Details remain viewport-only.
+                while (_pageLru.Count > 4)
+                {
+                    int oldest = _pageLru.FindIndex(x => x != key && x != _page * 2 + (_full.Checked ? 1 : 0)
+                        && _pageCache[x].PreviewImage != _picture.Image);
+                    if (oldest < 0) break;
+                    int victim = _pageLru[oldest]; _pageLru.RemoveAt(oldest);
+                    _pageCache[victim].PreviewImage.Dispose(); _pageCache.Remove(victim);
+                }
+                return result;
+            }
+            finally { if (entered) _pageGate.Release(); _pageLoads.Remove(key); }
+        }
+
+        private async void WarmNextPage(int page, bool full)
+        {
+            if (_resourcesDisposed || page + 1 >= _pageCount) return;
+            try { await GetPageAsync(page + 1, full); }
+            catch (Exception) { /* Selecting a failed page retries and reports its error. */ }
+        }
+
+        private void CloseRenderProgress()
+        {
+            var progress = _renderProgress;
+            _renderProgress = null;
+            if (progress != null) progress.Dispose();
         }
 
         private void UpdatePages()
         {
             _pageLabel.Text = (_page + 1) + " / " + _pageCount;
+            _previous.Visible = _next.Visible = _pageLabel.Visible = _pageCount > 1;
             _previous.Enabled = _page > 0;
             _next.Enabled = _page + 1 < _pageCount;
+        }
+
+        private void SelectPage(int page)
+        {
+            if (page == _page || page < 0 || page >= _pageCount) return;
+            _page = page;
+            Render();
         }
 
         private double FitZoom()
@@ -333,7 +411,7 @@ namespace PineTree.Dialogs
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             if (_saving) { _closeAfterSaving = true; _saveLifetime.Cancel(); e.Cancel = true; }
-            else if (_render != null) _render.Cancel();
+            else _previewLifetime.Cancel();
             base.OnFormClosing(e);
         }
 
@@ -342,14 +420,17 @@ namespace PineTree.Dialogs
             if (disposing && !_resourcesDisposed)
             {
                 _resourcesDisposed = true;
+                CloseRenderProgress();
                 if (_detailRender != null) _detailRender.Cancel();
                 ClearDetail();
                 _detailTimer.Dispose();
                 ++_version;
-                if (_render != null) _render.Cancel();
+                _previewLifetime.Cancel();
                 _saveLifetime.Cancel(); _saveLifetime.Dispose();
-                var image = _picture.Image; _picture.Image = null;
-                if (image != null) image.Dispose();
+                _picture.Image = null;
+                foreach (var result in _pageCache.Values) result.PreviewImage.Dispose();
+                _pageCache.Clear(); _pageLru.Clear();
+                _previewLifetime.Dispose();
             }
             base.Dispose(disposing);
         }

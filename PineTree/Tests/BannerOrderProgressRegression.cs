@@ -31,7 +31,7 @@ internal static class BannerOrderProgressRegression
             {
                 if (e.LoadedAssembly.GetName().Name == "PineTree.PdfEngine") Interlocked.Exchange(ref engineLoadThread, Thread.CurrentThread.ManagedThreadId);
             };
-            var type = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("PineTree.UserControlsOrder.UcOrder현수막", true);
+            var type = Assembly.LoadFrom(Path.GetFullPath(args[0])).GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A", true);
             string folder = Path.GetFullPath(args[1]);
             using (var control = (UserControl)Activator.CreateInstance(type))
             using (var host = new Form { Width = 1170, Height = 780, ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Left = -4000, Top = -4000 })

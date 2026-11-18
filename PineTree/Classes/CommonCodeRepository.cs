@@ -35,7 +35,7 @@ namespace PineTree.Classes
         public static DataRow GetCommonCode(long seqNo)
         {
             DataTable table = DB.MySqlQueryRead(
-                "SELECT SeqNo, GroupName, ItemName FROM CommonCode WHERE SeqNo = @SeqNo",
+                "SELECT SeqNo, GroupName, ItemName, ItemValue FROM CommonCode WHERE SeqNo = @SeqNo",
                 new[] { new ParamValuePair("@SeqNo", seqNo) });
             return table.Rows.Count == 0 ? null : table.Rows[0];
         }
@@ -52,17 +52,39 @@ namespace PineTree.Classes
 
         public static long SaveItem(long? seqNo, string groupName, string itemName)
         {
+            return SaveItemCore(seqNo, groupName, itemName, null, false);
+        }
+
+        public static string NormalizeDeliveryItemValue(string itemValue)
+        {
+            if (string.IsNullOrWhiteSpace(itemValue)) return null;
+            decimal amount;
+            if (!decimal.TryParse(itemValue, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out amount) || amount < 0m)
+                throw new ArgumentException("금액은 0 이상의 숫자로 입력해주세요.");
+            return amount.ToString("0.############################", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        public static long SaveItem(long? seqNo, string groupName, string itemName, string itemValue)
+        {
+            bool delivery = groupName == "배송방법";
+            return SaveItemCore(seqNo, groupName, itemName, delivery ? NormalizeDeliveryItemValue(itemValue) : null, delivery);
+        }
+
+        private static long SaveItemCore(long? seqNo, string groupName, string itemName, string itemValue, bool writeValue)
+        {
             ValidateItem(groupName, itemName);
             using (MySqlConnection connection = DB.CreateConnection())
             {
                 connection.Open();
                 string sql = seqNo.HasValue
-                    ? "UPDATE CommonCode SET ItemName = @ItemName WHERE SeqNo = @SeqNo AND GroupName = @GroupName"
-                    : "INSERT INTO CommonCode (GroupName, ItemName) VALUES (@GroupName, @ItemName)";
+                    ? "UPDATE CommonCode SET ItemName = @ItemName" + (writeValue ? ", ItemValue = @ItemValue" : "") + " WHERE SeqNo = @SeqNo AND GroupName = @GroupName"
+                    : "INSERT INTO CommonCode (GroupName, ItemName" + (writeValue ? ", ItemValue" : "") + ") VALUES (@GroupName, @ItemName" + (writeValue ? ", @ItemValue" : "") + ")";
                 using (MySqlCommand command = new MySqlCommand(sql, connection))
                 {
                     command.Parameters.AddWithValue("@GroupName", groupName);
                     command.Parameters.AddWithValue("@ItemName", itemName.Trim());
+                    if (writeValue) command.Parameters.AddWithValue("@ItemValue", (object)itemValue ?? DBNull.Value);
                     if (seqNo.HasValue)
                         command.Parameters.AddWithValue("@SeqNo", seqNo.Value);
                     int affected = command.ExecuteNonQuery();
@@ -70,7 +92,8 @@ namespace PineTree.Classes
                     {
                         DataRow existing = GetCommonCode(seqNo.Value);
                         if (existing == null || Convert.ToString(existing["GroupName"]) != groupName
-                            || Convert.ToString(existing["ItemName"]) != itemName.Trim())
+                            || Convert.ToString(existing["ItemName"]) != itemName.Trim()
+                            || (writeValue && Convert.ToString(existing["ItemValue"]) != (itemValue ?? string.Empty)))
                             throw new InvalidOperationException("수정할 항목이 삭제되었거나 그룹이 변경되었습니다. 다시 조회해주세요.");
                     }
                     return seqNo ?? command.LastInsertedId;
@@ -107,7 +130,7 @@ ORDER BY GroupName";
         public static DataTable GetOrderEntryItems()
         {
             const string sql = @"
-SELECT SeqNo, GroupName, ItemName
+SELECT SeqNo, GroupName, ItemName, ItemValue
 FROM CommonCode
 WHERE GroupName IN (@ChannelGroup, @DeliveryGroup)
 AND ItemName IS NOT NULL

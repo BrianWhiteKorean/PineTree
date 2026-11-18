@@ -32,7 +32,7 @@ internal static class BannerEditorStateRegression
         try{
             Application.EnableVisualStyles();Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
             Assembly.LoadFrom(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0])),"../../../PineTree.PdfEngine/bin/Debug/PineTree.PdfEngine.dll")));
-            var app=Assembly.LoadFrom(Path.GetFullPath(args[0]));var type=app.GetType("PineTree.UserControlsOrder.UcOrder현수막",true);
+            var app=Assembly.LoadFrom(Path.GetFullPath(args[0]));var type=app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A",true);
             string folder=Path.GetFullPath(args[1]);
             using(var host=new Form{Width=1050,Height=780,ShowInTaskbar=false,StartPosition=FormStartPosition.Manual,Left=-4000,Top=-4000})
             using(var source=(UserControl)Activator.CreateInstance(type)){
@@ -40,7 +40,7 @@ internal static class BannerEditorStateRegression
                 host.Shown+=async delegate{
                     try{
                         await (Task)Call(source,"LoadSourceFileAsync",Path.Combine(folder,"source.png"));
-                        Check(Field(source,"_sourceDetails")!=null,"source inspection succeeded");
+                        Check(Field(source,"_sourceDetails")!=null,"source inspection succeeded: " + Get(Field(source,"tbFileInfo"),"Text"));
                         Number(source,"tbTargetWidth",600);Number(source,"tbTargetHeight",1800);Number(source,"inputNumericBox4",5);
                         Number(source,"tbEdgeBottom",9);Set(Field(source,"cbDeploy"),"SelectedOption",Field(source,"inputOption5"));
                         var hole=Finish(source,"HOLE");Set(Get(hole,"Parameters"),"TypeCode","CUSTOM_SPACING");Set(Get(hole,"Parameters"),"HoleSpacingMm",600m);Call(source,"CommitPostProcess",-1,hole);

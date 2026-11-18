@@ -1,9 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using C1.Win.C1FlexGrid;
 using PineTree.Classes;
 using PineTree.Dialogs;
 
@@ -12,8 +12,13 @@ namespace PineTree.UserControls
     public partial class UcPriceItems : UserControl, INavigationView
     {
         private const string AllText = "[전체]";
+        private const string NoCustomerText = "[해당없음]";
+        private DataTable _customerFilterItems;
         private readonly NavigationController _navigationController;
         private bool _isInitializingCombo;
+        private DataTable _priceItems;
+        private long? _selectedPriceItemSeqNo;
+        private int _customerComboLoadVersion;
 
         protected override CreateParams CreateParams
         {
@@ -30,6 +35,10 @@ namespace PineTree.UserControls
         public UcPriceItems()
         {
             InitializeComponent();
+            cbCustName.DropDownStyle = C1.Win.C1Input.DropDownStyle.DropDownList;
+            cbCustName.ItemsDisplayMember = "CustName";
+            cbCustName.ItemsValueMember = "CustCode";
+            BindCustomerCombo(new DataTable(), null);
 
             _navigationController = new NavigationController(picBackground);
             _navigationController.NavigationRequested += NavigationController_NavigationRequested;
@@ -37,8 +46,10 @@ namespace PineTree.UserControls
             btnSelect.Click += btnSelect_Click;
             btnAdd.Click += btnAdd_Click;
             btnEdit.Click += btnEdit_Click;
-            FGrid1.DoubleClick += FGrid1_DoubleClick;
+            InitializePriceItemGrid();
+            tbPriceItemName.KeyDown += SearchTextBox_KeyDown;
             cbCategory.SelectedIndexChanged += cbCategory_SelectedIndexChanged;
+            PriceItemRepository.DedicatedPriceItemSaved += PriceItemRepository_DedicatedPriceItemSaved;
         }
 
         public event EventHandler<NavigationRequestedEventArgs> NavigationRequested;
@@ -56,7 +67,7 @@ namespace PineTree.UserControls
 
         private async void btnAdd_Click(object sender, EventArgs e)
         {
-            using (DailogPriceItem dialog = new DailogPriceItem())
+            using (DialogPriceItem dialog = new DialogPriceItem())
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -71,9 +82,21 @@ namespace PineTree.UserControls
             await OpenEditDialogAsync();
         }
 
-        private async void FGrid1_DoubleClick(object sender, EventArgs e)
+        private async void PriceItemGrid_CellDoubleClicked(object sender, PagedGridCellClickEventArgs e)
         {
+            SelectPriceItem(e);
             await OpenEditDialogAsync();
+        }
+
+        private async void SearchTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+            {
+                return;
+            }
+
+            e.SuppressKeyPress = true;
+            await LoadPriceItemsAsync();
         }
 
         private async void cbCategory_SelectedIndexChanged(object sender, EventArgs e)
@@ -97,8 +120,10 @@ namespace PineTree.UserControls
             {
                 string selectedCategory = cbCategory.Text;
                 string selectedCategoryName = cbCategoryName.Text;
+                string selectedCustCode = GetSelectedCustomerCode();
 
                 _isInitializingCombo = true;
+                await LoadCustomerComboAsync(selectedCustCode);
                 await LoadCategoryComboAsync(selectedCategory);
                 await LoadCategoryNameComboAsync(selectedCategoryName);
             }
@@ -110,6 +135,81 @@ namespace PineTree.UserControls
             {
                 _isInitializingCombo = false;
             }
+        }
+
+        private async void PriceItemRepository_DedicatedPriceItemSaved(object sender, EventArgs e)
+        {
+            if (IsDisposed || Disposing || !IsHandleCreated)
+            {
+                // 아직 표시되지 않은 화면은 최초 Load에서 최신 목록을 조회합니다.
+                return;
+            }
+
+            try
+            {
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(() => PriceItemRepository_DedicatedPriceItemSaved(sender, e)));
+                    return;
+                }
+
+                await LoadCustomerComboAsync(GetSelectedCustomerCode());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("거래처 조회조건을 갱신하지 못했습니다.\r\n" + ex.Message, "상품관리", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private async Task LoadCustomerComboAsync(string selectedCustCode)
+        {
+            int loadVersion = ++_customerComboLoadVersion;
+            DataTable customers = await Task.Run(() => PriceItemRepository.GetPriceItemCustomers());
+            if (IsDisposed || Disposing || loadVersion != _customerComboLoadVersion)
+            {
+                return;
+            }
+
+            BindCustomerCombo(customers, selectedCustCode);
+        }
+
+        private void BindCustomerCombo(DataTable customers, string selectedCustCode)
+        {
+            DataTable items = customers.Copy();
+            if (!items.Columns.Contains("CustCode"))
+            {
+                items.Columns.Add("CustCode", typeof(string));
+            }
+            if (!items.Columns.Contains("CustName"))
+            {
+                items.Columns.Add("CustName", typeof(string));
+            }
+
+            DataRow defaultItem = items.NewRow();
+            defaultItem["CustCode"] = string.Empty;
+            defaultItem["CustName"] = NoCustomerText;
+            items.Rows.InsertAt(defaultItem, 0);
+            _customerFilterItems = items;
+            cbCustName.TranslateValue = true;
+            cbCustName.ItemsDataSource = items;
+            int selectedIndex = 0;
+            for (int index = 1; index < items.Rows.Count; index++)
+            {
+                if (string.Equals(Convert.ToString(items.Rows[index]["CustCode"]), selectedCustCode, StringComparison.Ordinal))
+                {
+                    selectedIndex = index;
+                    break;
+                }
+            }
+            cbCustName.SelectedIndex = selectedIndex;
+        }
+
+        private string GetSelectedCustomerCode()
+        {
+            int index = cbCustName.SelectedIndex;
+            return _customerFilterItems != null && index >= 0 && index < _customerFilterItems.Rows.Count
+                ? Convert.ToString(_customerFilterItems.Rows[index]["CustCode"])
+                : string.Empty;
         }
 
         private async Task LoadCategoryComboAsync(string selectedText)
@@ -163,11 +263,13 @@ namespace PineTree.UserControls
                 string priceCategory = GetSelectedValue(cbCategory);
                 string categoryName = GetSelectedValue(cbCategoryName);
                 string priceItemName = tbPriceItemName.Text;
+                string custCode = GetSelectedCustomerCode();
 
-                DataTable priceItems = await Task.Run(() => PriceItemRepository.GetPriceItems(
+                DataTable priceItems = await Task.Run(() => PriceItemRepository.GetPriceItemsForCustomer(
                     priceCategory,
                     categoryName,
-                    priceItemName));
+                    priceItemName,
+                    custCode));
 
                 if (IsDisposed)
                 {
@@ -182,112 +284,124 @@ namespace PineTree.UserControls
             }
         }
 
+        private void InitializePriceItemGrid()
+        {
+            priceItemGrid.PageSize = Math.Max(1, (priceItemGrid.Height - 36 - 52) / 41);
+            priceItemGrid.Columns.Add(new PagedGridColumn("No", "번호", 40, ContentAlignment.MiddleCenter));
+            priceItemGrid.Columns.Add(new PagedGridColumn("PriceCategory", "카테고리", 80, ContentAlignment.MiddleCenter));
+            priceItemGrid.Columns.Add(new PagedGridColumn("CategoryName", "품목분류", 120, ContentAlignment.MiddleCenter));
+            // 기존 자동 너비 326px에서 40px 축소하고 숨긴 열의 여백이 재분배되지 않도록 고정합니다.
+            priceItemGrid.Columns.Add(new PagedGridColumn("PriceItemName", "품목명", 286, ContentAlignment.MiddleLeft));
+            priceItemGrid.Columns.Add(new PagedGridColumn("ItemCode", "품목코드", 95, ContentAlignment.MiddleCenter));
+            priceItemGrid.Columns.Add(new PagedGridColumn("SpecText", "규격", 170, ContentAlignment.MiddleLeft));
+            priceItemGrid.Columns.Add(new PagedGridColumn("UnitName", "단위", 60, ContentAlignment.MiddleCenter));
+            priceItemGrid.Columns.Add(new PagedGridColumn("BillingBasis", "과금기준", 75, ContentAlignment.MiddleCenter));
+            priceItemGrid.Columns.Add(new PagedGridColumn("CurrentUnitPrice", "현재판매가", 95, ContentAlignment.MiddleRight));
+            priceItemGrid.Columns.Add(new PagedGridColumn("PriceRemarkGap", string.Empty, 16, ContentAlignment.MiddleLeft));
+            priceItemGrid.Columns.Add(new PagedGridColumn("Remark", "비고", 150, ContentAlignment.MiddleLeft));
+            priceItemGrid.Columns.Add(new PagedGridColumn("CustCode", "전용 거래처코드", 100, ContentAlignment.MiddleCenter));
+            priceItemGrid.Columns.Add(new PagedGridColumn("SpecialCustName", "전용 거래처", 110, ContentAlignment.MiddleLeft));
+            priceItemGrid.PageChanged += delegate { BindPriceItemPage(); };
+            priceItemGrid.CellClicked += delegate(object sender, PagedGridCellClickEventArgs e) { SelectPriceItem(e); };
+            priceItemGrid.SelectionChanged += PriceItemGrid_SelectionChanged;
+            priceItemGrid.CellDoubleClicked += PriceItemGrid_CellDoubleClicked;
+            priceItemGrid.KeyDown += PriceItemGrid_KeyDown;
+            priceItemGrid.Resize += delegate
+            {
+                priceItemGrid.PageSize = Math.Max(1, (priceItemGrid.Height - 36 - 52) / 41);
+                priceItemGrid.PageIndex = priceItemGrid.PageIndex;
+                BindPriceItemPage();
+            };
+        }
+
+        private async void PriceItemGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter || e.Modifiers != Keys.None || priceItemGrid.SelectedRowIndex < 0)
+            {
+                return;
+            }
+
+            e.SuppressKeyPress = true;
+            await OpenEditDialogAsync();
+        }
+
         private void BindPriceItems(DataTable priceItems)
         {
-            PrepareGridData(priceItems);
-
-            FGrid1.DataSource = priceItems;
-            InitGrid();
-
-            labelCount.Text = string.Format("조회건수 : {0}건", priceItems.Rows.Count);
+            _priceItems = priceItems;
+            priceItemGrid.TotalCount = priceItems.Rows.Count;
+            priceItemGrid.PageIndex = 1;
+            priceItemGrid.TotalText = string.Format("전체 {0:#,##0}건", priceItems.Rows.Count);
+            BindPriceItemPage();
         }
 
-        private void InitGrid()
+        private void BindPriceItemPage()
         {
-            FGrid1.Cols.Fixed = 0;
-            FGrid1.BackColor = Color.MintCream;
-            FGrid1.AllowMergingFixed = AllowMergingEnum.FixedOnly;
-            FGrid1.AllowSorting = AllowSortingEnum.SingleColumn;
-            FGrid1.SelectionMode = SelectionModeEnum.Row;
+            _selectedPriceItemSeqNo = null;
+            List<Dictionary<string, PagedGridCell>> rows = new List<Dictionary<string, PagedGridCell>>();
+            if (_priceItems != null)
+            {
+                int startIndex = (priceItemGrid.PageIndex - 1) * priceItemGrid.PageSize;
+                int endIndex = Math.Min(startIndex + priceItemGrid.PageSize, _priceItems.Rows.Count);
+                for (int index = startIndex; index < endIndex; index++)
+                {
+                    DataRow priceItem = _priceItems.Rows[index];
+                    Dictionary<string, PagedGridCell> row = new Dictionary<string, PagedGridCell>
+                    {
+                        { "SeqNo", new PagedGridCell(Convert.ToString(priceItem["SeqNo"])) },
+                        { "No", new PagedGridCell((index + 1).ToString()) }
+                    };
+                    foreach (PagedGridColumn column in priceItemGrid.Columns)
+                    {
+                        if (column.Key == "No")
+                        {
+                            continue;
+                        }
 
-            FGrid1.Cols["SeqNo"].Visible = false;
+                        if (column.Key == "PriceRemarkGap")
+                        {
+                            row.Add(column.Key, new PagedGridCell(string.Empty));
+                            continue;
+                        }
 
-            FGrid1.Cols["IsSelected"].Caption = "선택";
-            FGrid1.Cols["IsSelected"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["IsSelected"].AllowEditing = true;
-            FGrid1.Cols["IsSelected"].Width = 55;
-
-            FGrid1.Cols["No"].Caption = "번호";
-            FGrid1.Cols["No"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["No"].AllowEditing = false;
-            FGrid1.Cols["No"].Width = 60;
-
-            FGrid1.Cols["PriceCategory"].Caption = "카테고리";
-            FGrid1.Cols["PriceCategory"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["PriceCategory"].AllowEditing = false;
-            FGrid1.Cols["PriceCategory"].Width = 130;
-
-            FGrid1.Cols["CategoryName"].Caption = "품목분류";
-            FGrid1.Cols["CategoryName"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["CategoryName"].AllowEditing = false;
-            FGrid1.Cols["CategoryName"].Width = 160;
-
-            FGrid1.Cols["PriceItemName"].Caption = "품목명";
-            FGrid1.Cols["PriceItemName"].TextAlign = TextAlignEnum.LeftCenter;
-            FGrid1.Cols["PriceItemName"].AllowEditing = false;
-            FGrid1.Cols["PriceItemName"].Width = 220;
-
-            FGrid1.Cols["ItemCode"].Caption = "품목코드";
-            FGrid1.Cols["ItemCode"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["ItemCode"].AllowEditing = false;
-            FGrid1.Cols["ItemCode"].Width = 130;
-
-            FGrid1.Cols["SpecText"].Caption = "규격";
-            FGrid1.Cols["SpecText"].TextAlign = TextAlignEnum.LeftCenter;
-            FGrid1.Cols["SpecText"].AllowEditing = false;
-            FGrid1.Cols["SpecText"].Width = 130;
-
-            FGrid1.Cols["UnitName"].Caption = "단위";
-            FGrid1.Cols["UnitName"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["UnitName"].AllowEditing = false;
-            FGrid1.Cols["UnitName"].Width = 80;
-
-            FGrid1.Cols["BillingBasis"].Caption = "과금기준";
-            FGrid1.Cols["BillingBasis"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["BillingBasis"].AllowEditing = false;
-            FGrid1.Cols["BillingBasis"].Width = 90;
-
-            FGrid1.Cols["PriceName"].Caption = "현재 단가표";
-            FGrid1.Cols["PriceName"].TextAlign = TextAlignEnum.LeftCenter;
-            FGrid1.Cols["PriceName"].AllowEditing = false;
-            FGrid1.Cols["PriceName"].Width = 170;
-
-            FGrid1.Cols["CurrentUnitPrice"].Caption = "현재판매가";
-            FGrid1.Cols["CurrentUnitPrice"].TextAlign = TextAlignEnum.RightCenter;
-            FGrid1.Cols["CurrentUnitPrice"].AllowEditing = false;
-            FGrid1.Cols["CurrentUnitPrice"].Width = 130;
-            FGrid1.Cols["CurrentUnitPrice"].Format = "#,##0.##";
-
-            FGrid1.Cols["ApplyFrom"].Caption = "단가적용일";
-            FGrid1.Cols["ApplyFrom"].TextAlign = TextAlignEnum.CenterCenter;
-            FGrid1.Cols["ApplyFrom"].AllowEditing = false;
-            FGrid1.Cols["ApplyFrom"].Width = 120;
-            FGrid1.Cols["ApplyFrom"].Format = "yyyy-MM-dd";
-
-            FGrid1.Cols["Remark"].Caption = "비고";
-            FGrid1.Cols["Remark"].TextAlign = TextAlignEnum.LeftCenter;
-            FGrid1.Cols["Remark"].AllowEditing = false;
-            FGrid1.Cols["Remark"].Width = 180;
-
-            FGrid1.Rows[0].TextAlign = TextAlignEnum.CenterCenter;
+                        object value = priceItem[column.Key];
+                        string text = value is DateTime
+                            ? ((DateTime)value).ToString("yyyy-MM-dd")
+                            : column.Key == "CurrentUnitPrice" && value != DBNull.Value
+                                ? Convert.ToDecimal(value).ToString("#,##0.##")
+                                : Convert.ToString(value);
+                        row.Add(column.Key, new PagedGridCell(text));
+                    }
+                    rows.Add(row);
+                }
+            }
+            priceItemGrid.SetRows(rows);
         }
 
-        private void PrepareGridData(DataTable priceItems)
+        private void SelectPriceItem(PagedGridCellClickEventArgs e)
         {
-            if (!priceItems.Columns.Contains("IsSelected"))
+            PagedGridCell seqNoCell;
+            long seqNo;
+            if (e.Row.TryGetValue("SeqNo", out seqNoCell) && long.TryParse(seqNoCell.Text, out seqNo))
             {
-                priceItems.Columns.Add("IsSelected", typeof(bool)).SetOrdinal(0);
+                _selectedPriceItemSeqNo = seqNo;
+                priceItemGrid.SelectedRowIndex = e.RowIndex;
+            }
+        }
+
+        private void PriceItemGrid_SelectionChanged(object sender, EventArgs e)
+        {
+            _selectedPriceItemSeqNo = null;
+            int selectedIndex = priceItemGrid.SelectedRowIndex;
+            if (_priceItems == null || selectedIndex < 0)
+            {
+                return;
             }
 
-            if (!priceItems.Columns.Contains("No"))
+            int index = (priceItemGrid.PageIndex - 1) * priceItemGrid.PageSize + selectedIndex;
+            long seqNo;
+            if (index >= 0 && index < _priceItems.Rows.Count && long.TryParse(Convert.ToString(_priceItems.Rows[index]["SeqNo"]), out seqNo))
             {
-                priceItems.Columns.Add("No", typeof(int)).SetOrdinal(1);
-            }
-
-            for (int i = 0; i < priceItems.Rows.Count; i++)
-            {
-                priceItems.Rows[i]["IsSelected"] = false;
-                priceItems.Rows[i]["No"] = i + 1;
+                _selectedPriceItemSeqNo = seqNo;
             }
         }
 
@@ -328,7 +442,7 @@ namespace PineTree.UserControls
                 return;
             }
 
-            using (DailogPriceItem dialog = new DailogPriceItem(seqNo))
+            using (DialogPriceItem dialog = new DialogPriceItem(seqNo))
             {
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
@@ -340,16 +454,8 @@ namespace PineTree.UserControls
 
         private bool TryGetCurrentSeqNo(out long seqNo)
         {
-            seqNo = 0;
-
-            if (FGrid1.Row < FGrid1.Rows.Fixed || FGrid1.Rows.Count <= FGrid1.Rows.Fixed)
-            {
-                return false;
-            }
-
-            int seqNoCol = FGrid1.Cols["SeqNo"].Index;
-            object value = FGrid1[FGrid1.Row, seqNoCol];
-            return value != null && long.TryParse(value.ToString(), out seqNo);
+            seqNo = _selectedPriceItemSeqNo.GetValueOrDefault();
+            return _selectedPriceItemSeqNo.HasValue;
         }
     }
 }

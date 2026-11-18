@@ -9,6 +9,7 @@ namespace PineTree.Classes
     public class OrderSaveData
     {
         public long? OrderId { get; set; }
+        public long? LinkToOrderId { get; set; }
         public long? OrderItemId { get; set; }
         public DateTime OrderDate { get; set; }
         public string CustCode { get; set; }
@@ -41,6 +42,8 @@ namespace PineTree.Classes
         public string OutputFilePath { get; set; }
         public List<OrderProcessRuleData> ProcessRules { get; set; }
         public string CreatedBy { get; set; }
+        public string DesignPadStateJson { get; set; }
+        public string PreviewSnapshotJson { get; set; }
         public List<OrderItemSaveData> Items { get; set; }
     }
 
@@ -72,11 +75,11 @@ namespace PineTree.Classes
         public List<OrderProcessRuleData> ProcessRules { get; set; }
     }
 
-    public static class OrderRepository
+    public static partial class OrderRepository
     {
         public static DataTable GetOrdersByOrderDate(DateTime orderDate)
         {
-            return GetOrders(null, null, orderDate, orderDate, null, false);
+            return GetOrders(null, null, orderDate, orderDate, null, true);
         }
 
         public static DataTable GetOrders(string custName, string custCode, DateTime orderDateFrom, DateTime orderDateTo, string orderChannel = null)
@@ -107,6 +110,8 @@ SELECT
     item.Qty,
     item.AreaQty,
     item.BillingBasis,
+    editorState.StateJSON AS EditorStateJson,
+    designState.StateJSON AS DesignPadStateJson,
     priceItem.UnitName
 FROM OrderInfo oi
 LEFT JOIN Customers c
@@ -116,6 +121,10 @@ LEFT JOIN OrderItems item
     AND (@IncludeAllItems = 1 OR item.LineNo = 1)
 LEFT JOIN PriceItems priceItem
     ON priceItem.SeqNo = item.PriceItemSeqNo
+LEFT JOIN OrderItemEditorStates editorState
+    ON editorState.OrderItemId = item.OrderItemId
+LEFT JOIN OrderDesignPadStates designState
+    ON designState.OrderId = oi.OrderId
 WHERE oi.OrderDate >= @OrderDateFrom
     AND oi.OrderDate < @OrderDateToExclusive
     AND (@CustName = '' OR c.CustName LIKE @CustName)
@@ -123,7 +132,7 @@ WHERE oi.OrderDate >= @OrderDateFrom
     AND (@OrderChannel = '' OR oi.OrderChannel = @OrderChannel)
 ORDER BY oi.ReceivedAt DESC, oi.OrderId DESC, item.LineNo, item.OrderItemId";
 
-            return DB.MySqlQueryRead(sql, new[]
+            DataTable rows = DB.MySqlQueryRead(sql, new[]
             {
                 new ParamValuePair("@OrderDateFrom", orderDateFrom.Date),
                 new ParamValuePair("@OrderDateToExclusive", orderDateTo.Date.AddDays(1)),
@@ -132,6 +141,46 @@ ORDER BY oi.ReceivedAt DESC, oi.OrderId DESC, item.LineNo, item.OrderItemId";
                 new ParamValuePair("@OrderChannel", string.IsNullOrWhiteSpace(orderChannel) ? string.Empty : orderChannel.Trim()),
                 new ParamValuePair("@IncludeAllItems", includeAllItems ? 1 : 0)
             });
+            return AddDesignPadProductRows(rows);
+        }
+
+        // Work products live in the design snapshot; OrderItems contains optional accessories.
+        private static DataTable AddDesignPadProductRows(DataTable rows)
+        {
+            var result = rows.Clone();
+            var orders = new HashSet<long>();
+            var designOrders = new HashSet<long>();
+            foreach (DataRow row in rows.Rows)
+            {
+                long orderId = Convert.ToInt64(row["OrderId"]);
+                if (orders.Add(orderId) && rows.Columns.Contains("DesignPadStateJson"))
+                {
+                    OrderDesignPadState state = null;
+                    try { state = OrderDesignPadState.FromJson(Convert.ToString(row["DesignPadStateJson"])); }
+                    catch (ArgumentException) { }
+                    catch (InvalidOperationException) { }
+                    if (state != null && state.Editor != null && !string.IsNullOrWhiteSpace(state.ProductName))
+                    {
+                        DataRow product = result.NewRow();
+                        product.ItemArray = (object[])row.ItemArray.Clone();
+                        product["OrderItemId"] = DBNull.Value;
+                        product["OrderTitle"] = product["ItemName"] = product["CustomName"] = state.ProductName;
+                        product["SpecText"] = OrderDesignPadState.FormatSpecification(state.Editor.WidthMm, state.Editor.HeightMm, state.Editor.Quantity);
+                        product["WidthMm"] = state.Editor.WidthMm;
+                        product["HeightMm"] = state.Editor.HeightMm;
+                        product["Qty"] = state.Editor.Quantity;
+                        product["AreaQty"] = state.Editor.WidthMm * state.Editor.HeightMm * state.Editor.Quantity / 1000000m;
+                        product["UnitName"] = "장";
+                        product["BillingBasis"] = "면적";
+                        product["EditorStateJson"] = state.Editor.ToJson();
+                        result.Rows.Add(product);
+                        designOrders.Add(orderId);
+                    }
+                }
+                if (!designOrders.Contains(orderId) || row["OrderItemId"] != DBNull.Value)
+                    result.ImportRow(row);
+            }
+            return result;
         }
 
         public static Dictionary<OrderProductionStatus, int> GetStatusCountsByOrderDate(DateTime orderDate)
@@ -180,6 +229,9 @@ SELECT
     oi.DeliveryFee,
     oi.OrderNo,
     oi.OrderDate,
+    oi.OrderGroupId,
+    oi.OrderGroupSequence,
+    oi.OrderBaseNo,
     oi.ReceivedAt,
     oi.RequestedDueAt,
     oi.OrderTitle,
@@ -330,6 +382,8 @@ ORDER BY item.LineNo, item.OrderItemId";
             }
 
             DeleteRemovedOrderItems(conn, transaction, orderId, savedOrderItemIds);
+            OrderDesignPadStateRepository.Save(conn, transaction, orderId, order.DesignPadStateJson);
+            OrderPreviewSnapshotRepository.Save(conn, transaction, orderId, order.PreviewSnapshotJson);
             return orderId;
         }
 
@@ -388,6 +442,7 @@ AND OrderItemId = @OrderItemId";
         {
             if (order.OrderId.HasValue && order.OrderId.Value > 0)
             {
+                PreserveLinkedOrderHeader(conn, transaction, order);
                 string updateSql = @"
 UPDATE OrderInfo
 SET
@@ -421,7 +476,8 @@ WHERE OrderId = @OrderId";
                 return order.OrderId.Value;
             }
 
-            string orderNo = CreateOrderNo(conn, transaction, order.OrderDate);
+            LinkedOrderNumber link = order.LinkToOrderId.HasValue ? PrepareLinkedOrder(conn, transaction, order) : null;
+            string orderNo = link == null ? CreateOrderNo(conn, transaction, order.OrderDate) : link.OrderNo;
             string insertSql = @"
 INSERT INTO OrderInfo
 (
@@ -430,6 +486,9 @@ INSERT INTO OrderInfo
     DeliveryType,
     DeliveryFee,
     OrderNo,
+    OrderGroupId,
+    OrderGroupSequence,
+    OrderBaseNo,
     OrderDate,
     ReceivedAt,
     RequestedDueAt,
@@ -445,6 +504,9 @@ VALUES
     @DeliveryType,
     @DeliveryFee,
     @OrderNo,
+    @OrderGroupId,
+    @OrderGroupSequence,
+    @OrderBaseNo,
     @OrderDate,
     NOW(),
     @RequestedDueAt,
@@ -462,6 +524,9 @@ SELECT LAST_INSERT_ID();";
                 new ParamValuePair("@DeliveryType", EmptyToNull(order.DeliveryType)),
                 new ParamValuePair("@DeliveryFee", order.DeliveryFee),
                 new ParamValuePair("@OrderNo", orderNo),
+                new ParamValuePair("@OrderGroupId", link == null ? (object)null : link.RootOrderId),
+                new ParamValuePair("@OrderGroupSequence", link == null ? (object)null : link.Sequence),
+                new ParamValuePair("@OrderBaseNo", link == null ? null : link.BaseNo),
                 new ParamValuePair("@OrderDate", order.OrderDate.Date),
                 new ParamValuePair("@RequestedDueAt", order.RequestedDueAt),
                 new ParamValuePair("@OrderTitle", EmptyToNull(order.OrderTitle)),
@@ -732,13 +797,13 @@ VALUES
         {
             string prefix = orderDate.ToString("yyyyMMdd");
             object value = Scalar(conn, transaction, @"
-SELECT MAX(CAST(SUBSTRING(OrderNo, 10) AS UNSIGNED))
+SELECT MAX(CAST(SUBSTRING(COALESCE(OrderBaseNo, OrderNo), 10) AS UNSIGNED))
 FROM OrderInfo
-WHERE OrderNo LIKE @OrderNoPrefix
-AND OrderNo REGEXP @OrderNoPattern", new[]
+WHERE COALESCE(OrderBaseNo, OrderNo) LIKE @OrderNoPrefix
+AND COALESCE(OrderBaseNo, OrderNo) REGEXP @OrderNoPattern", new[]
             {
                 new ParamValuePair("@OrderNoPrefix", prefix + "-%"),
-                new ParamValuePair("@OrderNoPattern", "^" + prefix + "-[0-9]{3}$")
+                new ParamValuePair("@OrderNoPattern", "^" + prefix + "-[0-9]{3,}$")
             });
 
             int sequence;
@@ -786,7 +851,8 @@ LIMIT 1", new[]
 
         private static List<OrderItemSaveData> GetOrderItems(OrderSaveData order)
         {
-            if (order.Items != null && order.Items.Count > 0)
+            // An explicit empty list means no accessories. Only null uses the legacy single-item fields.
+            if (order.Items != null)
             {
                 return order.Items;
             }

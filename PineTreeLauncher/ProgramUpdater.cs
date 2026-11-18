@@ -13,11 +13,18 @@ namespace PineTreeLauncher
 {
     internal static class ProgramUpdater
     {
-        internal static void UpdateIfNeeded()
+        internal static bool UpdateIfNeeded()
         {
+            string dllPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PineTree.dll");
+            if (!File.Exists(dllPath) && MessageBox.Show(
+                "실행경로에 DLL 파일이 없습니다. 서버에서 다운로드할까요?", "PineTree Update",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return false;
+
             UpdateInfo update = GetLatestUpdate();
-            if (update == null) return;
+            if (update == null) return true;
             ApplyUpdate(update);
+            return true;
         }
 
         private static void ApplyUpdate(UpdateInfo update)

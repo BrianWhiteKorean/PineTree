@@ -49,18 +49,18 @@ internal static class OrderSaveRoundTripRegression
         if (createdOrderId == 0) createdOrderId = id;
         return id;
     }
-    private static Form EmptyDialog()
+    private static UserControl EmptyDialog()
     {
-        var type = app.GetType("PineTree.Dialogs.DialogOrder", true);
-        var form = (Form)FormatterServices.GetUninitializedObject(type);
-        typeof(Form).GetConstructor(Type.EmptyTypes).Invoke(form, new object[0]);
+        var type = app.GetType("PineTree.UserControls.UcOrderDesigner", true);
+        var form = (UserControl)FormatterServices.GetUninitializedObject(type);
+        typeof(UserControl).GetConstructor(Type.EmptyTypes).Invoke(form, new object[0]);
         Call(form, "InitializeComponent"); Call(form, "InitOrderItemTable"); Call(form, "InitOrderEditor"); Call(form, "InitPreviewEvent");
         SetField(form, "m_productionStatus", "신규");
         var mode = type.GetField("m_DialogMode", PrivateInstance); mode.SetValue(form, Enum.Parse(mode.FieldType, "New"));
-        form.StartPosition = FormStartPosition.Manual; form.Location = new Point(-4000, -4000); form.ShowInTaskbar = false;
+
         return form;
     }
-    private static Form Restore(DataRow header, DataTable rows, long orderId)
+    private static UserControl Restore(DataRow header, DataTable rows, long orderId)
     {
         var form = EmptyDialog();
         SetField(form, "m_orderId", orderId);
@@ -68,7 +68,7 @@ internal static class OrderSaveRoundTripRegression
         Call(form, "ApplyLoadedOrder", header); Call(form, "ApplyLoadedOrderItems", rows); SetField(form, "m_isInitializing", false);
         return form;
     }
-    private static object Editor(Form form) { return Field(form, "m_orderEditor"); }
+    private static object Editor(UserControl form) { return Field(form, "m_orderEditor"); }
     private static string CaptureJson(object editor)
     {
         var state = editor.GetType().GetMethod("CaptureEditorState").Invoke(editor, null);
@@ -105,7 +105,7 @@ internal static class OrderSaveRoundTripRegression
             Call(form, "AddOrderItem", item, null);
             var table = (DataTable)Field(form, "m_orderItems"); table.Rows[0]["PriceCategory"] = price["PriceCategory"]; table.Rows[0]["CategoryName"] = price["CategoryName"];
             var grid = Field(form, "FGrid1"); Set(grid, "Row", (int)Get(Get(grid,"Rows"),"Fixed")); Call(form, "UpdateSelectedOrderEditor");
-            Check(Editor(form).GetType().Name == "UcOrder현수막", "banner editor selected");
+            Check(Editor(form).GetType().Name == "UcOrder수성_그룹A", "banner editor selected");
             Check((bool)Call(form, "CheckValidation"), "file-less zero quantity order passes validation");
             string initial = CaptureJson(Editor(form));
             var model = Call(form, "CreateOrderSaveData");
@@ -157,7 +157,7 @@ internal static class OrderSaveRoundTripRegression
                     Check(CaptureJson(Editor(again))==secondState,"second item finishing settings restored independently");
                     Set(againGrid,"Row",(int)Get(Get(againGrid,"Rows"),"Fixed"));Call(again,"UpdateSelectedOrderEditor");
                     Check(CaptureJson(Editor(again))==changed,"selecting first item preserves its own settings");
-                    again.Show();Application.DoEvents();
+                    using (var host = new Form { ClientSize = again.Size, ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Left = -4000, Top = -4000 }) { host.Controls.Add(again); host.Show(); Application.DoEvents(); host.Controls.Remove(again); }
                     using(var bitmap=new Bitmap(again.Width,again.Height)){again.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size));bitmap.Save(Path.Combine(output,"order-restored.png"));}
                 }
                 // A previously saved order without a state row must still restore its numeric item values.

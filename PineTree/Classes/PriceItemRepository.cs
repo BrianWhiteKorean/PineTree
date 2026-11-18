@@ -1,4 +1,4 @@
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -19,7 +19,31 @@ namespace PineTree.Classes
 
         public static DataTable GetPriceCategories()
         {
-            string sql = @"
+            return GetPriceCategories(null);
+        }
+
+        public static DataTable GetEquipment()
+        {
+            return DB.MySqlQueryRead(@"
+SELECT EquipmentId, EquipmentName FROM Equipment
+WHERE IsActive = 1 ORDER BY EquipmentId", null);
+        }
+
+        private static void AppendEquipmentFilter(StringBuilder sql, List<ParamValuePair> parameters, int? equipmentId)
+        {
+            if (!equipmentId.HasValue) return;
+            // EXISTS keeps common items on a single row.
+            sql.AppendLine(@"AND EXISTS (
+    SELECT 1 FROM PriceItemEquipment pie
+    INNER JOIN Equipment e ON e.EquipmentId = pie.EquipmentId
+    WHERE pie.PriceItemSeqNo = pi.SeqNo
+      AND e.EquipmentId = @EquipmentId AND e.IsActive = 1)");
+            parameters.Add(new ParamValuePair("@EquipmentId", equipmentId.Value));
+        }
+
+        public static DataTable GetPriceCategories(int? equipmentId)
+        {
+            StringBuilder sql = new StringBuilder(@"
 SELECT pi.PriceCategory
 FROM PriceItems pi
 LEFT JOIN ProductCategory pc
@@ -28,13 +52,20 @@ LEFT JOIN ProductCategory pc
 WHERE pi.IsActive = 1
 AND pi.PriceCategory IS NOT NULL
 AND pi.PriceCategory <> ''
-GROUP BY pi.PriceCategory, pc.SortOrder
-ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.PriceCategory";
-
-            return DB.MySqlQueryRead(sql, null);
+");
+            var parameters = new List<ParamValuePair>();
+            AppendEquipmentFilter(sql, parameters, equipmentId);
+            sql.AppendLine(@"GROUP BY pi.PriceCategory, pc.SortOrder
+ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.PriceCategory");
+            return DB.MySqlQueryRead(sql.ToString(), parameters.ToArray());
         }
 
         public static DataTable GetCategoryNames(string priceCategory)
+        {
+            return GetCategoryNames(priceCategory, null);
+        }
+
+        public static DataTable GetCategoryNames(string priceCategory, int? equipmentId)
         {
             StringBuilder sql = new StringBuilder();
             List<ParamValuePair> parameters = new List<ParamValuePair>();
@@ -54,9 +85,41 @@ ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.Pr
                 parameters.Add(new ParamValuePair("@PriceCategory", priceCategory.Trim()));
             }
 
+            AppendEquipmentFilter(sql, parameters, equipmentId);
             sql.AppendLine("GROUP BY pi.CategoryName, pc.SortOrder");
             sql.AppendLine("ORDER BY pc.SortOrder IS NULL, CAST(NULLIF(pc.SortOrder, '') AS UNSIGNED), pi.CategoryName");
 
+            return DB.MySqlQueryRead(sql.ToString(), parameters.ToArray());
+        }
+
+        public static DataTable GetPriceItemNames(string priceCategory, string categoryName)
+        {
+            return GetPriceItemNames(priceCategory, categoryName, null);
+        }
+
+        public static DataTable GetPriceItemNames(string priceCategory, string categoryName, int? equipmentId)
+        {
+            var sql = new StringBuilder(@"
+SELECT pi.PriceItemName
+FROM PriceItems pi
+WHERE pi.IsActive = 1
+AND pi.ItemType = 'PRODUCT'
+AND pi.PriceCategory = @PriceCategory
+AND pi.CategoryName = @CategoryName
+AND pi.PriceItemName IS NOT NULL
+AND TRIM(pi.PriceItemName) <> ''
+");
+
+            var parameters = new List<ParamValuePair>
+            {
+                new ParamValuePair("@PriceCategory", (priceCategory ?? string.Empty).Trim()),
+                new ParamValuePair("@CategoryName", (categoryName ?? string.Empty).Trim())
+            };
+            AppendEquipmentFilter(sql, parameters, equipmentId);
+            // A name may have several specifications/customer prices. Show it once
+            // at its earliest configured position; new, unnumbered items go last.
+            sql.AppendLine(@"GROUP BY pi.PriceItemName
+ORDER BY MIN(pi.SortOrder) IS NULL, MIN(pi.SortOrder), MIN(pi.SeqNo)");
             return DB.MySqlQueryRead(sql.ToString(), parameters.ToArray());
         }
 
@@ -73,9 +136,19 @@ ORDER BY c.CustName, c.CustCode";
             return DB.MySqlQueryRead(sql, null);
         }
 
+        public static DataTable GetDesignPadProductPrices(string priceCategory, string categoryName, string priceItemName, string custCode, int? equipmentId)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, custCode, false, false, false, equipmentId, true);
+        }
+
         public static DataTable GetPriceItemsForCustomer(string priceCategory, string categoryName, string priceItemName, string custCode)
         {
-            return GetPriceItems(priceCategory, categoryName, priceItemName, custCode, true, string.IsNullOrWhiteSpace(custCode));
+            return GetPriceItemsForCustomer(priceCategory, categoryName, priceItemName, custCode, null);
+        }
+
+        public static DataTable GetPriceItemsForCustomer(string priceCategory, string categoryName, string priceItemName, string custCode, int? equipmentId)
+        {
+            return GetPriceItems(priceCategory, categoryName, priceItemName, custCode, true, string.IsNullOrWhiteSpace(custCode), false, equipmentId);
         }
 
         public static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName)
@@ -103,7 +176,13 @@ ORDER BY c.CustName, c.CustCode";
             return GetPriceItems(null, null, null, null, false, false, true);
         }
 
-        private static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode, bool dedicatedOnly, bool basicOnly, bool nullCustomerOnly = false)
+        public static DataTable GetBasicAccessoryPriceItems(string priceCategory, string categoryName, string priceItemName)
+        {
+            if (string.IsNullOrWhiteSpace(priceCategory)) throw new ArgumentException("카테고리를 선택해주세요.");
+            return GetPriceItems(priceCategory, categoryName, priceItemName, null, false, true, accessoriesOnly: true);
+        }
+
+        private static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode, bool dedicatedOnly, bool basicOnly, bool nullCustomerOnly = false, int? equipmentId = null, bool productsOnly = false, bool accessoriesOnly = false)
         {
             StringBuilder sql = new StringBuilder();
             List<ParamValuePair> parameters = new List<ParamValuePair>();
@@ -154,7 +233,16 @@ ORDER BY c.CustName, c.CustCode";
             sql.AppendLine("    )");
             sql.AppendLine("WHERE pi.IsActive = 1");
 
-            if (nullCustomerOnly)
+            if (accessoriesOnly)
+                sql.AppendLine("AND COALESCE(pi.ItemType, '') <> 'PRODUCT'");
+
+            if (productsOnly)
+            {
+                sql.AppendLine("AND pi.ItemType = 'PRODUCT'");
+                sql.AppendLine("AND (pi.CustCode = @CustCode OR pi.CustCode IS NULL OR TRIM(pi.CustCode) = '')");
+                parameters.Add(new ParamValuePair("@CustCode", (custCode ?? string.Empty).Trim()));
+            }
+            else if (nullCustomerOnly)
             {
                 sql.AppendLine("AND pi.CustCode IS NULL");
             }
@@ -182,10 +270,11 @@ ORDER BY c.CustName, c.CustCode";
 
             if (!string.IsNullOrWhiteSpace(priceItemName))
             {
-                sql.AppendLine("AND pi.PriceItemName LIKE @PriceItemName");
-                parameters.Add(new ParamValuePair("@PriceItemName", "%" + priceItemName.Trim() + "%"));
+                sql.AppendLine(productsOnly ? "AND pi.PriceItemName = @PriceItemName" : "AND pi.PriceItemName LIKE @PriceItemName");
+                parameters.Add(new ParamValuePair("@PriceItemName", productsOnly ? priceItemName.Trim() : "%" + priceItemName.Trim() + "%"));
             }
 
+            AppendEquipmentFilter(sql, parameters, equipmentId);
             sql.AppendLine("ORDER BY");
             sql.AppendLine("    pcParent.SortOrder IS NULL,");
             sql.AppendLine("    CAST(NULLIF(pcParent.SortOrder, '') AS UNSIGNED),");

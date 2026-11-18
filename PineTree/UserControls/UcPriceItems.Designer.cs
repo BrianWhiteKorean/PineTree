@@ -41,6 +41,7 @@ namespace PineTree.UserControls
             this.priceItemGrid = new PineTree.UserControls.PagedGrid();
             this.label5 = new System.Windows.Forms.Label();
             this.tbPriceItemName = new C1.Win.C1Input.C1TextBox();
+            this.cbCustName = new C1.Win.C1Input.C1ComboBox();
             this.cbCategoryName = new C1.Win.C1Input.C1ComboBox();
             this.cbCategory = new C1.Win.C1Input.C1ComboBox();
             this.labelCount = new System.Windows.Forms.Label();
@@ -48,16 +49,18 @@ namespace PineTree.UserControls
             this.btnEdit = new C1.Win.C1Input.C1Button();
             this.btnAdd = new C1.Win.C1Input.C1Button();
             this.btnSelect = new C1.Win.C1Input.C1Button();
+            this.label4 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.picBackground = new System.Windows.Forms.PictureBox();
-            this.label4 = new System.Windows.Forms.Label();
-            this.cbCustName = new C1.Win.C1Input.C1ComboBox();
+            this.label6 = new System.Windows.Forms.Label();
+            this.cbEquipment = new C1.Win.C1Input.C1ComboBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbPriceItemName)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cbCustName)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.cbCategoryName)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.cbCategory)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnDelete)).BeginInit();
@@ -65,7 +68,7 @@ namespace PineTree.UserControls
             ((System.ComponentModel.ISupportInitialize)(this.btnAdd)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnSelect)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.picBackground)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.cbCustName)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cbEquipment)).BeginInit();
             this.SuspendLayout();
             // 
             // c1SplitContainer1
@@ -95,6 +98,7 @@ namespace PineTree.UserControls
             this.c1SplitterPanel1.Controls.Add(this.tbPriceItemName);
             this.c1SplitterPanel1.Controls.Add(this.cbCustName);
             this.c1SplitterPanel1.Controls.Add(this.cbCategoryName);
+            this.c1SplitterPanel1.Controls.Add(this.cbEquipment);
             this.c1SplitterPanel1.Controls.Add(this.cbCategory);
             this.c1SplitterPanel1.Controls.Add(this.labelCount);
             this.c1SplitterPanel1.Controls.Add(this.btnDelete);
@@ -103,6 +107,7 @@ namespace PineTree.UserControls
             this.c1SplitterPanel1.Controls.Add(this.btnSelect);
             this.c1SplitterPanel1.Controls.Add(this.label4);
             this.c1SplitterPanel1.Controls.Add(this.label3);
+            this.c1SplitterPanel1.Controls.Add(this.label6);
             this.c1SplitterPanel1.Controls.Add(this.label2);
             this.c1SplitterPanel1.Controls.Add(this.label1);
             this.c1SplitterPanel1.Controls.Add(this.picBackground);
@@ -122,6 +127,7 @@ namespace PineTree.UserControls
             this.priceItemGrid.Name = "priceItemGrid";
             this.priceItemGrid.PageIndex = 1;
             this.priceItemGrid.PageSize = 7;
+            this.priceItemGrid.RowGroupKey = null;
             this.priceItemGrid.SelectedRowIndex = -1;
             this.priceItemGrid.Size = new System.Drawing.Size(1480, 587);
             this.priceItemGrid.TabIndex = 12;
@@ -143,12 +149,26 @@ namespace PineTree.UserControls
             // tbPriceItemName
             // 
             this.tbPriceItemName.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tbPriceItemName.Location = new System.Drawing.Point(470, 180);
+            this.tbPriceItemName.Location = new System.Drawing.Point(612, 180);
             this.tbPriceItemName.Name = "tbPriceItemName";
             this.tbPriceItemName.Size = new System.Drawing.Size(154, 19);
             this.tbPriceItemName.TabIndex = 11;
             this.tbPriceItemName.Tag = null;
             this.tbPriceItemName.TextDetached = true;
+            // 
+            // cbCustName
+            // 
+            this.cbCustName.AllowSpinLoop = false;
+            this.cbCustName.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.cbCustName.GapHeight = 0;
+            this.cbCustName.ImagePadding = new System.Windows.Forms.Padding(0);
+            this.cbCustName.ItemsDisplayMember = "";
+            this.cbCustName.ItemsValueMember = "";
+            this.cbCustName.Location = new System.Drawing.Point(459, 180);
+            this.cbCustName.Name = "cbCustName";
+            this.cbCustName.Size = new System.Drawing.Size(147, 19);
+            this.cbCustName.TabIndex = 10;
+            this.cbCustName.Tag = null;
             // 
             // cbCategoryName
             // 
@@ -158,7 +178,7 @@ namespace PineTree.UserControls
             this.cbCategoryName.ImagePadding = new System.Windows.Forms.Padding(0);
             this.cbCategoryName.ItemsDisplayMember = "";
             this.cbCategoryName.ItemsValueMember = "";
-            this.cbCategoryName.Location = new System.Drawing.Point(184, 180);
+            this.cbCategoryName.Location = new System.Drawing.Point(326, 180);
             this.cbCategoryName.Name = "cbCategoryName";
             this.cbCategoryName.Size = new System.Drawing.Size(127, 19);
             this.cbCategoryName.TabIndex = 10;
@@ -168,11 +188,13 @@ namespace PineTree.UserControls
             // 
             this.cbCategory.AllowSpinLoop = false;
             this.cbCategory.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.cbCategory.Cursor = System.Windows.Forms.Cursors.Arrow;
+            this.cbCategory.DropDownStyle = C1.Win.C1Input.DropDownStyle.DropDownList;
             this.cbCategory.GapHeight = 0;
             this.cbCategory.ImagePadding = new System.Windows.Forms.Padding(0);
             this.cbCategory.ItemsDisplayMember = "";
             this.cbCategory.ItemsValueMember = "";
-            this.cbCategory.Location = new System.Drawing.Point(50, 180);
+            this.cbCategory.Location = new System.Drawing.Point(192, 180);
             this.cbCategory.Name = "cbCategory";
             this.cbCategory.Size = new System.Drawing.Size(127, 19);
             this.cbCategory.TabIndex = 10;
@@ -198,7 +220,7 @@ namespace PineTree.UserControls
             this.btnDelete.ForeColor = System.Drawing.Color.White;
             this.btnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDelete.Image")));
             this.btnDelete.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnDelete.Location = new System.Drawing.Point(918, 165);
+            this.btnDelete.Location = new System.Drawing.Point(1060, 165);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(90, 34);
             this.btnDelete.TabIndex = 4;
@@ -216,7 +238,7 @@ namespace PineTree.UserControls
             this.btnEdit.ForeColor = System.Drawing.Color.White;
             this.btnEdit.Image = ((System.Drawing.Image)(resources.GetObject("btnEdit.Image")));
             this.btnEdit.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnEdit.Location = new System.Drawing.Point(822, 165);
+            this.btnEdit.Location = new System.Drawing.Point(964, 165);
             this.btnEdit.Name = "btnEdit";
             this.btnEdit.Size = new System.Drawing.Size(90, 34);
             this.btnEdit.TabIndex = 4;
@@ -234,7 +256,7 @@ namespace PineTree.UserControls
             this.btnAdd.ForeColor = System.Drawing.Color.White;
             this.btnAdd.Image = ((System.Drawing.Image)(resources.GetObject("btnAdd.Image")));
             this.btnAdd.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnAdd.Location = new System.Drawing.Point(726, 165);
+            this.btnAdd.Location = new System.Drawing.Point(868, 165);
             this.btnAdd.Name = "btnAdd";
             this.btnAdd.Size = new System.Drawing.Size(90, 34);
             this.btnAdd.TabIndex = 4;
@@ -252,7 +274,7 @@ namespace PineTree.UserControls
             this.btnSelect.ForeColor = System.Drawing.Color.White;
             this.btnSelect.Image = ((System.Drawing.Image)(resources.GetObject("btnSelect.Image")));
             this.btnSelect.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnSelect.Location = new System.Drawing.Point(630, 165);
+            this.btnSelect.Location = new System.Drawing.Point(772, 165);
             this.btnSelect.Margin = new System.Windows.Forms.Padding(0);
             this.btnSelect.Name = "btnSelect";
             this.btnSelect.Size = new System.Drawing.Size(90, 34);
@@ -261,12 +283,23 @@ namespace PineTree.UserControls
             this.btnSelect.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.btnSelect.UseVisualStyleBackColor = false;
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.label4.ForeColor = System.Drawing.Color.White;
+            this.label4.Location = new System.Drawing.Point(457, 165);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(109, 12);
+            this.label4.TabIndex = 1;
+            this.label4.Text = "거래처 상품만 보기";
+            // 
             // label3
             // 
             this.label3.AutoSize = true;
             this.label3.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
             this.label3.ForeColor = System.Drawing.Color.White;
-            this.label3.Location = new System.Drawing.Point(468, 165);
+            this.label3.Location = new System.Drawing.Point(610, 165);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(41, 12);
             this.label3.TabIndex = 1;
@@ -277,7 +310,7 @@ namespace PineTree.UserControls
             this.label2.AutoSize = true;
             this.label2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
             this.label2.ForeColor = System.Drawing.Color.White;
-            this.label2.Location = new System.Drawing.Point(182, 165);
+            this.label2.Location = new System.Drawing.Point(324, 165);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(53, 12);
             this.label2.TabIndex = 1;
@@ -288,7 +321,7 @@ namespace PineTree.UserControls
             this.label1.AutoSize = true;
             this.label1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
             this.label1.ForeColor = System.Drawing.Color.White;
-            this.label1.Location = new System.Drawing.Point(48, 165);
+            this.label1.Location = new System.Drawing.Point(190, 165);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(53, 12);
             this.label1.TabIndex = 1;
@@ -304,30 +337,32 @@ namespace PineTree.UserControls
             this.picBackground.TabIndex = 0;
             this.picBackground.TabStop = false;
             // 
-            // label4
+            // label6
             // 
-            this.label4.AutoSize = true;
-            this.label4.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
-            this.label4.ForeColor = System.Drawing.Color.White;
-            this.label4.Location = new System.Drawing.Point(315, 165);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(109, 12);
-            this.label4.TabIndex = 1;
-            this.label4.Text = "거래처 상품만 보기";
+            this.label6.AutoSize = true;
+            this.label6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(28)))), ((int)(((byte)(54)))));
+            this.label6.ForeColor = System.Drawing.Color.White;
+            this.label6.Location = new System.Drawing.Point(57, 165);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(29, 12);
+            this.label6.TabIndex = 1;
+            this.label6.Text = "장비";
             // 
-            // cbCustName
+            // cbEquipment
             // 
-            this.cbCustName.AllowSpinLoop = false;
-            this.cbCustName.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.cbCustName.GapHeight = 0;
-            this.cbCustName.ImagePadding = new System.Windows.Forms.Padding(0);
-            this.cbCustName.ItemsDisplayMember = "";
-            this.cbCustName.ItemsValueMember = "";
-            this.cbCustName.Location = new System.Drawing.Point(317, 180);
-            this.cbCustName.Name = "cbCustName";
-            this.cbCustName.Size = new System.Drawing.Size(147, 19);
-            this.cbCustName.TabIndex = 10;
-            this.cbCustName.Tag = null;
+            this.cbEquipment.AllowSpinLoop = false;
+            this.cbEquipment.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.cbEquipment.Cursor = System.Windows.Forms.Cursors.Arrow;
+            this.cbEquipment.DropDownStyle = C1.Win.C1Input.DropDownStyle.DropDownList;
+            this.cbEquipment.GapHeight = 0;
+            this.cbEquipment.ImagePadding = new System.Windows.Forms.Padding(0);
+            this.cbEquipment.ItemsDisplayMember = "";
+            this.cbEquipment.ItemsValueMember = "";
+            this.cbEquipment.Location = new System.Drawing.Point(59, 180);
+            this.cbEquipment.Name = "cbEquipment";
+            this.cbEquipment.Size = new System.Drawing.Size(127, 19);
+            this.cbEquipment.TabIndex = 10;
+            this.cbEquipment.Tag = null;
             // 
             // UcPriceItems
             // 
@@ -340,6 +375,7 @@ namespace PineTree.UserControls
             this.c1SplitterPanel1.ResumeLayout(false);
             this.c1SplitterPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbPriceItemName)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cbCustName)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.cbCategoryName)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.cbCategory)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnDelete)).EndInit();
@@ -347,7 +383,7 @@ namespace PineTree.UserControls
             ((System.ComponentModel.ISupportInitialize)(this.btnAdd)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnSelect)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.picBackground)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.cbCustName)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.cbEquipment)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -372,6 +408,8 @@ namespace PineTree.UserControls
         private System.Windows.Forms.Label label3;
         private C1.Win.C1Input.C1ComboBox cbCustName;
         private System.Windows.Forms.Label label4;
+        private C1.Win.C1Input.C1ComboBox cbEquipment;
+        private System.Windows.Forms.Label label6;
     }
 }
 

@@ -1,6 +1,10 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 $assemblyPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../PineTreeLauncher/bin/Debug/PineTree.dll'))
+$sourceAssemblyPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../bin/Debug/PineTree.dll'))
+if ((Get-FileHash -LiteralPath $assemblyPath -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $sourceAssemblyPath -Algorithm SHA256).Hash) {
+    throw 'Launcher DLL is stale. Build PineTree.sln including PineTreeLauncher before running this test.'
+}
 $assembly = [Reflection.Assembly]::LoadFrom($assemblyPath)
 $flags = [Reflection.BindingFlags]'Instance, NonPublic'
 $mainType = $assembly.GetType('PineTree.Forms.FormMain', $true)

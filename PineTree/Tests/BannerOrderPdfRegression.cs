@@ -54,7 +54,7 @@ internal static class BannerOrderPdfRegression
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
             Console.WriteLine("Creating editor");
             var assembly = Assembly.LoadFrom(Path.GetFullPath(args[0]));
-            var type = assembly.GetType("PineTree.UserControlsOrder.UcOrder현수막", true);
+            var type = assembly.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A", true);
             string folder = Path.GetFullPath(args[1]);
             using (var host = new Form { Size = new Size(1050, 780), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000), ShowInTaskbar = false })
             using (var control = (UserControl)Activator.CreateInstance(type))

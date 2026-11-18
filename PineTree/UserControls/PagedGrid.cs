@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -42,7 +42,8 @@ namespace PineTree.UserControls
         Badge,
         Link,
         CheckBox,
-        Image
+        Image,
+        Button
     }
 
     public class PagedGridCellClickEventArgs : EventArgs
@@ -85,6 +86,9 @@ namespace PineTree.UserControls
             ForeColor = UiTheme.TextPrimary;
             Font = new Font("맑은 고딕", 9F, FontStyle.Regular, GraphicsUnit.Point, 129);
         }
+
+        // When set, draw separators only where this hidden or visible cell changes.
+        public string RowGroupKey { get; set; }
 
         public event EventHandler PageChanged;
         public event EventHandler SelectionChanged;
@@ -206,6 +210,10 @@ namespace PineTree.UserControls
             if (cellClick != null)
             {
                 PagedGridCell cell = GetCell(cellClick.Row, cellClick.ColumnKey);
+                if (cell.CellType == PagedGridCellType.Button && e.Button != MouseButtons.Left)
+                {
+                    return;
+                }
                 if (cell.CellType == PagedGridCellType.CheckBox)
                 {
                     if (e.Button != MouseButtons.Left)
@@ -406,6 +414,21 @@ namespace PineTree.UserControls
                     x += cellBounds.Width;
                 }
             }
+
+            if (!string.IsNullOrEmpty(RowGroupKey))
+            {
+                using (Pen pen = new Pen(Color.FromArgb(110, 120, 140)))
+                {
+                    for (int rowIndex = 1; rowIndex < visibleRows; rowIndex++)
+                    {
+                        PagedGridCell previous = GetCell(_rows[rowIndex - 1], RowGroupKey);
+                        PagedGridCell current = GetCell(_rows[rowIndex], RowGroupKey);
+                        if (string.Equals(previous.Text, current.Text, StringComparison.Ordinal)) continue;
+                        int y = HeaderHeight + rowIndex * RowHeight;
+                        graphics.DrawLine(pen, HorizontalPadding, y, Math.Max(HorizontalPadding, Width - HorizontalPadding), y);
+                    }
+                }
+            }
         }
 
         private void DrawFooter(Graphics graphics)
@@ -437,6 +460,18 @@ namespace PineTree.UserControls
             if (cell.CellType == PagedGridCellType.Badge)
             {
                 DrawBadge(graphics, cell.Text, bounds);
+                return;
+            }
+
+            if (cell.CellType == PagedGridCellType.Button)
+            {
+                Rectangle buttonBounds = GetButtonBounds(bounds);
+                using (SolidBrush brush = new SolidBrush(Color.FromArgb(47, 112, 180)))
+                using (System.Drawing.Drawing2D.GraphicsPath path = CreateRoundRectangle(buttonBounds, 4))
+                {
+                    graphics.FillPath(brush, path);
+                }
+                DrawText(graphics, cell.Text, buttonBounds, Color.White, 9F, FontStyle.Regular, ContentAlignment.MiddleCenter);
                 return;
             }
 
@@ -606,6 +641,11 @@ namespace PineTree.UserControls
                 Rectangle bounds = new Rectangle(x, HeaderHeight + (rowIndex * RowHeight), width, RowHeight);
                 if (bounds.Contains(location))
                 {
+                    if (GetCell(_rows[rowIndex], column.Key).CellType == PagedGridCellType.Button
+                        && !GetButtonBounds(bounds).Contains(location))
+                    {
+                        return null;
+                    }
                     return new PagedGridCellClickEventArgs(rowIndex, column.Key, _rows[rowIndex]);
                 }
 
@@ -613,6 +653,12 @@ namespace PineTree.UserControls
             }
 
             return null;
+        }
+
+        private static Rectangle GetButtonBounds(Rectangle bounds)
+        {
+            int width = Math.Min(62, Math.Max(1, bounds.Width - 12));
+            return new Rectangle(bounds.Left + (bounds.Width - width) / 2, bounds.Top + 7, width, 27);
         }
 
         private static PagedGridCell GetCell(Dictionary<string, PagedGridCell> row, string key)

@@ -12,6 +12,7 @@ namespace PineTree.Dialogs
         private const string AllText = "[전체]";
         private bool _loadingCategories;
         private bool _loadingCategoryNames;
+        private readonly string _accessoryPriceCategory;
 
         public long SelectedPriceItemSeqNo { get; private set; }
 
@@ -42,7 +43,13 @@ namespace PineTree.Dialogs
         }
 
         public DialogPriceItemList(string priceItemName, string custCode, string custName)
+            : this(priceItemName, custCode, custName, null)
         {
+        }
+
+        public DialogPriceItemList(string priceItemName, string custCode, string custName, string accessoryPriceCategory)
+        {
+            _accessoryPriceCategory = accessoryPriceCategory;
             InitializeComponent();
             Text = "품목 선택";
             InitEvent();
@@ -111,9 +118,11 @@ namespace PineTree.Dialogs
         {
             try
             {
-                string priceCategory = GetSelectedValue(cbCategory);
+                string priceCategory = _accessoryPriceCategory ?? GetSelectedValue(cbCategory);
                 string categoryName = GetSelectedValue(cbCategoryName);
-                DataTable priceItems = PriceItemRepository.GetBasicPriceItems(priceCategory, categoryName, tbItemName.Text);
+                DataTable priceItems = _accessoryPriceCategory == null
+                    ? PriceItemRepository.GetBasicPriceItems(priceCategory, categoryName, tbItemName.Text)
+                    : PriceItemRepository.GetBasicAccessoryPriceItems(priceCategory, categoryName, tbItemName.Text);
                 PrepareGridData(priceItems);
 
                 FGrid1.DataSource = priceItems;
@@ -131,15 +140,20 @@ namespace PineTree.Dialogs
             try
             {
                 cbCategory.Items.Clear();
-                cbCategory.Items.Add(AllText);
-
-                DataTable categories = PriceItemRepository.GetPriceCategories();
-                foreach (DataRow row in categories.Rows)
+                if (_accessoryPriceCategory != null)
                 {
-                    cbCategory.Items.Add(row["PriceCategory"].ToString());
+                    cbCategory.Items.Add(_accessoryPriceCategory);
+                    cbCategory.SelectedIndex = 0;
+                    cbCategory.Enabled = false;
                 }
-
-                SelectComboItem(cbCategory, selectedText);
+                else
+                {
+                    cbCategory.Items.Add(AllText);
+                    DataTable categories = PriceItemRepository.GetPriceCategories();
+                    foreach (DataRow row in categories.Rows)
+                        cbCategory.Items.Add(row["PriceCategory"].ToString());
+                    SelectComboItem(cbCategory, selectedText);
+                }
             }
             finally
             {
@@ -179,7 +193,7 @@ namespace PineTree.Dialogs
                 cbCategoryName.Items.Add(AllText);
                 cbCategoryName.SelectedIndex = 0;
 
-                string priceCategory = GetSelectedValue(cbCategory);
+                string priceCategory = _accessoryPriceCategory ?? GetSelectedValue(cbCategory);
                 DataTable categoryNames = PriceItemRepository.GetCategoryNames(priceCategory);
                 foreach (DataRow row in categoryNames.Rows)
                 {

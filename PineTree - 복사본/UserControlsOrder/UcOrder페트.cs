@@ -1,0 +1,1054 @@
+﻿using C1.Win.C1InputPanel;
+using PineTree.Dialogs;
+using PineTree.Classes;
+using PineTree.PdfEngine;
+using System;
+using System.Drawing;
+using System.IO;
+using System.ComponentModel;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Security.Principal;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace PineTree.UserControlsOrder
+{
+    public partial class UcOrder페트 : UserControl, IOrderItemEditor
+    {
+        private readonly CancellationTokenSource _documentLifetime = new CancellationTokenSource();
+        private readonly ToolTip _fileInfoToolTip = new ToolTip();
+        private CancellationTokenSource _sourceInspection;
+        // 편집 화면을 표시할 때는 대용량 PDF 엔진 어셈블리를 로드하지 않는다.
+        private object _sourceDetails;
+        private string _sourcePath;
+        private string _sourceFileReferencePath;
+        private string _downloadedSourcePath;
+        private OrderServerFile _sourceServerFile;
+        private OrderServerFile _outputServerFile;
+        private int _sourceVersion;
+        private bool _inspecting;
+        private bool _generating;
+        private string _serverUploadWarning;
+        private bool _documentsDisposed;
+        private string _pdfSummary;
+        private ShellFileDropWindow _shellDropWindow;
+        private DialogProgressbar _sourceProgress;
+        private DialogProgressbar _artboardProgress;
+        private bool _updatingInputs;
+        private bool _sourceHasCutline;
+        private decimal _sourceWidthMm;
+        private decimal _sourceHeightMm;
+        private string _restoredPreviewPath;
+        private string _sourceFileInfoSnapshot;
+        private CancellationTokenSource _sourcePageLifetime;
+        private readonly Dictionary<int, Task> _sourcePageLoads = new Dictionary<int, Task>();
+        private readonly List<int> _sourcePageLru = new List<int>();
+        private readonly SemaphoreSlim _sourcePageGate = new SemaphoreSlim(1, 1);
+        private int _workingPage;
+        private int _artboardCount;
+        private int _restoredWorkingPage;
+        private readonly Dictionary<int, Image> _sourcePageImages = new Dictionary<int, Image>();
+        private readonly Dictionary<int, SourcePreviewData> _artboardMetadata = new Dictionary<int, SourcePreviewData>();
+        private readonly Dictionary<int, BannerOrderEditorState> _artboardStates = new Dictionary<int, BannerOrderEditorState>();
+
+        public event EventHandler OrderValuesChanged;
+        public bool IsProcessing { get { return _inspecting || _generating || (_sourceDetails == null && _sourcePageLoads.ContainsKey(_workingPage)); } }
+        public decimal WidthMm { get { return (decimal)PdfNumber(tbTargetWidth, 0); } }
+        public decimal HeightMm { get { return (decimal)PdfNumber(tbTargetHeight, 0); } }
+        public decimal Quantity { get { return (decimal)PdfNumber(inputNumericBox4, 0); } }
+        public decimal AreaQuantity { get { return WidthMm * HeightMm * Quantity / 1000000m; } }
+
+        public UcOrder페트()
+        {
+            InitializeComponent();
+            panelCanvas.AutoScroll = true;
+            _updatingInputs = true;
+            InitializePdfInputs();
+            InitializePostProcesses();
+            _updatingInputs = false;
+            tbFileInfo.ReadOnly = true;
+            tbFileInfo.ScrollBars = ScrollBars.Vertical;
+            tbFileInfo.Text = "원본 PDF / EPS / AI / PNG / JPG 파일을 아래로 끌어 놓으세요.";
+            pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+            pictureBox1.BackColor = Color.DimGray;
+            pictureBox1.DragEnter += Source_DragEnter;
+            pictureBox1.DragOver += Source_DragEnter;
+            pictureBox1.DragDrop += Source_DragDrop;
+            using (var identity = WindowsIdentity.GetCurrent())
+            {
+                InitializeFileDrop(new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator));
+            }
+            btnPreview.Click += PreviewOutput;
+            btnPreview.ToolTipText = "현재 선택한 대지의 설정으로 단일 페이지 출력용 PDF를 생성합니다.";
+            Load += BeginRestoredPreview;
+            VisibleChanged += BeginRestoredPreview;
+            UpdateDocumentState();
+        }
+
+        public BannerOrderEditorState CaptureEditorState()
+        {
+            SaveWorkingSettings();
+            var state = CaptureWorkingSettings();
+            state.WorkingArtboardIndex = _workingPage;
+            state.Artboards = new List<BannerArtboardEditorState>();
+            foreach (var item in _artboardStates)
+                state.Artboards.Add(new BannerArtboardEditorState { PageIndex = item.Key, Settings = CopyWorkingSettings(item.Value) });
+            return state;
+        }
+
+        private static BannerOrderEditorState CopyWorkingSettings(BannerOrderEditorState state)
+        {
+            var copy = BannerOrderEditorState.FromJson(state.ToJson());
+            copy.Artboards = null;
+            return copy;
+        }
+
+        private void SaveWorkingSettings()
+        {
+            if (_artboardMetadata.ContainsKey(_workingPage)) _artboardStates[_workingPage] = CaptureWorkingSettings();
+        }
+
+        private BannerOrderEditorState CaptureWorkingSettings()
+        {
+            var state = new BannerOrderEditorState {
+                WidthMm = WidthMm, HeightMm = HeightMm, Quantity = Quantity,
+                ZoomType = CaptureZoomType(), ZoomRate = ReadZoomRate(),
+                FitMode = cbDeploy.SelectedOption == inputOption5 ? "COVER" : "CONTAIN",
+                EdgeTopMm = 0,
+                EdgeBottomMm = 0,
+                EdgeLeftMm = 0,
+                EdgeRightMm = 0,
+                PostProcesses = OrderPostProcessSetting.CopyList(_postProcesses),
+                SourceFilePath = _sourceFileReferencePath ?? _sourcePath,
+                SourceServerFile = _sourceServerFile == null ? null : _sourceServerFile.Copy(),
+                OutputServerFile = _outputServerFile == null ? null : _outputServerFile.Copy(),
+                SourceFileInfo = string.IsNullOrEmpty(_sourcePath) ? null : (_sourceFileInfoSnapshot ?? tbFileInfo.Text),
+                SourceWidthMm = _sourceWidthMm, SourceHeightMm = _sourceHeightMm, SourceHasCutline = _sourceHasCutline
+            };
+            ExportLegacyFinishingSettings(state);
+            return state;
+        }
+
+        public void RestoreEditorState(BannerOrderEditorState state)
+        {
+            if (state == null) return;
+            ++_sourceVersion;
+            if (_sourceInspection != null) _sourceInspection.Cancel();
+            _restoredPreviewPath = null;
+            _sourceServerFile = state.SourceServerFile == null ? null : state.SourceServerFile.Copy();
+            _outputServerFile = state.OutputServerFile == null ? null : state.OutputServerFile.Copy();
+            if (_sourceServerFile != null) _sourceServerFile.Validate();
+            _inspecting = false;
+            CloseSourceProgress();
+            ReplaceSourceImage(null);
+            _updatingInputs = true;
+            try
+            {
+                SetRestoredNumber(tbTargetWidth, RoundDimension(state.WidthMm)); SetRestoredNumber(tbTargetHeight, RoundDimension(state.HeightMm));
+                cbZoomType.SelectedOption = state.ZoomType == "FIXED_SIZE" ? inputOption13
+                    : state.ZoomType == "SCALE" ? inputOption7 : inputOption6;
+                SetRestoredNumber(tbZoomRate, state.ZoomRate >= 1 ? state.ZoomRate : 1);
+                SetRestoredNumber(inputNumericBox4, state.Quantity);
+                cbDeploy.SelectedOption = state.FitMode == "COVER" ? inputOption5 : inputOption4;
+                _postProcesses.Clear();
+                _postProcesses.AddRange(state.GetPostProcesses());
+                OrderPostProcessSetting.ValidateList(_postProcesses);
+                RefreshPostProcessGrid();
+                _sourceFileInfoSnapshot = state.SourceFileInfo ?? (string.IsNullOrEmpty(state.SourceFilePath) ? null : Path.GetFileName(state.SourceFilePath));
+                _sourcePath = _sourceFileReferencePath = state.SourceFilePath; _sourceWidthMm = state.SourceWidthMm; _sourceHeightMm = state.SourceHeightMm;
+                _sourceHasCutline = state.SourceHasCutline;
+                if ((state.ZoomType == "ORIGINAL" || state.ZoomType == "SCALE") && (_sourceWidthMm > 0 || _sourceHeightMm > 0))
+                    ApplyZoomDimensions();
+                _sourceDetails = null;
+                if (_sourceServerFile != null)
+                {
+                    tbFileInfo.Text = state.SourceFileInfo ?? _sourceServerFile.OriginalFileName;
+                    _restoredPreviewPath = _sourceServerFile.OriginalFileName;
+                }
+                else if (!string.IsNullOrEmpty(_sourcePath))
+                {
+                    tbFileInfo.Text = state.SourceFileInfo ?? Path.GetFileName(_sourcePath);
+                    if (File.Exists(_sourcePath)) _restoredPreviewPath = _sourcePath;
+                    else tbFileInfo.Text += Environment.NewLine + "원본파일을 찾을 수 없습니다. 저장된 편집정보는 유지됩니다.";
+                }
+            }
+            finally { _updatingInputs = false; }
+            _restoredWorkingPage = state.WorkingArtboardIndex;
+            _workingPage = _restoredWorkingPage;
+            if (state.Artboards != null)
+                foreach (var page in state.Artboards) _artboardStates[page.PageIndex] = CopyWorkingSettings(page.Settings);
+            _artboardStates[_restoredWorkingPage] = CopyWorkingSettings(state);
+            // Restore only: do not recalculate or overwrite the saved order amounts.
+            UpdateDocumentState();
+            if (IsHandleCreated && FindForm() != null) BeginRestoredPreview(this, EventArgs.Empty);
+        }
+
+        private static void SetRestoredNumber(InputNumericBox input, decimal value)
+        {
+            input.Maximum = Math.Max(input.Maximum, value);
+            input.Value = value;
+        }
+
+        private async void BeginRestoredPreview(object sender, EventArgs e)
+        {
+            if (_documentsDisposed || !Visible || string.IsNullOrEmpty(_restoredPreviewPath)) return;
+            string source = _restoredPreviewPath;
+            var serverFile = _sourceServerFile == null ? null : _sourceServerFile.Copy();
+            bool downloaded = false;
+            _restoredPreviewPath = null;
+            int version = ++_sourceVersion;
+            if (_sourceInspection != null) _sourceInspection.Cancel();
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_documentLifetime.Token);
+            _sourceInspection = cancellation;
+            _inspecting = true;
+            UpdateDocumentState();
+            try
+            {
+                ShowSourceProgress();
+                if (serverFile != null)
+                {
+                    tbFileInfo.Text = serverFile.OriginalFileName + Environment.NewLine + "서버에서 원본파일을 내려받는 중입니다…";
+                    source = await OrderFileStorageService.DownloadAsync(serverFile, cancellation.Token);
+                    downloaded = true;
+                }
+                var result = await Task.Run(() => InspectSourceInBackgroundAsync(source, cancellation.Token), cancellation.Token);
+                if (_documentsDisposed || version != _sourceVersion || cancellation.IsCancellationRequested)
+                {
+                    if (result.PreviewImage != null) result.PreviewImage.Dispose();
+                    if (downloaded) DeletePreviewFile(source);
+                    return;
+                }
+                if (downloaded)
+                {
+                    DeletePreviewFile(_downloadedSourcePath);
+                    _downloadedSourcePath = source;
+                }
+                _sourcePath = source;
+                CompleteArtboardLoad(result, true);
+            }
+            catch (OperationCanceledException) { if (downloaded) DeletePreviewFile(source); }
+            catch (Exception ex)
+            {
+                if (downloaded) DeletePreviewFile(source);
+                if (!_documentsDisposed && version == _sourceVersion)
+                    tbFileInfo.Text += Environment.NewLine + "미리보기를 복원하지 못했습니다: " + ex.Message;
+            }
+            finally
+            {
+                cancellation.Dispose();
+                if (_sourceInspection == cancellation) _sourceInspection = null;
+                if (version == _sourceVersion) CloseSourceProgress();
+                if (!_documentsDisposed && version == _sourceVersion) { _inspecting = false; UpdateDocumentState(); }
+            }
+        }
+
+        private void InitializePdfInputs()
+        {
+            cbDeploy.DropDownStyle = InputComboBoxStyle.DropDownList;
+            cbDeploy.SelectedOption = inputOption4;
+            cbZoomType.SelectedOption = inputOption6;
+            //tbZoomRate.Minimum = 1;
+            //tbZoomRate.DecimalPlaces = 3;
+            //// C1 uses the integer placeholders as an input mask; allow multi-digit rates.
+            //tbZoomRate.Format = "#,##0.###";
+            //tbZoomRate.Value = 1;
+            cbZoomType.SelectedIndexChanged += ZoomInputChanged;
+            tbZoomRate.ValueChanged += ZoomInputChanged;
+
+            _pdfSummary = string.Empty;
+
+            var values = new[] { tbTargetWidth, tbTargetHeight };
+            decimal[] defaults = { 0m, 0m };
+            for (int i = 0; i < values.Length; i++)
+            {
+                values[i].Minimum = 0;
+                values[i].Maximum = 100000;
+                values[i].DecimalPlaces = 3;
+                values[i].Format = "#,##0.###";
+                values[i].Value = defaults[i];
+                values[i].ToolTipText = "단위 mm / 빈값 기본값: " + defaults[i];
+                values[i].ValueChanged += PdfInputChanged;
+            }
+            tbTargetWidth.ToolTipText = "완성·재단 폭(mm). 도련은 0mm로 적용됩니다.";
+            tbTargetHeight.ToolTipText = "완성·재단 길이(mm). 도련은 0mm로 적용됩니다.";
+            tbTargetWidth.DecimalPlaces = tbTargetHeight.DecimalPlaces = 0;
+            tbTargetWidth.Format = tbTargetHeight.Format = "#,##0";
+            inputNumericBox3.ReadOnly = true;
+            inputNumericBox3.Maximum = decimal.MaxValue;
+            inputNumericBox3.Value = 0;
+            inputNumericBox3.ToolTipText = "폭 × 길이 × 수량으로 계산한 전체 면적 (㎡)";
+            inputNumericBox4.Minimum = 0;
+            inputNumericBox4.DecimalPlaces = 0;
+            inputNumericBox4.Value = 0;
+            inputNumericBox4.ToolTipText = "주문 수량. 출력용 PDF는 원본 첫 페이지를 기준으로 1쪽 생성합니다.";
+            inputNumericBox4.ValueChanged += PdfInputChanged;
+            cbDeploy.SelectedIndexChanged += PdfInputChanged;
+        }
+
+        private static double PdfNumber(InputNumericBox input, double fallback)
+        {
+            return input.ValueIsNull || string.IsNullOrWhiteSpace(input.Text) ? fallback : Convert.ToDouble(input.Value);
+        }
+
+        private PdfGenerationSettings ReadPdfGenerationSettings()
+        {
+            OrderPostProcessSetting.ValidateList(_postProcesses);
+            var settings = new PdfGenerationSettings
+            {
+                GenerateAllPages = false, SourcePageIndex = _workingPage,
+                TargetWidthMm = PdfNumber(tbTargetWidth, 0), TargetHeightMm = PdfNumber(tbTargetHeight, 0),
+                FitMode = cbDeploy.SelectedOption == inputOption5 ? "COVER" : "CONTAIN",
+                EdgeTopMm = 0, EdgeBottomMm = 0,
+                EdgeLeftMm = 0, EdgeRightMm = 0,
+
+            };
+            ApplyPostProcessesToPdf(settings);
+            return settings;
+        }
+
+        private void PdfInputChanged(object sender, EventArgs e)
+        {
+            if (_updatingInputs || _pdfSummary == null) return;
+            _outputServerFile = null;
+            if (sender == tbTargetWidth || sender == tbTargetHeight)
+            {
+                _updatingInputs = true;
+                try
+                {
+                    SetRestoredNumber(tbTargetWidth, RoundDimension(WidthMm));
+                    SetRestoredNumber(tbTargetHeight, RoundDimension(HeightMm));
+                    ApplyFixedSizeHeight();
+                }
+                finally { _updatingInputs = false; }
+            }
+            UpdateDocumentState();
+            if (sender == tbTargetWidth || sender == tbTargetHeight || sender == inputNumericBox4)
+                RaiseOrderValuesChanged();
+        }
+
+        private static decimal RoundDimension(decimal value)
+        {
+            return Math.Round(value, 0, MidpointRounding.AwayFromZero);
+        }
+
+        private decimal ReadZoomRate()
+        {
+            return tbZoomRate.ValueIsNull || string.IsNullOrWhiteSpace(tbZoomRate.Text) ? 1m : Convert.ToDecimal(tbZoomRate.Value);
+        }
+
+        private void ApplyZoomDimensions()
+        {
+            if (cbZoomType.SelectedOption == inputOption13)
+            {
+                ApplyFixedSizeHeight();
+                return;
+            }
+            decimal rate = cbZoomType.SelectedOption == inputOption7 ? ReadZoomRate() : 1m;
+            SetRestoredNumber(tbTargetWidth, RoundDimension(_sourceWidthMm * rate));
+            SetRestoredNumber(tbTargetHeight, RoundDimension(_sourceHeightMm * rate));
+        }
+
+        private void ApplyFixedSizeHeight()
+        {
+            if (cbZoomType.SelectedOption != inputOption13 || _sourceWidthMm <= 0 || _sourceHeightMm <= 0) return;
+            SetRestoredNumber(tbTargetHeight, RoundDimension(WidthMm * _sourceHeightMm / _sourceWidthMm));
+        }
+
+        private string CaptureZoomType()
+        {
+            if (cbZoomType.SelectedOption == inputOption13) return "FIXED_SIZE";
+            decimal rate = cbZoomType.SelectedOption == inputOption7 ? ReadZoomRate() : 1m;
+            // Preserve existing/manual target sizes rather than silently resizing them on reload.
+            if (WidthMm != RoundDimension(_sourceWidthMm * rate) || HeightMm != RoundDimension(_sourceHeightMm * rate)) return null;
+            return cbZoomType.SelectedOption == inputOption7 ? "SCALE" : "ORIGINAL";
+        }
+
+        private void ZoomInputChanged(object sender, EventArgs e)
+        {
+            if (_updatingInputs) return;
+            _outputServerFile = null;
+            _updatingInputs = true;
+            try { ApplyZoomDimensions(); }
+            finally { _updatingInputs = false; }
+            UpdateDocumentState();
+            RaiseOrderValuesChanged();
+            if (sender == cbZoomType && cbZoomType.SelectedOption == inputOption13)
+                MessageBox.Show(this, "폭을 지정하면 원본 비율에 맞춰 길이가 자동으로 입력됩니다.", "확대비율",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void UpdateDocumentState()
+        {
+            // 이 경로는 초기 표시와 모든 입력 변경에서 호출된다.
+            // PdfGenerationSettings는 실제 PDF 작업을 시작할 때만 생성한다.
+            double width = PdfNumber(tbTargetWidth, 0);
+            double height = PdfNumber(tbTargetHeight, 0);
+            double finishedWidth = (double)FinishedWidthMm();
+            double outputWidth = finishedWidth;
+            double finishedHeight = (double)FinishedHeightMm();
+            double outputHeight = finishedHeight;
+            btnPreview.Enabled = !_generating && !_inspecting && _sourceDetails != null;
+            bool pageReady = _artboardCount == 0 || _artboardMetadata.ContainsKey(_workingPage);
+            foreach (Control button in panelCanvas.Controls) button.Enabled = !_generating && !_inspecting;
+            inputNumericBox4.Enabled = !_generating && pageReady;
+            tbTargetWidth.Enabled = tbTargetHeight.Enabled = !_generating && pageReady && cbZoomType.SelectedOption == inputOption13;
+            cbDeploy.Enabled = cbWork.Enabled = btnAdd.Enabled = FGrid1.Enabled = !_generating && pageReady;
+            cbZoomType.Enabled = !_generating && !_inspecting && _sourceWidthMm > 0 && _sourceHeightMm > 0;
+            tbZoomRate.Enabled = cbZoomType.Enabled && cbZoomType.SelectedOption == inputOption7;
+            tbTargetHeight.ReadOnly = cbZoomType.SelectedOption == inputOption13;
+            RefreshPostProcessGrid();
+            inputNumericBox3.Value = (decimal)(width * height / 1000000 * PdfNumber(inputNumericBox4, 0));
+            if (_sourceDetails == null && _sourceWidthMm == 0 && _sourceHeightMm == 0)
+            {
+                _pdfSummary = "출력 0 × 0 mm · 타공 0개 · 선택 대지 기준";
+                btnPreview.ToolTipText = _pdfSummary;
+                return;
+            }
+            try
+            {
+                if (width <= 0 || height <= 0 || outputWidth > 14400 || outputHeight > 14400)
+                    throw new ArgumentException("완성 가로·세로는 양수이며 가장자리를 포함한 출력 크기는 14,400mm 이하여야 합니다.");
+                var hole = _postProcesses.Find(item => item.ProcessCode == "HOLE");
+                int markCount = hole == null ? 0 : hole.GetMarkCount((decimal)finishedWidth, (decimal)finishedHeight);
+                _pdfSummary = string.Format("원본 {0:0.###} × {1:0.###} mm · 완성/재단 {2:0.###} × {3:0.###} mm · 출력(도련 포함) {4:0.###} × {5:0.###} mm · 타공 {6}개 · 선택 대지 기준",
+                    _sourceWidthMm, _sourceHeightMm, finishedWidth, finishedHeight, outputWidth, outputHeight, markCount);
+            }
+            catch (ArgumentException ex) { _pdfSummary = ex.Message; }
+            if (_artboardCount > 0) _pdfSummary += " · 대지 " + (_workingPage + 1) + " / " + _artboardCount;
+            btnPreview.ToolTipText = _pdfSummary + "\n각목·사방줄미싱·타공·재단을 반영하고 원본과 출력용 PDF를 서버에 업로드합니다. 기타 미싱 후가공의 PDF 규칙은 확인 중입니다.";
+        }
+
+        private void InitializeFileDrop(bool elevated)
+        {
+            if (_shellDropWindow != null)
+            {
+                _shellDropWindow.Dispose();
+                _shellDropWindow = null;
+            }
+
+            // 관리자 권한에서는 일반 탐색기의 OLE 드롭이 UIPI에 의해 차단된다.
+            // 이 경우 픽처박스 창에만 Shell 파일 드롭 메시지를 허용한다.
+            pictureBox1.AllowDrop = !elevated;
+            if (elevated) _shellDropWindow = new ShellFileDropWindow(pictureBox1, Source_FilesDropped);
+        }
+
+        private async void Source_FilesDropped(string[] files)
+        {
+            if (_generating || _documentsDisposed) return;
+            string source = GetSupportedFile(files);
+            if (source != null) await LoadSourceFileAsync(source);
+        }
+
+        private static string GetDroppedFile(IDataObject data)
+        {
+            if (data == null || !data.GetDataPresent(DataFormats.FileDrop)) return null;
+            return GetSupportedFile(data.GetData(DataFormats.FileDrop) as string[]);
+        }
+
+        private static string GetSupportedFile(string[] files)
+        {
+            if (files == null || files.Length != 1 || !File.Exists(files[0])) return null;
+            switch (Path.GetExtension(files[0]).ToLowerInvariant())
+            {
+                case ".pdf": case ".eps": case ".ai": case ".png": case ".jpg": case ".jpeg": return files[0];
+                default: return null;
+            }
+        }
+
+        private void Source_DragEnter(object sender, DragEventArgs e)
+        {
+            e.Effect = !_generating && GetDroppedFile(e.Data) != null && (e.AllowedEffect & DragDropEffects.Copy) != 0
+                ? DragDropEffects.Copy : DragDropEffects.None;
+        }
+
+        private async void Source_DragDrop(object sender, DragEventArgs e)
+        {
+            if (_generating) return;
+            string source = GetDroppedFile(e.Data);
+            if (source != null) await LoadSourceFileAsync(source);
+        }
+
+        private async Task LoadSourceFileAsync(string source)
+        {
+            int version = ++_sourceVersion;
+            if (_sourceInspection != null) _sourceInspection.Cancel();
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_documentLifetime.Token);
+            _sourceInspection = cancellation;
+            _sourcePath = _sourceFileReferencePath = source;
+            _sourceServerFile = _outputServerFile = null;
+            DeletePreviewFile(_downloadedSourcePath);
+            _downloadedSourcePath = null;
+            _sourceFileInfoSnapshot = null;
+            _restoredPreviewPath = null;
+            _sourceDetails = null;
+            ResetSourceMeasurements();
+            _inspecting = true;
+            ReplaceSourceImage(null);
+            tbFileInfo.Text = Path.GetFileName(source) + Environment.NewLine + "파일을 분석하는 중입니다…";
+            UpdateDocumentState();
+            try
+            {
+                ShowSourceProgress();
+                // 이 메서드와 반환 형식에는 PDF 엔진 형식을 사용하지 않는다.
+                // 최초 엔진 로드/JIT도 작업 스레드에서 실행되어 진행창이 멈추지 않는다.
+                var result = await Task.Run(() => InspectSourceInBackgroundAsync(source, cancellation.Token), cancellation.Token);
+                if (_documentsDisposed || version != _sourceVersion || cancellation.IsCancellationRequested)
+                {
+                    if (result.PreviewImage != null) result.PreviewImage.Dispose();
+                    return;
+                }
+                tbFileInfo.Text = Path.GetFileName(source) + " · " + result.FileType + Environment.NewLine + result.FileInfo;
+                _sourceFileInfoSnapshot = tbFileInfo.Text;
+                _fileInfoToolTip.SetToolTip(tbFileInfo, source + Environment.NewLine + result.FileInfo);
+                CompleteArtboardLoad(result, false);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (!_documentsDisposed && version == _sourceVersion)
+                {
+                    tbFileInfo.Text = Path.GetFileName(source) + Environment.NewLine + "원본파일을 읽지 못했습니다: " + ex.Message;
+                    _fileInfoToolTip.SetToolTip(tbFileInfo, tbFileInfo.Text);
+                }
+            }
+            finally
+            {
+                cancellation.Dispose();
+                if (_sourceInspection == cancellation) _sourceInspection = null;
+                if (version == _sourceVersion) CloseSourceProgress();
+                if (!_documentsDisposed && version == _sourceVersion)
+                {
+                    _inspecting = false;
+                    UpdateDocumentState();
+                }
+            }
+        }
+
+        private sealed class SourcePreviewData
+        {
+            public int PageCount;
+            public object Details;
+            public string FileType;
+            public string FileInfo;
+            public Image PreviewImage;
+            public double SourceWidthMm;
+            public double SourceHeightMm;
+            public bool HasCutline;
+            public string CutlineColorName;
+            public double? CutlineWidthMm;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<SourcePreviewData> InspectSourceInBackgroundAsync(string source, CancellationToken token)
+        {
+            var details = await OrderDocumentService.InspectAsync(source, token).ConfigureAwait(false);
+            if (token.IsCancellationRequested)
+            {
+                token.ThrowIfCancellationRequested();
+            }
+            return new SourcePreviewData { Details = details, FileType = details.FileType, PageCount = details.PageCount,
+                FileInfo = details.FileInfo + (string.IsNullOrEmpty(details.SourceDimensionNote) ? string.Empty : " · " + details.SourceDimensionNote),
+                PreviewImage = null, SourceWidthMm = details.SourceWidthMm, SourceHeightMm = details.SourceHeightMm,
+                HasCutline = details.HasCutline, CutlineColorName = details.CutlineColorName, CutlineWidthMm = details.CutlineWidthMm };
+        }
+
+        private void ResetSourceMeasurements()
+        {
+            _updatingInputs = true;
+            try
+            {
+                _sourceWidthMm = _sourceHeightMm = 0;
+                tbTargetWidth.Value = tbTargetHeight.Value = inputNumericBox4.Value = 0;
+                _sourceHasCutline = false;
+                _postProcesses.RemoveAll(item => item.ProcessCode == "CUT" && item.Parameters.FromSource);
+                RefreshPostProcessGrid();
+            }
+            finally { _updatingInputs = false; }
+            RaiseOrderValuesChanged();
+        }
+
+        private void ApplySourceMeasurements(SourcePreviewData source)
+        {
+            _updatingInputs = true;
+            try
+            {
+                _sourceWidthMm = (decimal)source.SourceWidthMm;
+                _sourceHeightMm = (decimal)source.SourceHeightMm;
+                ApplyZoomDimensions();
+                // A newly dropped source starts with its own size in manual-size mode too.
+                if (cbZoomType.SelectedOption == inputOption13 && (WidthMm <= 0 || HeightMm <= 0))
+                {
+                    SetRestoredNumber(tbTargetWidth, RoundDimension(_sourceWidthMm));
+                    SetRestoredNumber(tbTargetHeight, RoundDimension(_sourceHeightMm));
+                    ApplyFixedSizeHeight();
+                }
+                inputNumericBox4.Value = 1;
+                _sourceHasCutline = source.HasCutline;
+                if (source.HasCutline)
+                {
+                    // A source cutline is already part of the vector artwork. Never generate it twice.
+                    _postProcesses.RemoveAll(item => item.ProcessCode == "CUT");
+                    var cut = OrderPostProcessSetting.Create("CUT");
+                    cut.Parameters.FromSource = true;
+                    cut.Parameters.LineWidthMm = source.CutlineWidthMm.HasValue ? (decimal)source.CutlineWidthMm.Value : .18m;
+                    cut.Parameters.SpotColorName = source.CutlineColorName;
+                    _postProcesses.Add(cut);
+                }
+                RefreshPostProcessGrid();
+            }
+            finally { _updatingInputs = false; }
+            UpdateDocumentState();
+            RaiseOrderValuesChanged();
+        }
+
+        private void RaiseOrderValuesChanged()
+        {
+            var handler = OrderValuesChanged;
+            if (handler != null) handler(this, EventArgs.Empty);
+        }
+
+        private void ShowSourceProgress()
+        {
+            if (_sourceProgress != null && !_sourceProgress.IsDisposed) return;
+            _sourceProgress = new DialogProgressbar();
+            var owner = FindForm();
+            if (owner != null) _sourceProgress.Show(owner);
+            else _sourceProgress.Show();
+            _sourceProgress.Update();
+        }
+
+        private void CloseSourceProgress()
+        {
+            var progress = _sourceProgress;
+            _sourceProgress = null;
+            if (progress != null) progress.Dispose();
+        }
+
+        private void ShowArtboardProgress()
+        {
+            if (_artboardProgress == null || _artboardProgress.IsDisposed)
+            {
+                _artboardProgress = new DialogProgressbar();
+                _artboardProgress.ReportProgress("대지 " + (_workingPage + 1) + " 미리보기를 생성하는 중입니다…");
+                var owner = FindForm();
+                if (owner != null) _artboardProgress.Show(owner);
+                else _artboardProgress.Show();
+            }
+            else _artboardProgress.ReportProgress("대지 " + (_workingPage + 1) + " 미리보기를 생성하는 중입니다…");
+            _artboardProgress.Update();
+        }
+
+        private void CloseArtboardProgress()
+        {
+            var progress = _artboardProgress;
+            _artboardProgress = null;
+            if (progress != null) progress.Dispose();
+        }
+
+        private void ReplaceSourceImage(Image image)
+        {
+            if (image == null)
+            {
+                CloseArtboardProgress();
+                pictureBox1.Image = null;
+                if (_sourcePageLifetime != null) { _sourcePageLifetime.Cancel(); _sourcePageLifetime.Dispose(); _sourcePageLifetime = null; }
+                foreach (var cached in _sourcePageImages.Values) cached.Dispose();
+                _sourcePageImages.Clear(); _sourcePageLoads.Clear(); _sourcePageLru.Clear();
+                _artboardMetadata.Clear(); _artboardStates.Clear();
+                _workingPage = _restoredWorkingPage = _artboardCount = 0;
+                while (panelCanvas.Controls.Count > 0) panelCanvas.Controls[0].Dispose();
+                return;
+            }
+            Image old;
+            if (_sourcePageImages.TryGetValue(0, out old) && old != image) old.Dispose();
+            _sourcePageImages[0] = image;
+            pictureBox1.Image = image;
+        }
+
+        private void CompleteArtboardLoad(SourcePreviewData result, bool restoring)
+        {
+            if (result.PreviewImage != null) ReplaceSourceImage(result.PreviewImage);
+            _artboardMetadata[0] = result;
+            _artboardCount = result.PageCount;
+            _sourcePageLifetime = CancellationTokenSource.CreateLinkedTokenSource(_documentLifetime.Token);
+            if (result.PreviewImage != null) _sourcePageLru.Add(0);
+            panelCanvas.SuspendLayout();
+            try
+            {
+                for (int i = 0; i < _artboardCount; i++)
+                {
+                    int page = i;
+                    var button = new Button { Name = "btnArtboard" + (i + 1), Text = "대지 " + (i + 1),
+                        Tag = i, Size = new Size(84, 28), Location = new Point(6 + i * 90, 3), FlatStyle = FlatStyle.Flat };
+                    button.Click += delegate { SelectWorkingArtboard(page); };
+                    panelCanvas.Controls.Add(button);
+                }
+            }
+            finally { panelCanvas.ResumeLayout(); }
+            _workingPage = restoring && _restoredWorkingPage < _artboardCount ? _restoredWorkingPage : 0;
+            ShowWorkingArtboard();
+        }
+
+        private void SelectWorkingArtboard(int page)
+        {
+            if (_documentsDisposed || _inspecting || _generating || page < 0 || page >= _artboardCount) return;
+            SaveWorkingSettings();
+            _workingPage = page;
+            ShowWorkingArtboard();
+            RaiseOrderValuesChanged();
+        }
+
+        private void ShowWorkingArtboard()
+        {
+            foreach (Control control in panelCanvas.Controls)
+            {
+                var button = (Button)control;
+                bool selected = (int)button.Tag == _workingPage;
+                button.BackColor = selected ? Color.SteelBlue : SystemColors.Control;
+                button.ForeColor = selected ? Color.White : SystemColors.ControlText;
+                button.FlatAppearance.BorderSize = selected ? 3 : 1;
+                button.AccessibleDescription = selected ? "선택한 작업 대지" : "대지 선택";
+            }
+            Image image;
+            pictureBox1.Image = _sourcePageImages.TryGetValue(_workingPage, out image) ? image : null;
+            SourcePreviewData metadata;
+            if (_artboardMetadata.TryGetValue(_workingPage, out metadata)) ApplyWorkingArtboard(metadata);
+            else
+            {
+                BannerOrderEditorState saved;
+                ApplyWorkingInputs(_artboardStates.TryGetValue(_workingPage, out saved) ? saved : new BannerOrderEditorState {
+                    Quantity = 1, ZoomType = "ORIGINAL", PostProcesses = new List<OrderPostProcessSetting>() });
+                _sourceDetails = null;
+                tbFileInfo.Text = "대지 " + (_workingPage + 1) + " 미리보기를 만드는 중입니다…";
+                UpdateDocumentState();
+            }
+            if (pictureBox1.Image != null)
+            {
+                CloseArtboardProgress();
+                TouchSourcePage(_workingPage);
+            }
+            else
+            {
+                ShowArtboardProgress();
+                QueueSourcePage(_workingPage);
+            }
+        }
+
+        private void ApplyWorkingInputs(BannerOrderEditorState state)
+        {
+            _updatingInputs = true;
+            try
+            {
+                _sourceWidthMm = state.SourceWidthMm; _sourceHeightMm = state.SourceHeightMm; _sourceHasCutline = state.SourceHasCutline;
+                cbZoomType.SelectedOption = state.ZoomType == "FIXED_SIZE" ? inputOption13 : state.ZoomType == "SCALE" ? inputOption7 : inputOption6;
+                SetRestoredNumber(tbZoomRate, Math.Max(1, state.ZoomRate));
+                SetRestoredNumber(tbTargetWidth, state.WidthMm); SetRestoredNumber(tbTargetHeight, state.HeightMm);
+                SetRestoredNumber(inputNumericBox4, state.Quantity);
+                cbDeploy.SelectedOption = state.FitMode == "COVER" ? inputOption5 : inputOption4;
+                _postProcesses.Clear(); _postProcesses.AddRange(state.GetPostProcesses());
+                _outputServerFile = state.OutputServerFile == null ? null : state.OutputServerFile.Copy();
+                RefreshPostProcessGrid();
+            }
+            finally { _updatingInputs = false; }
+        }
+
+        private void ApplyWorkingArtboard(SourcePreviewData metadata)
+        {
+            BannerOrderEditorState saved;
+            bool exists = _artboardStates.TryGetValue(_workingPage, out saved);
+            ApplyWorkingInputs(exists ? saved : new BannerOrderEditorState { Quantity = 1, ZoomType = "ORIGINAL",
+                PostProcesses = new List<OrderPostProcessSetting>() });
+            _sourceDetails = metadata.Details;
+            if (exists)
+            {
+                _sourceWidthMm = (decimal)metadata.SourceWidthMm; _sourceHeightMm = (decimal)metadata.SourceHeightMm;
+                _sourceHasCutline = metadata.HasCutline;
+                _updatingInputs = true;
+                try { if (saved.ZoomType == "ORIGINAL" || saved.ZoomType == "SCALE") ApplyZoomDimensions(); }
+                finally { _updatingInputs = false; }
+            }
+            else ApplySourceMeasurements(metadata);
+            tbFileInfo.Text = Path.GetFileName(_sourceFileReferencePath ?? _sourcePath) + " · " + metadata.FileType + Environment.NewLine
+                + "대지 " + (_workingPage + 1) + " / " + _artboardCount + " · " + metadata.FileInfo;
+            _sourceFileInfoSnapshot = tbFileInfo.Text;
+            SaveWorkingSettings();
+            UpdateDocumentState();
+        }
+
+        private Task QueueSourcePage(int index)
+        {
+            Task pending;
+            if (_sourcePageLoads.TryGetValue(index, out pending)) return pending;
+            pending = LoadSourcePageAsync(index);
+            _sourcePageLoads[index] = pending;
+            return pending;
+        }
+
+        private void TouchSourcePage(int index)
+        {
+            _sourcePageLru.Remove(index); _sourcePageLru.Add(index);
+            while (_sourcePageLru.Count > 4)
+            {
+                int oldest = _sourcePageLru.FindIndex(x => x != _workingPage && x != index);
+                if (oldest < 0) break;
+                int key = _sourcePageLru[oldest]; _sourcePageLru.RemoveAt(oldest);
+                _sourcePageImages[key].Dispose(); _sourcePageImages.Remove(key);
+            }
+        }
+
+        private async Task LoadSourcePageAsync(int index)
+        {
+            int version = _sourceVersion;
+            var lifetime = _sourcePageLifetime;
+            var token = lifetime.Token;
+            string source = _sourcePath;
+            bool entered = false;
+            await Task.Yield();
+            try
+            {
+                await _sourcePageGate.WaitAsync(); entered = true;
+                if (token.IsCancellationRequested) return;
+                var result = await OrderDocumentService.PreviewPageAsync(source, index, 1600, false, token);
+                if (result.IsCanceled) return;
+                if (_documentsDisposed || version != _sourceVersion || lifetime != _sourcePageLifetime)
+                { if (result.PreviewImage != null) result.PreviewImage.Dispose(); return; }
+                _sourcePageImages[index] = result.PreviewImage;
+                if (_workingPage == index && _artboardMetadata.ContainsKey(index)) SaveWorkingSettings();
+                var metadata = new SourcePreviewData { Details = result, FileInfo = result.FileInfo, FileType = result.FileType,
+                    SourceWidthMm = result.SourceWidthMm, SourceHeightMm = result.SourceHeightMm, HasCutline = result.HasCutline,
+                    CutlineColorName = result.CutlineColorName, CutlineWidthMm = result.CutlineWidthMm, PageCount = result.PageCount };
+                _artboardMetadata[index] = metadata;
+                TouchSourcePage(index);
+                if (_workingPage == index)
+                {
+                    pictureBox1.Image = result.PreviewImage;
+                    ApplyWorkingArtboard(metadata);
+                    RaiseOrderValuesChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!_documentsDisposed && version == _sourceVersion && lifetime == _sourcePageLifetime && _workingPage == index)
+                    tbFileInfo.Text = "대지 " + (index + 1) + " 미리보기 실패: " + ex.Message;
+            }
+            finally
+            {
+                if (entered) _sourcePageGate.Release();
+                if (lifetime == _sourcePageLifetime)
+                {
+                    _sourcePageLoads.Remove(index);
+                    if (_workingPage == index) CloseArtboardProgress();
+                }
+            }
+        }
+
+        private async void PreviewOutput(object sender, EventArgs e)
+        {
+            if (_generating || _inspecting || _sourceDetails == null) return;
+            string output = null;
+            try
+            {
+                var settings = ReadPdfGenerationSettings();
+                settings.Validate();
+                string folder = Path.Combine(Path.GetTempPath(), "PineTreePdfPreview", Guid.NewGuid().ToString("N"));
+                output = Path.Combine(folder, Path.GetFileNameWithoutExtension(_sourcePath) + "_대지" + (_workingPage + 1) + "_출력용.pdf");
+                var result = await GenerateAndUploadPdfAsync(output, settings);
+                if (_documentsDisposed) { DeletePreviewFile(output); return; }
+                if (!string.IsNullOrEmpty(_serverUploadWarning))
+                    MessageBox.Show(this, "출력 PDF는 생성되었지만 서버 업로드에 실패했습니다.\r\n로컬 미리보기를 표시합니다.\r\n\r\n" + _serverUploadWarning,
+                        "서버 업로드", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowOutputPreview(result.OutputPath);
+            }
+            catch (OperationCanceledException) { DeletePreviewFile(output); }
+            catch (Exception ex)
+            {
+                DeletePreviewFile(output);
+                if (!_documentsDisposed) MessageBox.Show(this, "출력 미리보기를 생성하지 못했습니다.\r\n" + ex.Message,
+                    "출력 미리보기", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private Task<OrderDocumentResult> GeneratePdfToPathAsync(string output, PdfGenerationSettings settings)
+        {
+            return GeneratePdfCoreAsync(output, settings, false);
+        }
+
+        private Task<OrderDocumentResult> GenerateAndUploadPdfAsync(string output, PdfGenerationSettings settings)
+        {
+            return GeneratePdfCoreAsync(output, settings, true);
+        }
+
+        private async Task<OrderDocumentResult> GeneratePdfCoreAsync(string output, PdfGenerationSettings settings, bool uploadToServer)
+        {
+            if (_generating || _inspecting || _sourceDetails == null) throw new InvalidOperationException("원본파일을 먼저 선택해주세요.");
+            settings.Validate();
+            _serverUploadWarning = null;
+            if (uploadToServer && !OrderFileStorageService.CanUploadSource(_sourcePath))
+            {
+                MessageBox.Show(this, OrderFileStorageService.SourceUploadLimitMessage,
+                    "서버 업로드", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                uploadToServer = false;
+            }
+            _generating = true;
+            btnPreview.Text = "PDF 생성 중…";
+            UpdateDocumentState();
+            try
+            {
+                ShowSourceProgress();
+                _sourceProgress.ReportProgress("PDF 미리보기를 생성하는 중입니다…");
+                var result = await OrderDocumentService.GenerateAsync(_sourcePath, output, settings, _documentLifetime.Token);
+                if (uploadToServer)
+                {
+                    btnPreview.Text = "서버 업로드 중…";
+                    if (_sourceProgress != null) _sourceProgress.ReportProgress("서버에 파일을 업로드하는 중입니다…");
+                    _outputServerFile = null;
+                    try
+                    {
+                        var sourceFile = await UploadOrderFileAsync(_sourcePath);
+                        // Preserve a successfully uploaded source even if the output upload fails.
+                        _sourceServerFile = sourceFile;
+                        _outputServerFile = await UploadOrderFileAsync(result.OutputPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _documentLifetime.Token.ThrowIfCancellationRequested();
+                        _serverUploadWarning = OrderFileStorageService.GetTransferFailureMessage(ex);
+                    }
+                }
+                return result;
+            }
+            finally
+            {
+                CloseSourceProgress();
+                _generating = false;
+                if (!_documentsDisposed)
+                {
+                    btnPreview.Text = "출력 미리보기";
+                    UpdateDocumentState();
+                }
+            }
+        }
+
+        protected virtual Task<OrderServerFile> UploadOrderFileAsync(string path)
+        {
+            return OrderFileStorageService.UploadAsync(path, _documentLifetime.Token);
+        }
+
+        private void ShowOutputPreview(string path)
+        {
+            var preview = new DialogDocumentPreview(path, true);
+            preview.FormClosed += delegate { DeletePreviewFile(path); };
+            var owner = FindForm();
+            if (owner != null) preview.Show(owner);
+            else preview.Show();
+        }
+
+        private static void DeletePreviewFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+                string directory = Path.GetDirectoryName(path);
+                if (Directory.Exists(directory)) Directory.Delete(directory, false);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
+        private void DisposeDocuments()
+        {
+            if (_documentsDisposed) return;
+            _documentsDisposed = true;
+            CloseSourceProgress();
+            ++_sourceVersion;
+            if (_shellDropWindow != null) _shellDropWindow.Dispose();
+            _documentLifetime.Cancel();
+            if (_sourceInspection != null) _sourceInspection.Cancel();
+            ReplaceSourceImage(null);
+            DeletePreviewFile(_downloadedSourcePath);
+            _documentLifetime.Dispose();
+            _fileInfoToolTip.Dispose();
+        }
+
+        private sealed class ShellFileDropWindow : NativeWindow, IDisposable
+        {
+            private const int WmDropFiles = 0x0233;
+            private const int WmCopyGlobalData = 0x0049;
+            private const int WmCopyData = 0x004A;
+            private readonly Control _target;
+            private readonly Action<string[]> _onDrop;
+
+            internal ShellFileDropWindow(Control target, Action<string[]> onDrop)
+            {
+                _target = target;
+                _onDrop = onDrop;
+                _target.HandleCreated += Target_HandleCreated;
+                _target.HandleDestroyed += Target_HandleDestroyed;
+                if (_target.IsHandleCreated) Register();
+            }
+
+            private void Target_HandleCreated(object sender, EventArgs e) { Register(); }
+            private void Target_HandleDestroyed(object sender, EventArgs e)
+            {
+                if (Handle != IntPtr.Zero) ReleaseHandle();
+            }
+
+            private void Register()
+            {
+                AssignHandle(_target.Handle);
+                foreach (uint message in new uint[] { WmDropFiles, WmCopyGlobalData, WmCopyData })
+                    if (!ChangeWindowMessageFilterEx(Handle, message, 1, IntPtr.Zero))
+                        throw new Win32Exception(Marshal.GetLastWin32Error(), "파일 드롭 메시지를 등록하지 못했습니다.");
+                DragAcceptFiles(Handle, true);
+            }
+
+            protected override void WndProc(ref Message message)
+            {
+                if (message.Msg != WmDropFiles) { base.WndProc(ref message); return; }
+                string[] files = null;
+                try
+                {
+                    if (DragQueryFile(message.WParam, uint.MaxValue, null, 0) == 1)
+                    {
+                        uint length = DragQueryFile(message.WParam, 0, null, 0);
+                        if (length > 0 && length <= 32767)
+                        {
+                            var path = new StringBuilder((int)length + 1);
+                            if (DragQueryFile(message.WParam, 0, path, (uint)path.Capacity) == length)
+                                files = new[] { path.ToString() };
+                        }
+                    }
+                }
+                finally { DragFinish(message.WParam); }
+                message.Result = IntPtr.Zero;
+                if (files != null) _onDrop(files);
+            }
+
+            public void Dispose()
+            {
+                _target.HandleCreated -= Target_HandleCreated;
+                _target.HandleDestroyed -= Target_HandleDestroyed;
+                if (Handle == IntPtr.Zero) return;
+                DragAcceptFiles(Handle, false);
+                foreach (uint message in new uint[] { WmDropFiles, WmCopyGlobalData, WmCopyData })
+                    ChangeWindowMessageFilterEx(Handle, message, 0, IntPtr.Zero);
+                ReleaseHandle();
+            }
+
+            [DllImport("shell32.dll")]
+            private static extern void DragAcceptFiles(IntPtr window, bool accept);
+            [DllImport("shell32.dll", CharSet = CharSet.Unicode, EntryPoint = "DragQueryFileW")]
+            private static extern uint DragQueryFile(IntPtr drop, uint index, StringBuilder fileName, uint size);
+            [DllImport("shell32.dll")]
+            private static extern void DragFinish(IntPtr drop);
+            [DllImport("user32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool ChangeWindowMessageFilterEx(IntPtr window, uint message, uint action, IntPtr changeInfo);
+        }
+    }
+}

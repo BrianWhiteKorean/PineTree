@@ -44,6 +44,27 @@ class WoodTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.folder=Path(self.temp.name)
     def tearDown(self):self.temp.cleanup()
+    def test_separate_line_thicknesses(self):
+        _,reader,_=self.generate(extra=44,offset=0,WoodExtraLineThicknessMm=3.3,
+                                 WoodDesignLineThicknessMm=1.2)
+        lines=vertical_lines(reader.pages[0]);self.assertEqual(len(lines),4)
+        for line,x,width in zip(lines,[1.65,44,844,886.35],[3.3,1.2,1.2,3.3]):
+            self.assertAlmostEqual(line[0],x,places=5)
+            self.assertAlmostEqual(line[3]/worker.MM,width,places=7)
+
+    def test_invalid_thickness(self):
+        for key in ('WoodExtraLineThicknessMm','WoodDesignLineThicknessMm'):
+            for value in (0,-1,float('nan'),float('inf')):
+                with self.assertRaises(ValueError):self.generate(**{key:value})
+
+    def test_both_axes_keep_independent_thicknesses(self):
+        _,reader,_=self.generate(extra=44,WoodExtraLineThicknessMm=3.3,WoodDesignLineThicknessMm=1.2,
+            MakeWoodTopBottom=True,WoodTopBottomExtraMm=12,MakeWoodTopBottomDesignLine=True,
+            WoodTopBottomDesignOffsetMm=4,WoodTopBottomExtraLineThicknessMm=.6,WoodTopBottomDesignLineThicknessMm=.9)
+        for lines,widths in ((vertical_lines(reader.pages[0]),[3.3,1.2,1.2,3.3]),
+                             (horizontal_lines(reader.pages[0]),[.6,.9,.9,.6])):
+            self.assertEqual(len(lines),4)
+            for line,width in zip(lines,widths):self.assertAlmostEqual(line[3]/worker.MM,width,places=7)
     def generate(self,extra=8.03,design=True,offset=0,**changes):
         settings=dict(TargetWidthMm=800,TargetHeightMm=59,FitMode='CONTAIN',
             EdgeTopMm=0,EdgeBottomMm=0,EdgeLeftMm=0,EdgeRightMm=0,MakeCutline=False,MakeHole=False,
@@ -133,5 +154,19 @@ class TopBottomTests(unittest.TestCase):
     def test_top_invalid_settings(self):
         for extra,offset in [(-1,0),(12,-1),(12,13)]:
             with self.assertRaises(ValueError):self.top(extra=extra,offset=offset)
+
+    def test_top_separate_line_thicknesses(self):
+        _,reader,_=self.top(extra=44,offset=0,WoodTopBottomExtraLineThicknessMm=3.3,
+                           WoodTopBottomDesignLineThicknessMm=1.2)
+        lines=horizontal_lines(reader.pages[0])
+        self.assertEqual(len(lines),4)
+        for line,expected_y,expected_width in zip(lines,[1.65,44,103,145.35],[3.3,1.2,1.2,3.3]):
+            self.assertAlmostEqual(line[0],expected_y,places=5)
+            self.assertAlmostEqual(line[3]/worker.MM,expected_width,places=7)
+
+    def test_top_invalid_thickness(self):
+        for key in ('WoodTopBottomExtraLineThicknessMm','WoodTopBottomDesignLineThicknessMm'):
+            for value in (0,-1,float('nan'),float('inf')):
+                with self.assertRaises(ValueError):self.top(**{key:value})
 
 if __name__=='__main__':unittest.main(verbosity=2)

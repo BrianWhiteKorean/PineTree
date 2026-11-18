@@ -7,14 +7,14 @@ namespace PineTree.Classes
 {
     public static class CustomerRepository
     {
-        public static DataTable GetCustomers(string customerName, string customerCode, DateTime? lastOrderDateFrom, DateTime? lastOrderDateTo)
+        public static DataTable GetCustomers(string custName, string customerCode, DateTime? lastOrderDateFrom, DateTime? lastOrderDateTo)
         {
             StringBuilder sql = new StringBuilder();
             List<ParamValuePair> parameters = new List<ParamValuePair>();
 
             sql.AppendLine("SELECT");
             sql.AppendLine("    c.SeqNo,");
-            sql.AppendLine("    c.CustomerName,");
+            sql.AppendLine("    c.CustName,");
             sql.AppendLine("    c.CustCode,");
             sql.AppendLine("    c.ECountCustomerCode,");
             sql.AppendLine("    c.Phone,");
@@ -29,10 +29,10 @@ namespace PineTree.Classes
             sql.AppendLine(") lastOrder ON lastOrder.CustCode = c.CustCode");
             sql.AppendLine("WHERE 1 = 1");
 
-            if (!string.IsNullOrWhiteSpace(customerName))
+            if (!string.IsNullOrWhiteSpace(custName))
             {
-                sql.AppendLine("AND c.CustomerName LIKE @CustomerName");
-                parameters.Add(new ParamValuePair("@CustomerName", "%" + customerName.Trim() + "%"));
+                sql.AppendLine("AND c.CustName LIKE @CustName");
+                parameters.Add(new ParamValuePair("@CustName", "%" + custName.Trim() + "%"));
             }
 
             if (!string.IsNullOrWhiteSpace(customerCode))
@@ -53,7 +53,7 @@ namespace PineTree.Classes
                 parameters.Add(new ParamValuePair("@LastOrderDateTo", lastOrderDateTo.Value.Date));
             }
 
-            sql.AppendLine("ORDER BY c.CustomerName");
+            sql.AppendLine("ORDER BY c.CustName");
 
             return DB.MySqlQueryRead(sql.ToString(), parameters.ToArray());
         }
@@ -65,7 +65,7 @@ SELECT
     SeqNo,
     CustCode,
     ECountCustomerCode,
-    CustomerName,
+    CustName,
     RepresentativeName,
     Phone,
     BusinessNum,
@@ -86,7 +86,37 @@ WHERE SeqNo = @SeqNo";
             return dt.Rows[0];
         }
 
-        public static bool ExistsCustCode(long custCode, long? exceptSeqNo)
+        public static DataRow GetCustomerByCustName(string custName)
+        {
+            if (string.IsNullOrWhiteSpace(custName))
+            {
+                return null;
+            }
+
+            string sql = @"
+SELECT
+    SeqNo,
+    CustCode,
+    ECountCustomerCode,
+    CustName,
+    RepresentativeName,
+    Phone,
+    BusinessNum,
+    IsActive
+FROM Customers
+WHERE CustName = @CustName
+ORDER BY CustCode
+LIMIT 1";
+
+            DataTable dt = DB.MySqlQueryRead(sql, new[]
+            {
+                new ParamValuePair("@CustName", custName.Trim())
+            });
+
+            return dt.Rows.Count == 0 ? null : dt.Rows[0];
+        }
+
+        public static bool ExistsCustCode(string custCode, long? exceptSeqNo)
         {
             string sql = @"
 SELECT COUNT(*)
@@ -114,14 +144,14 @@ WHERE CustCode = @CustCode";
             return count > 0;
         }
 
-        public static void InsertCustomer(long custCode, string eCountCustomerCode, string customerName, string representativeName, string phone, string businessNum)
+        public static void InsertCustomer(string custCode, string eCountCustomerCode, string customerName, string representativeName, string phone, string businessNum)
         {
             string sql = @"
 INSERT INTO Customers
 (
     CustCode,
     ECountCustomerCode,
-    CustomerName,
+    CustName,
     RepresentativeName,
     Phone,
     BusinessNum,
@@ -132,7 +162,7 @@ VALUES
 (
     @CustCode,
     @ECountCustomerCode,
-    @CustomerName,
+    @CustName,
     @RepresentativeName,
     @Phone,
     @BusinessNum,
@@ -144,7 +174,7 @@ VALUES
             {
                 new ParamValuePair("@CustCode", custCode),
                 new ParamValuePair("@ECountCustomerCode", EmptyToNull(eCountCustomerCode)),
-                new ParamValuePair("@CustomerName", customerName),
+                new ParamValuePair("@CustName", customerName),
                 new ParamValuePair("@RepresentativeName", EmptyToNull(representativeName)),
                 new ParamValuePair("@Phone", EmptyToNull(phone)),
                 new ParamValuePair("@BusinessNum", EmptyToNull(businessNum)),
@@ -152,14 +182,14 @@ VALUES
             });
         }
 
-        public static void UpdateCustomer(long seqNo, long custCode, string eCountCustomerCode, string customerName, string representativeName, string phone, string businessNum)
+        public static void UpdateCustomer(long seqNo, string custCode, string eCountCustomerCode, string customerName, string representativeName, string phone, string businessNum)
         {
             string sql = @"
 UPDATE Customers
 SET
     CustCode = @CustCode,
     ECountCustomerCode = @ECountCustomerCode,
-    CustomerName = @CustomerName,
+    CustName = @CustName,
     RepresentativeName = @RepresentativeName,
     Phone = @Phone,
     BusinessNum = @BusinessNum,
@@ -171,7 +201,7 @@ WHERE SeqNo = @SeqNo";
                 new ParamValuePair("@SeqNo", seqNo),
                 new ParamValuePair("@CustCode", custCode),
                 new ParamValuePair("@ECountCustomerCode", EmptyToNull(eCountCustomerCode)),
-                new ParamValuePair("@CustomerName", customerName),
+                new ParamValuePair("@CustName", customerName),
                 new ParamValuePair("@RepresentativeName", EmptyToNull(representativeName)),
                 new ParamValuePair("@Phone", EmptyToNull(phone)),
                 new ParamValuePair("@BusinessNum", EmptyToNull(businessNum)),

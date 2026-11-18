@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using PineTree.Classes;
 using PineTree.Dialogs;
@@ -11,7 +12,6 @@ namespace PineTree.UserControls
     public class UcDashboardHome : UserControl
     {
         private const int ActionButtonsRightMargin = 70;
-        private const int ActionButtonsGap = 10;
 
         private Panel _orderPanel;
         private PictureBox _todayOrderCard;
@@ -32,7 +32,6 @@ namespace PineTree.UserControls
         private bool _printWaitingCardSelected = false;
         private bool _cuttingWaitingCardSelected = false;
         private bool _completionWaitingCardSelected = false;
-        private bool _isOpeningNewOrder;
 
         public UcDashboardHome()
         {
@@ -44,6 +43,11 @@ namespace PineTree.UserControls
         }
 
         private void UcDashboardHome_Load(object sender, EventArgs e)
+        {
+            LoadSelectedDateOrders();
+        }
+
+        public void RefreshOrders()
         {
             LoadSelectedDateOrders();
         }
@@ -88,28 +92,6 @@ namespace PineTree.UserControls
             date.Size = new Size(230, 24);
             _dashboardDateLabel = date;
             content.Controls.Add(date);
-
-            Button addButton = new Button();
-            addButton.FlatStyle = FlatStyle.Flat;
-            addButton.FlatAppearance.BorderSize = 0;
-            addButton.FlatAppearance.MouseDownBackColor = Color.Transparent;
-            addButton.FlatAppearance.MouseOverBackColor = Color.Transparent;
-            addButton.BackColor = Color.Transparent;
-            addButton.Image = PineTree.Properties.Resources.새주문등록_Normal;
-            addButton.ImageAlign = ContentAlignment.MiddleCenter;
-            addButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            addButton.Size = PineTree.Properties.Resources.새주문등록_Normal.Size;
-            addButton.Location = new Point(Math.Max(500, content.ClientSize.Width - addButton.Width - ActionButtonsRightMargin), 153);
-            addButton.MouseDown += delegate { addButton.Image = PineTree.Properties.Resources.새주문등록_Click; };
-            addButton.MouseUp += delegate { addButton.Image = PineTree.Properties.Resources.새주문등록_Normal; };
-            addButton.MouseLeave += delegate { addButton.Image = PineTree.Properties.Resources.새주문등록_Normal; };
-            addButton.Click += delegate { ShowNewOrderDialog(); };
-            content.Controls.Add(addButton);
-
-            Resize += delegate
-            {
-                addButton.Location = new Point(Math.Max(500, content.ClientSize.Width - addButton.Width - ActionButtonsRightMargin), 153);
-            };
 
             CreateStatusCards(content);
             CreateOrderPanel(content);
@@ -410,44 +392,9 @@ namespace PineTree.UserControls
             {
                 grid.PageSize = CalculatePageSize(panel.ClientSize.Height - 58);
                 grid.Size = new Size(panel.ClientSize.Width, panel.ClientSize.Height - 58);
+                grid.PageIndex = grid.PageIndex;
+                BindTodayOrderPage();
             };
-        }
-
-        private void ShowNewOrderDialog()
-        {
-            if (_isOpeningNewOrder) return;
-            _isOpeningNewOrder = true;
-            bool previousWaitCursor = Application.UseWaitCursor;
-            Cursor previousCursor = Cursor.Current;
-            bool cursorRestored = false;
-            Action restoreCursor = delegate
-            {
-                if (cursorRestored) return;
-                Application.UseWaitCursor = previousWaitCursor;
-                Cursor.Current = previousCursor;
-                cursorRestored = true;
-            };
-            try
-            {
-                // UseWaitCursor handles later WM_SETCURSOR messages; Current gives
-                // immediate feedback before synchronous constructor/DB work starts.
-                Application.UseWaitCursor = true;
-                Cursor.Current = Cursors.WaitCursor;
-                using (DialogOrder dialog = new DialogOrder())
-                {
-                    dialog.Shown += delegate { restoreCursor(); };
-                    DialogResult result = dialog.ShowDialog(this);
-                    if (result == DialogResult.OK)
-                    {
-                        LoadSelectedDateOrders();
-                    }
-                }
-            }
-            finally
-            {
-                restoreCursor();
-                _isOpeningNewOrder = false;
-            }
         }
 
         private void ShowEditOrderDialog(long orderId)
@@ -457,14 +404,25 @@ namespace PineTree.UserControls
                 return;
             }
 
-            using (DialogOrder dialog = new DialogOrder(orderId))
+            bool previousWaitCursor = UseWaitCursor;
+            Cursor previousCursor = Cursor.Current;
+            Action restoreCursor = delegate {
+                UseWaitCursor = previousWaitCursor;
+                Cursor.Current = previousCursor;
+            };
+            DialogResult result;
+            try
             {
-                DialogResult result = dialog.ShowDialog(this);
-                if (result == DialogResult.OK)
+                UseWaitCursor = true;
+                Cursor.Current = Cursors.WaitCursor;
+                using (DialogOrderDesignPad dialog = new DialogOrderDesignPad(orderId))
                 {
-                    LoadSelectedDateOrders();
+                    dialog.Shown += delegate { restoreCursor(); };
+                    result = dialog.ShowDialog(this);
                 }
             }
+            finally { restoreCursor(); }
+            if (result == DialogResult.OK) LoadSelectedDateOrders();
         }
 
         private void TodayOrderGrid_CellClicked(object sender, PagedGridCellClickEventArgs e)
@@ -476,7 +434,7 @@ namespace PineTree.UserControls
 
             _todayOrderGrid.SelectedRowIndex = e.RowIndex;
 
-            if (e.ColumnKey != "Manage")
+            if (e.ColumnKey != "Manage" || !e.Row.ContainsKey("Manage") || e.Row["Manage"].CellType != PagedGridCellType.Link)
             {
                 return;
             }
@@ -499,6 +457,7 @@ namespace PineTree.UserControls
         private PagedGrid CreateTodayOrderGrid()
         {
             PagedGrid grid = new PagedGrid();
+            grid.RowGroupKey = "OrderId";
             grid.PageIndex = 1;
             grid.PageSize = 14;
             grid.TotalCount = 0;
@@ -507,7 +466,7 @@ namespace PineTree.UserControls
             grid.Columns.Add(new PagedGridColumn("OrderNo", "주문번호", 210, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Customer", "거래처명", 240, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Item", "품목(주문명)", 260, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Size", "규격 (mm)", 215, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Size", "규격", 215, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Quantity", "수량/회배", 150, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Status", "진행상태", 170, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Manage", "관리", 0, ContentAlignment.MiddleLeft));
@@ -521,14 +480,14 @@ namespace PineTree.UserControls
             try
             {
                 _todayOrders = OrderRepository.GetOrdersByOrderDate(_selectedDate);
-                UpdateTodayOrderCardCount(_todayOrders.Rows.Count);
+                UpdateTodayOrderCardCount(CountOrders(_todayOrders));
                 UpdateStatusCardCounts(OrderRepository.GetStatusCountsByOrderDate(_selectedDate));
 
                 if (_todayOrderGrid != null)
                 {
                     _todayOrderGrid.PageIndex = 1;
                     _todayOrderGrid.TotalCount = _todayOrders.Rows.Count;
-                    _todayOrderGrid.TotalText = CreateTotalText(_todayOrders.Rows.Count);
+                    _todayOrderGrid.TotalText = CreateTotalText(CountOrders(_todayOrders));
                     BindTodayOrderPage();
                 }
             }
@@ -565,6 +524,14 @@ namespace PineTree.UserControls
             }
         }
 
+        private static string GetOrderItemDisplayName(DataRow row, bool firstItem)
+        {
+            string title = row.Table.Columns.Contains("OrderTitle") ? Convert.ToString(row["OrderTitle"]) : string.Empty;
+            if (firstItem && !string.IsNullOrWhiteSpace(title)) return title;
+            string customName = row.Table.Columns.Contains("CustomName") ? Convert.ToString(row["CustomName"]) : string.Empty;
+            return string.IsNullOrWhiteSpace(customName) ? Convert.ToString(row["ItemName"]) : customName;
+        }
+
         private void BindTodayOrderPage()
         {
             if (_todayOrderGrid == null)
@@ -581,14 +548,20 @@ namespace PineTree.UserControls
                 for (int index = startIndex; index < endIndex; index++)
                 {
                     DataRow row = _todayOrders.Rows[index];
-                    rows.Add(CreateOrderRow(
+                    bool firstItem = index == 0 || !Equals(row["OrderId"], _todayOrders.Rows[index - 1]["OrderId"]);
+                    var displayRow = CreateOrderRow(
                         ToText(row["OrderId"]),
                         ToText(row["OrderNo"]),
                         ToText(row["CustName"]),
-                        ToText(row["CustomName"]),
+                        GetOrderItemDisplayName(row, firstItem),
                         CreateSizeText(row),
                         CreateQuantityText(row),
-                        CreateStatusText(ToText(row["ProductionStatus"]))));
+                        CreateStatusText(ToText(row["ProductionStatus"])));
+                    if (!firstItem) {
+                        displayRow["OrderNo"] = new PagedGridCell(string.Empty);
+                        displayRow["Manage"] = new PagedGridCell(string.Empty);
+                    }
+                    rows.Add(displayRow);
                 }
             }
 
@@ -691,8 +664,7 @@ namespace PineTree.UserControls
 
         private static Point GetSearchButtonLocation(int parentWidth, int searchButtonWidth)
         {
-            int newOrderButtonWidth = PineTree.Properties.Resources.새주문등록_Normal.Width;
-            int x = parentWidth - ActionButtonsRightMargin - newOrderButtonWidth - ActionButtonsGap - searchButtonWidth;
+            int x = parentWidth - ActionButtonsRightMargin - searchButtonWidth;
             return new Point(Math.Max(500, x), 153);
         }
 
@@ -730,9 +702,14 @@ namespace PineTree.UserControls
 
             if (_todayOrderGrid != null)
             {
-                int count = _todayOrders == null ? 0 : _todayOrders.Rows.Count;
+                int count = CountOrders(_todayOrders);
                 _todayOrderGrid.TotalText = CreateTotalText(count);
             }
+        }
+
+        private static int CountOrders(DataTable orders)
+        {
+            return orders == null ? 0 : orders.AsEnumerable().Select(row => row["OrderId"]).Distinct().Count();
         }
 
         private string CreateTotalText(int count)

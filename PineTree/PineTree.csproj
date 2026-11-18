@@ -67,10 +67,30 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\OrderPreviewSnapshot.cs" />
+    <Compile Include="Classes\OrderDesignPadState.cs" />
     <Compile Include="Classes\AppScreen.cs" />
+    <Compile Include="Classes\OrderSourceDocument.cs" />
+    <Compile Include="Dialogs\DialogDesignModeExit1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogDesignModeExit1.Designer.cs">
+      <DependentUpon>DialogDesignModeExit1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\OrderSourcePreview.cs" />
+    <Compile Include="UserControlsOrder\UcOrderSourcePreview.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\IOrderSourceEditor.cs" />
     <Compile Include="Classes\ClassDefines.cs" />
     <Compile Include="Classes\iniUtil.cs" />
     <Compile Include="Classes\NetworkUtility.cs" />
+    <Compile Include="Dialogs\DialogPrint.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogPrint.Designer.cs">
+      <DependentUpon>DialogPrint.cs</DependentUpon>
+    </Compile>
     <Compile Include="Dialogs\LoginDlg.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -94,17 +114,54 @@
     <Compile Include="Classes\MainStatusBoardLayout.cs" />
     <Compile Include="Classes\OrderProductionStatus.cs" />
     <Compile Include="Classes\OrderRepository.cs" />
-    <Compile Include="Classes\BannerOrderEditorState.cs" />
-    <Compile Include="Classes\OrderPostProcessSetting.cs" />
-    <Compile Include="UserControlsOrder\Dialog상하각목.cs">
+    <Compile Include="Classes\OrderRepository.Linking.cs" />
+    <Compile Include="Dialogs\DialogOrderList.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog상하각목.Designer.cs">
-      <DependentUpon>Dialog상하각목.cs</DependentUpon>
+    <Compile Include="Dialogs\DialogOrderList.Designer.cs">
+      <DependentUpon>DialogOrderList.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcOrderDesignPad.Linking.cs">
+      <DependentUpon>UcOrderDesignPad.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Classes\WorkOrderDocumentService.cs" />
+    <Compile Include="Classes\WorkOrderPreviewService.cs" />
+    <Compile Include="Classes\BannerOrderEditorState.cs" />
+    <Compile Include="Classes\OrderServerFile.cs" />
+    <Compile Include="Classes\OrderFileStorageService.cs" />
+    <Compile Include="Classes\OrderPostProcessSetting.cs" />
+    <Compile Include="UserControlsOrder\Dlg페트_AL족자.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg페트_AL족자.Designer.cs">
+      <DependentUpon>Dlg페트_AL족자.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg현수막_상하각목.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg현수막_상하각목.Designer.cs">
+      <DependentUpon>Dlg현수막_상하각목.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg페트_재단.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg페트_재단.Designer.cs">
+      <DependentUpon>Dlg페트_재단.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControlsOrder\PostProcessDialogBinding.cs" />
-    <Compile Include="UserControlsOrder\UcOrder현수막.PostProcesses.cs">
-      <DependentUpon>UcOrder현수막.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\IOrderItemEditor.cs" />
+    <Compile Include="UserControlsOrder\UcOrder페트.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder페트.Designer.cs">
+      <DependentUpon>UcOrder페트.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder페트.PostProcesses.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder수성_그룹A.PostProcesses.cs">
+      <DependentUpon>UcOrder수성_그룹A.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Classes\OrderItemEditorStateRepository.cs" />
@@ -134,11 +191,41 @@
     <Compile Include="Dialogs\DialogOrderOld.Designer.cs">
       <DependentUpon>DialogOrderOld.cs</DependentUpon>
     </Compile>
+    <Compile Include="Dialogs\DialogOrderDesignPad.State.cs">
+      <DependentUpon>DialogOrderDesignPad.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderDesignPad.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderDesignPad.Designer.cs">
+      <DependentUpon>DialogOrderDesignPad.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderDesignPad.Pricing.cs">
+      <DependentUpon>DialogOrderDesignPad.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Dialogs\DialogOrder.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Dialogs\DialogOrder.Designer.cs">
       <DependentUpon>DialogOrder.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\UcDesignModeContainer.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcOrderDesignPad.Pricing.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcOrderDesignPad.State.cs">
+      <DependentUpon>UcOrderDesignPad.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcOrderDesignPad.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UcOrderDesignPad.Designer.cs">
+      <DependentUpon>UcOrderDesignPad.cs</DependentUpon>
     </Compile>
     <Compile Include="Dialogs\DialogPriceItem.cs">
       <SubType>Form</SubType>
@@ -219,41 +306,41 @@
       <DependentUpon>FormMain.cs</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="UserControlsOrder\Dialog좌우각목.cs">
+    <Compile Include="UserControlsOrder\Dlg현수막_좌우각목.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog좌우각목.Designer.cs">
-      <DependentUpon>Dialog좌우각목.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg현수막_좌우각목.Designer.cs">
+      <DependentUpon>Dlg현수막_좌우각목.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog사방줄미싱.cs">
+    <Compile Include="UserControlsOrder\Dlg현수막_사방줄미싱.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog사방줄미싱.Designer.cs">
-      <DependentUpon>Dialog사방줄미싱.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg현수막_사방줄미싱.Designer.cs">
+      <DependentUpon>Dlg현수막_사방줄미싱.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog밴드미싱.cs">
+    <Compile Include="UserControlsOrder\Dlg현수막_밴드미싱.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog밴드미싱.Designer.cs">
-      <DependentUpon>Dialog밴드미싱.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg현수막_밴드미싱.Designer.cs">
+      <DependentUpon>Dlg현수막_밴드미싱.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog사방시접미싱.cs">
+    <Compile Include="UserControlsOrder\Dlg현수막_사방시접미싱.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog사방시접미싱.Designer.cs">
-      <DependentUpon>Dialog사방시접미싱.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg현수막_사방시접미싱.Designer.cs">
+      <DependentUpon>Dlg현수막_사방시접미싱.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog봉미싱.cs">
+    <Compile Include="UserControlsOrder\Dlg현수막_봉미싱.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog봉미싱.Designer.cs">
-      <DependentUpon>Dialog봉미싱.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg현수막_봉미싱.Designer.cs">
+      <DependentUpon>Dlg현수막_봉미싱.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog타공마크.cs">
+    <Compile Include="UserControlsOrder\Dlg후가공공통_타공마크.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog타공마크.Designer.cs">
-      <DependentUpon>Dialog타공마크.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg후가공공통_타공마크.Designer.cs">
+      <DependentUpon>Dlg후가공공통_타공마크.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControlsOrder\Dialog후가공기본.cs">
       <SubType>Form</SubType>
@@ -261,11 +348,11 @@
     <Compile Include="UserControlsOrder\Dialog후가공기본.Designer.cs">
       <DependentUpon>Dialog후가공기본.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog재단선.cs">
+    <Compile Include="UserControlsOrder\Dlg현수막_재단선.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dialog재단선.Designer.cs">
-      <DependentUpon>Dialog재단선.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg현수막_재단선.Designer.cs">
+      <DependentUpon>Dlg현수막_재단선.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControlsOrder\UcOrder가격정보.cs">
       <SubType>UserControl</SubType>
@@ -291,11 +378,11 @@
     <Compile Include="UserControls\UcConfig.Designer.cs">
       <DependentUpon>UcConfig.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\UcOrder현수막.cs">
+    <Compile Include="UserControlsOrder\UcOrder수성_그룹A.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\UcOrder현수막.Designer.cs">
-      <DependentUpon>UcOrder현수막.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\UcOrder수성_그룹A.Designer.cs">
+      <DependentUpon>UcOrder수성_그룹A.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControlsOrder\UcOrderBase.cs">
       <SubType>UserControl</SubType>
@@ -363,6 +450,12 @@
     <EmbeddedResource Include="Dialogs\DialogCommonCode.resx">
       <DependentUpon>DialogCommonCode.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogDesignModeExit1.resx">
+      <DependentUpon>DialogDesignModeExit1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogPrint.resx">
+      <DependentUpon>DialogPrint.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\LoginDlg.resx">
       <DependentUpon>LoginDlg.cs</DependentUpon>
     </EmbeddedResource>
@@ -371,6 +464,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogOrderOld.resx">
       <DependentUpon>DialogOrderOld.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UcOrderDesignPad.resx">
+      <DependentUpon>UcOrderDesignPad.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrderDesignPad.resx">
+      <DependentUpon>DialogOrderDesignPad.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogOrder.resx">
       <DependentUpon>DialogOrder.cs</DependentUpon>
@@ -402,6 +501,9 @@
     <EmbeddedResource Include="Dialogs\DialogPriceItemList.resx">
       <DependentUpon>DialogPriceItemList.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogOrderList.resx">
+      <DependentUpon>DialogOrderList.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogCustList.resx">
       <DependentUpon>DialogCustList.cs</DependentUpon>
     </EmbeddedResource>
@@ -425,35 +527,44 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <EmbeddedResource Include="UserControlsOrder\Dialog상하각목.resx">
-      <DependentUpon>Dialog상하각목.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg페트_AL족자.resx">
+      <DependentUpon>Dlg페트_AL족자.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog좌우각목.resx">
-      <DependentUpon>Dialog좌우각목.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_상하각목.resx">
+      <DependentUpon>Dlg현수막_상하각목.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog사방줄미싱.resx">
-      <DependentUpon>Dialog사방줄미싱.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg페트_재단.resx">
+      <DependentUpon>Dlg페트_재단.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog밴드미싱.resx">
-      <DependentUpon>Dialog밴드미싱.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_좌우각목.resx">
+      <DependentUpon>Dlg현수막_좌우각목.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog사방시접미싱.resx">
-      <DependentUpon>Dialog사방시접미싱.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_사방줄미싱.resx">
+      <DependentUpon>Dlg현수막_사방줄미싱.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog봉미싱.resx">
-      <DependentUpon>Dialog봉미싱.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_밴드미싱.resx">
+      <DependentUpon>Dlg현수막_밴드미싱.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog타공마크.resx">
-      <DependentUpon>Dialog타공마크.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_사방시접미싱.resx">
+      <DependentUpon>Dlg현수막_사방시접미싱.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_봉미싱.resx">
+      <DependentUpon>Dlg현수막_봉미싱.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dlg후가공공통_타공마크.resx">
+      <DependentUpon>Dlg후가공공통_타공마크.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControlsOrder\Dialog후가공기본.resx">
       <DependentUpon>Dialog후가공기본.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dialog재단선.resx">
-      <DependentUpon>Dialog재단선.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_재단선.resx">
+      <DependentUpon>Dlg현수막_재단선.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControlsOrder\UcOrder가격정보.resx">
       <DependentUpon>UcOrder가격정보.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\UcOrder페트.resx">
+      <DependentUpon>UcOrder페트.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\UcProcessRule.resx">
       <DependentUpon>UcProcessRule.cs</DependentUpon>
@@ -464,8 +575,8 @@
     <EmbeddedResource Include="UserControls\UcConfig.resx">
       <DependentUpon>UcConfig.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\UcOrder현수막.resx">
-      <DependentUpon>UcOrder현수막.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\UcOrder수성_그룹A.resx">
+      <DependentUpon>UcOrder수성_그룹A.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControlsOrder\UcOrderBase.resx">
       <DependentUpon>UcOrderBase.cs</DependentUpon>
@@ -522,6 +633,9 @@
     <None Include="Resources\Arrow_Left.png" />
     <None Include="Resources\BackPriceItems.png" />
     <None Include="Resources\BackCustInfo.png" />
+    <EmbeddedResource Include="Resources\작업지시서_표준.xlsx">
+      <LogicalName>PineTree.Resources.StandardWorkOrder.xlsx</LogicalName>
+    </EmbeddedResource>
     <None Include="Resources\환경설정_Selected.png" />
     <None Include="Resources\환경설정_Normal.png" />
     <None Include="Resources\출력물관리_Selected.png" />
