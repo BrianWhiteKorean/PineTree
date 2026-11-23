@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
@@ -87,7 +87,11 @@ WHERE pie.PriceItemSeqNo=pi.SeqNo AND e.EquipmentId=@Equipment AND e.IsActive=1)
         Check((int)Get(combo, "SelectedIndex") == 0 && (string)Get(combo, "Text") == "[선택]", "Item selection must reset to the placeholder");
         var editor = Field(pad, "m_orderEditor");
         bool usesGroupA = categoryName == "현수막" || (priceCategory == "수성" && categoryName == "합성지");
-        string expectedEditor = usesGroupA ? "UcOrder수성_그룹A" : categoryName == "페트" ? "UcOrder페트" : null;
+        bool usesLatexGroupA = priceCategory == "라텍스"
+            && (categoryName == "라텍스 현수막" || categoryName == "라텍스현수막" || categoryName == "현수막");
+        string expectedEditor = usesLatexGroupA ? "UcOrder라텍스_그룹A"
+            : usesGroupA ? "UcOrder수성_그룹A"
+            : categoryName == "페트" && priceCategory == "수성" ? "UcOrder수성_그룹B" : null;
         Check(expectedEditor == null ? editor == null : editor != null && editor.GetType().Name == expectedEditor,
             "Category must select the matching supported editor");
         if (editor != null)

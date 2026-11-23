@@ -42,7 +42,7 @@ class MultiArtboardTests(unittest.TestCase):
 
     def test_geometry_rotation_finishing_and_extract(self):
         before = hashlib.sha256(self.source.read_bytes()).digest()
-        output, result = self.generate()
+        output, result = self.generate(EdgeLeftMm=2, EdgeRightMm=2, EdgeTopMm=2, EdgeBottomMm=2)
         self.assertEqual(result['PageCount'], 2)
         self.assertEqual(result['MarkCount'], 8)
         pages = PdfReader(output).pages

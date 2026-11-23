@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
@@ -17,6 +17,10 @@ internal static class WorkingArtboardRegression
     static void Set(object o, string n, object v) { o.GetType().GetProperty(n).SetValue(o, v, null); }
     static object Call(object o, string n, params object[] a) { return o.GetType().GetMethod(n, F).Invoke(o, a); }
     static object Capture(object o) { return o.GetType().GetMethod("CaptureEditorState").Invoke(o, null); }
+    static Task CallDocument(object document, string method, params object[] args)
+    { return (Task)document.GetType().GetMethod(method).Invoke(document, args); }
+    static void SetQuantity(object editor, decimal quantity)
+    { editor.GetType().GetMethod("SetOrderQuantity").Invoke(editor, new object[] { quantity }); }
     static void Check(bool ok, string why) { if (!ok) throw new Exception(why); checks++; }
     static async Task Wait(Func<bool> ready) { var t = Stopwatch.StartNew(); while (!ready()) { if (t.Elapsed.TotalSeconds > 240) throw new TimeoutException(); await Task.Delay(20); } }
     static bool NoTabs(Control c) { if (c is TabControl) return false; foreach (Control child in c.Controls) if (!NoTabs(child)) return false; return true; }
@@ -25,32 +29,30 @@ internal static class WorkingArtboardRegression
     static async Task Run(Form host, UserControl editor, Assembly assembly, string folder)
     {
         Console.WriteLine("Loading two-artboard source");
-        await (Task)Call(editor, "LoadSourceFileAsync", Path.Combine(folder, "source.ai"));
-        Check(Field(editor, "_sourceDetails") != null && !(bool)Field(editor, "_inspecting"), "metadata ready before preview finishes");
-        Check(((PictureBox)Field(editor, "pictureBox1")).Image == null, "first preview runs after metadata load returns");
-        Set(Field(editor, "inputNumericBox4"), "Value", 4m);
-        await Wait(() => ((PictureBox)Field(editor, "pictureBox1")).Image != null);
-        Check(Convert.ToDecimal(Get(Field(editor, "inputNumericBox4"), "Value")) == 4m, "input edited during rendering survives preview completion");
+        var document = Get(editor, "SourceDocument");
+        await CallDocument(document, "LoadAsync", Path.Combine(folder, "source.ai"));
+        Check(Field(editor, "_sourceDetails") != null && !(bool)Get(document, "IsBusy"), "metadata ready after source load");
+        SetQuantity(editor, 4m);
+        await Wait(() => Get(document, "CurrentImage") != null);
+        Check((decimal)Get(editor, "Quantity") == 4m, "input survives preview completion");
         Check(NoTabs(editor), "editor has no TabControl");
-        var buttons = (Panel)Field(editor, "panelCanvas");
-        Check(buttons.Controls.Count == 2 && (int)Field(editor, "_workingPage") == 0, "artboard buttons and initial selection");
-        var firstImage = ((PictureBox)Field(editor, "pictureBox1")).Image;
+        Check((int)Get(document, "PageCount") == 2 && (int)Get(document, "WorkingPage") == 0, "artboard count and initial selection");
+        var firstImage = Get(document, "CurrentImage");
         var hole = Finish(editor, "HOLE");
         Call(editor, "CommitPostProcess", -1, hole);
-        Set(Field(editor, pet ? "inputNumericBox4" : "tbEdgeTop"), "Value", pet ? 3m : 7m);
-        ((Button)buttons.Controls[1]).PerformClick();
-        Check((int)Field(editor, "_workingPage") == 1, "button selects working page");
-        Check(Field(editor, "_artboardProgress") is Form && ((Form)Field(editor, "_artboardProgress")).Visible, "uncached artboard shows progress dialog immediately");
-        ((Button)buttons.Controls[0]).PerformClick();
-        Check(Field(editor, "_artboardProgress") == null, "cached artboard closes progress dialog immediately");
-        Check(Object.ReferenceEquals(firstImage, ((PictureBox)Field(editor, "pictureBox1")).Image), "first preview cache is immediate during second load");
-        Check(((IList)Field(editor, "_postProcesses")).Count == 1 && Convert.ToDecimal(Get(Field(editor, pet ? "inputNumericBox4" : "tbEdgeTop"), "Value")) == (pet ? 3m : 7m), "first finishing and independent inputs retained");
-        ((Button)buttons.Controls[1]).PerformClick();
-        Check(Field(editor, "_artboardProgress") is Form, "in-flight artboard shows progress again");
+        if (pet) SetQuantity(editor, 3m);
+        else Set(Field(editor, "tbEdgeTop"), "Value", 7m);
+        var secondLoad = CallDocument(document, "SelectPageAsync", 1);
+        Check((int)Get(document, "WorkingPage") == 1, "source selects working page");
+        await CallDocument(document, "SelectPageAsync", 0);
+        Check(Object.ReferenceEquals(firstImage, Get(document, "CurrentImage")), "first preview cache is immediate during second load");
+        Check(((IList)Field(editor, "_postProcesses")).Count == 1 && (pet ? (decimal)Get(editor, "Quantity") : Convert.ToDecimal(Get(Field(editor, "tbEdgeTop"), "Value"))) == (pet ? 3m : 7m), "first finishing and independent inputs retained");
+        await CallDocument(document, "SelectPageAsync", 1);
+        await secondLoad;
         await Ready(editor);
-        Check(Field(editor, "_artboardProgress") == null, "completed artboard closes progress dialog");
+        Check(!(bool)Get(document, "IsBusy"), "completed artboard clears busy state");
         Check(((IList)Field(editor, "_postProcesses")).Count == 0, "second artboard does not inherit first finishing");
-        Check(Convert.ToDecimal(Get(Field(editor, pet ? "inputNumericBox4" : "tbEdgeTop"), "Value")) == (pet ? 1m : 2m), "second inputs independent");
+        Check((pet ? (decimal)Get(editor, "Quantity") : Convert.ToDecimal(Get(Field(editor, "tbEdgeTop"), "Value"))) == (pet ? 1m : 0m), "second inputs independent");
         var cut = Finish(editor, "CUT"); Call(editor, "CommitPostProcess", -1, cut);
         if (pet)
         {
@@ -59,9 +61,10 @@ internal static class WorkingArtboardRegression
             Set(parameters, "CutInsetLeftMm", (decimal?)7m); Set(parameters, "CutInsetRightMm", (decimal?)11m);
             Call(editor, "CommitPostProcess", 0, cut);
             using (var dialog = (Form)Call(editor, "CreatePostProcessDialog", cut))
-                Check(dialog.GetType().Name == "Dlg페트_재단", "PET retains its own cut dialog");
+                Check(dialog.GetType().Name == "Dlg후가공공통_재단선", "PET opens shared cut dialog");
         }
-        Set(Field(editor, pet ? "inputNumericBox4" : "tbEdgeBottom"), "Value", pet ? 5m : 9m);
+        if (pet) SetQuantity(editor, 5m);
+        else Set(Field(editor, "tbEdgeBottom"), "Value", 9m);
         var settings = Call(editor, "ReadPdfGenerationSettings");
         Check(!(bool)Get(settings, "GenerateAllPages") && (int)Get(settings, "SourcePageIndex") == 1, "generation targets selected page only");
         Check((bool)Get(settings, "MakeCutline") && !(bool)Get(settings, "MakeHole"), "second finishing only");
@@ -80,12 +83,11 @@ internal static class WorkingArtboardRegression
         }
         string second = Path.Combine(folder, "working-page2.pdf");
         await (Task)Call(editor, "GeneratePdfToPathAsync", second, settings);
-        Check(buttons.Controls[1].BackColor != buttons.Controls[0].BackColor, "selection visibly distinct");
         var state = Capture(editor);
         string json = (string)state.GetType().GetMethod("ToJson").Invoke(state, null);
         state = state.GetType().GetMethod("FromJson").Invoke(null, new object[] { json });
         Check((int)Get(state, "WorkingArtboardIndex") == 1 && ((IList)Get(state, "Artboards")).Count == 2, "selected page and independent states serialized");
-        ((Button)buttons.Controls[0]).PerformClick();
+        await CallDocument(document, "SelectPageAsync", 0);
         settings = Call(editor, "ReadPdfGenerationSettings");
         Check((int)Get(settings, "SourcePageIndex") == 0 && (bool)Get(settings, "MakeHole") && !(bool)Get(settings, "MakeCutline"), "first finishing restored after second edit");
         await (Task)Call(editor, "GeneratePdfToPathAsync", Path.Combine(folder, "working-page1.pdf"), settings);
@@ -93,12 +95,14 @@ internal static class WorkingArtboardRegression
         {
             restored.GetType().GetMethod("RestoreEditorState").Invoke(restored, new object[] { state });
             restored.Dock = DockStyle.Fill; host.Controls.Add(restored); restored.BringToFront();
+            var restoredDocument = Get(restored, "SourceDocument");
+            await CallDocument(restoredDocument, "EnsureLoadedAsync");
             await Ready(restored);
             Check((int)Field(restored, "_workingPage") == 1 && ((IList)Field(restored, "_postProcesses")).Count == 1, "reload restores selected artboard and finishing");
             var restoredSettings = Call(restored, "ReadPdfGenerationSettings");
-            Check((bool)Get(restoredSettings, "MakeCutline") && Convert.ToDecimal(Get(Field(restored, pet ? "inputNumericBox4" : "tbEdgeBottom"), "Value")) == (pet ? 5m : 9m), "second settings survive file reload");
+            Check((bool)Get(restoredSettings, "MakeCutline") && (pet ? (decimal)Get(restored, "Quantity") : Convert.ToDecimal(Get(Field(restored, "tbEdgeBottom"), "Value"))) == (pet ? 5m : 9m), "second settings survive file reload");
             if (pet) Check((double)Get(restoredSettings, "CutInsetLeftMm") == 7 && (double)Get(restoredSettings, "EdgeLeftMm") == 0, "PET insets and zero bleed survive reload");
-            Call(restored, "SelectWorkingArtboard", 0); await Ready(restored);
+            await CallDocument(restoredDocument, "SelectPageAsync", 0); await Ready(restored);
             Check((bool)Get(Call(restored, "ReadPdfGenerationSettings"), "MakeHole"), "first independent settings survive file reload");
             host.Controls.Remove(restored);
         }
@@ -112,13 +116,13 @@ internal static class WorkingArtboardRegression
             await (Task)Call(viewer, "SavePdfToPathAsync", Path.Combine(folder, "working-saved.pdf"));
             viewer.Close();
         }
-        await (Task)Call(editor, "LoadSourceFileAsync", Path.Combine(folder, "single.ai"));
-        Check(buttons.Controls.Count == 1 && ((IList)Field(editor, "_postProcesses")).Count == 0, "new file clears prior independent finishing");
-        await (Task)Call(editor, "LoadSourceFileAsync", Path.Combine(folder, "source.jpg"));
-        await Wait(() => ((PictureBox)Field(editor, "pictureBox1")).Image != null);
-        Check(buttons.Controls.Count == 1 && ((PictureBox)Field(editor, "pictureBox1")).Image != null, "JPEG input preserved");
-        await (Task)Call(editor, "LoadSourceFileAsync", Path.Combine(folder, "source.pdf"));
-        Check(buttons.Controls.Count == 2 && (int)Field(editor, "_workingPage") == 0, "PDF input creates working-page buttons");
+        await CallDocument(document, "LoadAsync", Path.Combine(folder, "single.ai"));
+        Check((int)Get(document, "PageCount") == 1 && ((IList)Field(editor, "_postProcesses")).Count == 0, "new file clears prior independent finishing");
+        await CallDocument(document, "LoadAsync", Path.Combine(folder, "source.jpg"));
+        await Wait(() => Get(document, "CurrentImage") != null);
+        Check((int)Get(document, "PageCount") == 1, "JPEG input preserved");
+        await CallDocument(document, "LoadAsync", Path.Combine(folder, "source.pdf"));
+        Check((int)Get(document, "PageCount") == 2 && (int)Get(document, "WorkingPage") == 0, "PDF input sets initial working page");
         Check(cancellations == 0, "normal page switches have no cancellation exceptions");
     }
     [STAThread] static int Main(string[] args)
@@ -131,7 +135,7 @@ internal static class WorkingArtboardRegression
             var assembly = Assembly.LoadFrom(Path.GetFullPath(args[0]));
             pet = args.Length > 2 && args[2] == "Pet";
             using (var host = new Form { Size = new Size(1050, 780), StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000), ShowInTaskbar = false })
-            using (var editor = (UserControl)Activator.CreateInstance(assembly.GetType("PineTree.UserControlsOrder." + (pet ? "UcOrder페트" : "UcOrder수성_그룹A"), true)))
+            using (var editor = (UserControl)Activator.CreateInstance(assembly.GetType("PineTree.UserControlsOrder." + (pet ? "UcOrder수성_그룹B" : "UcOrder수성_그룹A"), true)))
             {
                 editor.Dock = DockStyle.Fill; host.Controls.Add(editor);
                 host.Shown += async delegate { try { await Run(host, editor, assembly, Path.GetFullPath(args[1])); Console.WriteLine("PASS: " + checks + " working artboard UI checks"); } catch (Exception e) { Console.Error.WriteLine(e); exit = 1; } finally { host.Close(); } };

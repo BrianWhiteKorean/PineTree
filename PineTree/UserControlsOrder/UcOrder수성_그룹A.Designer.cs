@@ -49,7 +49,6 @@ namespace PineTree.UserControlsOrder
             this.cbZoomType = new C1.Win.C1InputPanel.InputComboBox();
             this.inputOption6 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption7 = new C1.Win.C1InputPanel.InputOption();
-            this.inputOption13 = new C1.Win.C1InputPanel.InputOption();
             this.inputLabel6 = new C1.Win.C1InputPanel.InputLabel();
             this.inputSeparator2 = new C1.Win.C1InputPanel.InputSeparator();
             this.inputLabel7 = new C1.Win.C1InputPanel.InputLabel();
@@ -72,6 +71,7 @@ namespace PineTree.UserControlsOrder
             this.inputOption9 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption10 = new C1.Win.C1InputPanel.InputOption();
             this.btnAdd = new C1.Win.C1InputPanel.InputButton();
+            this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -114,9 +114,9 @@ namespace PineTree.UserControlsOrder
             // 
             this.panel2.Controls.Add(this.FGrid1);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel2.Location = new System.Drawing.Point(0, 377);
+            this.panel2.Location = new System.Drawing.Point(0, 359);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(455, 288);
+            this.panel2.Size = new System.Drawing.Size(455, 306);
             this.panel2.TabIndex = 1;
             // 
             // FGrid1
@@ -128,7 +128,7 @@ namespace PineTree.UserControlsOrder
             this.FGrid1.Location = new System.Drawing.Point(0, 0);
             this.FGrid1.Name = "FGrid1";
             this.FGrid1.Rows.DefaultSize = 20;
-            this.FGrid1.Size = new System.Drawing.Size(455, 288);
+            this.FGrid1.Size = new System.Drawing.Size(455, 306);
             this.FGrid1.TabIndex = 7;
             // 
             // c1InputPanel1
@@ -162,9 +162,10 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.inputGroupHeader2);
             this.c1InputPanel1.Items.Add(this.cbWork);
             this.c1InputPanel1.Items.Add(this.btnAdd);
+            this.c1InputPanel1.Items.Add(this.inputLabel4);
             this.c1InputPanel1.Location = new System.Drawing.Point(0, 0);
             this.c1InputPanel1.Name = "c1InputPanel1";
-            this.c1InputPanel1.Size = new System.Drawing.Size(455, 377);
+            this.c1InputPanel1.Size = new System.Drawing.Size(455, 359);
             this.c1InputPanel1.TabIndex = 0;
             // 
             // inputGroupHeader1
@@ -257,8 +258,8 @@ namespace PineTree.UserControlsOrder
             this.inputLabel19.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
             this.inputLabel19.Name = "inputLabel19";
             this.inputLabel19.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.inputLabel19.Text = "크기설정";
-            this.inputLabel19.Width = 80;
+            this.inputLabel19.Text = "원본 이미지 비율";
+            this.inputLabel19.Width = 120;
             // 
             // cbZoomType
             // 
@@ -266,25 +267,19 @@ namespace PineTree.UserControlsOrder
             this.cbZoomType.Enabled = false;
             this.cbZoomType.Items.Add(this.inputOption6);
             this.cbZoomType.Items.Add(this.inputOption7);
-            this.cbZoomType.Items.Add(this.inputOption13);
             this.cbZoomType.Name = "cbZoomType";
             this.cbZoomType.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
-            this.cbZoomType.Width = 257;
+            this.cbZoomType.Width = 185;
             // 
             // inputOption6
             // 
             this.inputOption6.Name = "inputOption6";
-            this.inputOption6.Text = "원본유지";
+            this.inputOption6.Text = "1:1";
             // 
             // inputOption7
             // 
             this.inputOption7.Name = "inputOption7";
-            this.inputOption7.Text = "확대(1:10)";
-            // 
-            // inputOption13
-            // 
-            this.inputOption13.Name = "inputOption13";
-            this.inputOption13.Text = "고정사이즈 (가로 기준)";
+            this.inputOption7.Text = "1/10";
             // 
             // inputLabel6
             // 
@@ -356,10 +351,10 @@ namespace PineTree.UserControlsOrder
             // btnPreview
             // 
             this.btnPreview.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.btnPreview.Height = 60;
+            this.btnPreview.Height = 50;
             this.btnPreview.Image = ((System.Drawing.Image)(resources.GetObject("btnPreview.Image")));
             this.btnPreview.Name = "btnPreview";
-            this.btnPreview.Padding = new System.Windows.Forms.Padding(30, 20, 0, 0);
+            this.btnPreview.Padding = new System.Windows.Forms.Padding(30, 15, 0, 0);
             this.btnPreview.Text = "출력 미리보기";
             this.btnPreview.Width = 342;
             // 
@@ -433,6 +428,13 @@ namespace PineTree.UserControlsOrder
             this.btnAdd.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
             this.btnAdd.Text = "추가";
             // 
+            // inputLabel4
+            // 
+            this.inputLabel4.ForeColor = System.Drawing.Color.Red;
+            this.inputLabel4.Name = "inputLabel4";
+            this.inputLabel4.Padding = new System.Windows.Forms.Padding(30, 5, 0, 0);
+            this.inputLabel4.Text = "입력된 후가공을 수정하려면 항목을 더블클릭하세요";
+            // 
             // UcOrder수성_그룹A
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
@@ -492,6 +494,6 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputOption inputOption10;
         private C1.Win.C1InputPanel.InputOption inputOption11;
         private C1.Win.C1InputPanel.InputOption inputOption12;
-        private C1.Win.C1InputPanel.InputOption inputOption13;
+        private C1.Win.C1InputPanel.InputLabel inputLabel4;
     }
 }

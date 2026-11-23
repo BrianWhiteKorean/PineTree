@@ -32,7 +32,7 @@ internal static class HoleColorRegression {
    Check((string)Get(Get(saved,"Parameters"),"HoleMarkerColor")=="#D25A2D","marker stored as hex");
    Check((string)Get(Get(initial,"Parameters"),"HoleBackgroundColor")=="#FFFFFF","editing leaves original setting intact");
   }
-  foreach(var name in new[]{"UcOrder수성_그룹A","UcOrder페트"}) {
+  foreach(var name in new[]{"UcOrder수성_그룹A","UcOrder수성_그룹B"}) {
    using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder."+name,true))) {
     Set(Field(editor,"tbTargetWidth"),"Value",100m);Set(Field(editor,"tbTargetHeight"),"Value",80m);
     Call(editor,"CommitPostProcess",-1,saved);
@@ -41,6 +41,8 @@ internal static class HoleColorRegression {
     var decoded=state.GetType().GetMethod("FromJson").Invoke(null,new[]{json});
     using(var restored=(UserControl)Activator.CreateInstance(editor.GetType())) {
      restored.GetType().GetMethod("RestoreEditorState").Invoke(restored,new[]{decoded});
+     Set(Field(restored,"cbZoomType"),"SelectedOption",Field(restored,"inputOption6"));
+     Set(Field(restored,"tbTargetWidth"),"Value",100m);Set(Field(restored,"tbTargetHeight"),"Value",80m);
      var item=((IList)Field(restored,"_postProcesses"))[0];
      using(var d=(Form)Call(restored,"CreatePostProcessDialog",item)) {
       Check(Picker(d,"colorPickerHole").ToArgb()==Color.FromArgb(12,34,56).ToArgb(),name+" reopens background");

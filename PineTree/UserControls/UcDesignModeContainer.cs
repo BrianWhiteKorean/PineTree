@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using PineTree.Classes;
+using PineTree.Dialogs;
 
 namespace PineTree.UserControls
 {
@@ -9,6 +10,7 @@ namespace PineTree.UserControls
         private readonly UcOrderDesignPad _orderDesigner;
 
         public event EventHandler OrderSaved;
+        public event EventHandler ManagementModeRequested;
 
         public UcDesignModeContainer() : this(new UcOrderDesignPad()) { }
 
@@ -33,7 +35,14 @@ namespace PineTree.UserControls
         {
             EventHandler handler = OrderSaved;
             if (handler != null) handler(this, EventArgs.Empty);
-            _orderDesigner.ResetNewOrder();
+            if (e is OrderSavedForWorkOrderEventArgs) return;
+            using (var dialog = new DialogOrderSaved())
+            {
+                DialogResult result = dialog.ShowDialog(this);
+                _orderDesigner.ResetNewOrder();
+                if (result == DialogResult.No)
+                    ManagementModeRequested?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         private void OrderDesigner_CancelRequested(object sender, EventArgs e)

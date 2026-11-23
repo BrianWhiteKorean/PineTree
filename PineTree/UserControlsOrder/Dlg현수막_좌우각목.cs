@@ -9,17 +9,17 @@ namespace PineTree.UserControlsOrder
         public OrderPostProcessSetting Setting { get; private set; }
         public Dlg현수막_좌우각목() : this(OrderPostProcessSetting.Create("WOOD")) { }
         public Dlg현수막_좌우각목(OrderPostProcessSetting setting) : this(setting, 1m) { }
-        public Dlg현수막_좌우각목(OrderPostProcessSetting setting, decimal imageScale)
+        public Dlg현수막_좌우각목(OrderPostProcessSetting setting, decimal sourceScaleDivisor)
         {
             InitializeComponent();
             var draft = setting.Copy();
-            if (imageScale <= 0) imageScale = 1m;
+            if (sourceScaleDivisor <= 0) sourceScaleDivisor = 1m;
             if (draft.SeqNo == 0 && !draft.Parameters.ExtraLineMm.HasValue && draft.Parameters.DimensionMm == 0)
-                draft.Parameters.ExtraLineMm = 8m * imageScale;
-            PostProcessDialogBinding.Number(tbExtraLine, draft.Parameters.ExtraLineMm ?? draft.Parameters.DimensionMm);
-            PostProcessDialogBinding.Number(tbDesignLine, draft.Parameters.DesignLineMm);
-            PostProcessDialogBinding.Number(tbExtraLineThickness, draft.Parameters.ExtraLineThicknessMm ?? .6m * imageScale);
-            PostProcessDialogBinding.Number(tbDesignLineThickness, draft.Parameters.DesignLineThicknessMm ?? .6m * imageScale);
+                draft.Parameters.ExtraLineMm = 80m;
+            PostProcessDialogBinding.SourceNumber(tbExtraLine, (draft.Parameters.ExtraLineMm ?? draft.Parameters.DimensionMm), sourceScaleDivisor);
+            PostProcessDialogBinding.SourceNumber(tbDesignLine, draft.Parameters.DesignLineMm, sourceScaleDivisor);
+            PostProcessDialogBinding.SourceNumber(tbExtraLineThickness, (draft.Parameters.ExtraLineThicknessMm ?? .6m), sourceScaleDivisor);
+            PostProcessDialogBinding.SourceNumber(tbDesignLineThickness, (draft.Parameters.DesignLineThicknessMm ?? .6m), sourceScaleDivisor);
             chkDesignLine.Checked = draft.Parameters.MakeDesignLine;
             tbDesignLine.Enabled = chkDesignLine.Checked;
             tbDesignLineThickness.Enabled = chkDesignLine.Checked;
@@ -29,12 +29,12 @@ namespace PineTree.UserControlsOrder
             PostProcessDialogBinding.Bind(this, btnOK, btnCancel, () => {
                 var value = draft.Copy();
                 value.Parameters.TypeCode = "LEFT_RIGHT";
-                value.Parameters.ExtraLineMm = ReadOrZero(tbExtraLine);
+                value.Parameters.ExtraLineMm = ReadOrZero(tbExtraLine) * sourceScaleDivisor;
                 value.Parameters.DimensionMm = value.Parameters.ExtraLineMm.Value;
                 value.Parameters.MakeDesignLine = chkDesignLine.Checked;
-                value.Parameters.DesignLineMm = ReadOrZero(tbDesignLine);
-                value.Parameters.ExtraLineThicknessMm = PostProcessDialogBinding.Read(tbExtraLineThickness);
-                value.Parameters.DesignLineThicknessMm = PostProcessDialogBinding.Read(tbDesignLineThickness);
+                value.Parameters.DesignLineMm = ReadOrZero(tbDesignLine) * sourceScaleDivisor;
+                value.Parameters.ExtraLineThicknessMm = PostProcessDialogBinding.Read(tbExtraLineThickness) * sourceScaleDivisor;
+                value.Parameters.DesignLineThicknessMm = PostProcessDialogBinding.Read(tbDesignLineThickness) * sourceScaleDivisor;
                 return value;
             }, value => Setting = value);
         }

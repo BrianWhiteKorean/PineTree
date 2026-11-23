@@ -10,71 +10,129 @@ using System.Threading;
 namespace PineTree.PdfEngine
 {
     // Resources are read from this assembly, including when Costura loads it from memory.
-    internal static class PdfRuntime
+    internal sealed class PdfRuntime
     {
         private static readonly SemaphoreSlim Gate = new SemaphoreSlim(1, 1);
-        private static string readyDirectory;
+        private static PdfRuntime ready;
         private const string ResourcePrefix = "PineTree.PdfEngine.";
+        private const string WorkerName = "pdf_worker.py";
 
-        internal static string EnsureAvailable(CancellationToken token)
+        internal readonly string DirectoryPath;
+        internal readonly string PythonPath;
+        internal readonly string GhostscriptPath;
+        internal readonly string WorkerPath;
+
+        private PdfRuntime(string runtime, string worker)
+        {
+            DirectoryPath = runtime;
+            PythonPath = Path.Combine(runtime, "python.exe");
+            GhostscriptPath = Path.Combine(runtime, "ghostscript", "gsdll64.dll");
+            WorkerPath = Path.Combine(worker, WorkerName);
+        }
+
+        internal static PdfRuntime EnsureAvailable(CancellationToken token, PdfTiming timing)
         {
             if (!Environment.Is64BitOperatingSystem)
                 throw new PlatformNotSupportedException("PDF 처리 엔진은 Windows 64비트 환경이 필요합니다.");
-            Gate.Wait(token);
+            using (timing?.Measure("prepare_gate_wait")) Gate.Wait(token);
             try
             {
-                if (readyDirectory != null && File.Exists(Path.Combine(readyDirectory, "runtime", "python.exe"))
-                    && File.Exists(Path.Combine(readyDirectory, "pdf_worker.py"))) return readyDirectory;
-                string manifest;
-                using (var stream = Resource("PdfWorker.manifest"))
-                using (var reader = new StreamReader(stream, Encoding.UTF8)) manifest = reader.ReadToEnd();
-                string identity;
-                using (var sha = SHA256.Create()) identity = Hex(sha.ComputeHash(Encoding.UTF8.GetBytes(manifest)));
+                if (ready != null && File.Exists(ready.PythonPath) && File.Exists(ready.GhostscriptPath)
+                    && File.Exists(ready.WorkerPath)) return ready;
+
                 string root = ConfigurationManager.AppSettings["PdfEngineCacheDirectory"];
                 if (string.IsNullOrWhiteSpace(root))
                     root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PineTree", "PdfEngine");
                 root = Path.GetFullPath(root);
-                Directory.CreateDirectory(root);
-                string destination = Path.Combine(root, identity);
-                using (AcquireLock(Path.Combine(root, identity + ".lock"), token))
+
+                string manifest;
+                using (var stream = Resource("PdfRuntime.manifest"))
+                using (var reader = new StreamReader(stream, Encoding.UTF8)) manifest = reader.ReadToEnd();
+                string runtime = EnsurePart(Path.Combine(root, "runtimes"), Digest(Encoding.UTF8.GetBytes(manifest)),
+                    manifest, directory => ExtractRuntime(directory, token), token, timing, "runtime");
+
+                byte[] workerBytes;
+                using (var stream = Resource(WorkerName))
+                using (var buffer = new MemoryStream())
                 {
-                    if (!Verify(destination, manifest, token))
-                    {
-                        // Keep temporary names short: bundled license paths are deeply nested.
-                        string staging = Path.Combine(root, "staging-" + Guid.NewGuid().ToString("N"));
-                        Directory.CreateDirectory(staging);
-                        try
-                        {
-                            using (var stream = Resource("PdfWorker.zip"))
-                            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read))
-                            {
-                                foreach (var entry in zip.Entries)
-                                {
-                                    token.ThrowIfCancellationRequested();
-                                    string path = ChildPath(staging, entry.FullName);
-                                    Directory.CreateDirectory(Path.GetDirectoryName(path));
-                                    using (var input = entry.Open())
-                                    using (var output = File.Create(path)) Copy(input, output, token);
-                                }
-                            }
-                            if (!Verify(staging, manifest, token)) throw new InvalidDataException("PDF 런타임의 무결성 검증에 실패했습니다.");
-                            token.ThrowIfCancellationRequested();
-                            if (Directory.Exists(destination))
-                            {
-                                // Do not modify files which another running worker may have open.
-                                string damaged = Path.Combine(root, "damaged-" + Guid.NewGuid().ToString("N"));
-                                Directory.Move(destination, damaged);
-                                TryDelete(damaged);
-                            }
-                            Directory.Move(staging, destination);
-                        }
-                        finally { TryDelete(staging); }
-                    }
+                    Copy(stream, buffer, token);
+                    workerBytes = buffer.ToArray();
                 }
-                readyDirectory = destination;
-                return destination;
+                string workerHash = Digest(workerBytes);
+                string worker = EnsurePart(Path.Combine(root, "workers"), workerHash, workerHash + "\t" + WorkerName + "\n",
+                    directory => File.WriteAllBytes(Path.Combine(directory, WorkerName), workerBytes), token, timing, "worker");
+                ready = new PdfRuntime(runtime, worker);
+                return ready;
             }
             finally { Gate.Release(); }
+        }
+
+        private static string EnsurePart(string parent, string identity, string manifest, Action<string> install,
+            CancellationToken token, PdfTiming timing, string part)
+        {
+            Directory.CreateDirectory(parent);
+            string destination = Path.Combine(parent, identity);
+            FileStream packageLock;
+            using (timing?.Measure(part + "_lock_wait"))
+                packageLock = AcquireLock(Path.Combine(parent, identity + ".lock"), token);
+            using (packageLock)
+            {
+                using (timing?.Measure(part + "_verify"))
+                    if (Verify(destination, manifest, token)) return destination;
+
+                // Keep temporary names short: bundled license paths are deeply nested.
+                string staging = Path.Combine(parent, "staging-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(staging);
+                try
+                {
+                    using (timing?.Measure(part + "_install")) install(staging);
+                    using (timing?.Measure(part + "_verify_install"))
+                        if (!Verify(staging, manifest, token)) throw new InvalidDataException("PDF 런타임의 무결성 검증에 실패했습니다.");
+                    token.ThrowIfCancellationRequested();
+                    Publish(staging, destination);
+                }
+                finally { TryDelete(staging); }
+            }
+            return destination;
+        }
+
+        private static void Publish(string staging, string destination)
+        {
+            string damaged = null;
+            if (Directory.Exists(destination))
+            {
+                // Replace the directory without modifying files that another process may have open.
+                damaged = Path.Combine(Path.GetDirectoryName(destination), "damaged-" + Guid.NewGuid().ToString("N"));
+                Directory.Move(destination, damaged);
+            }
+            try { Directory.Move(staging, destination); }
+            catch
+            {
+                if (damaged != null) Directory.Move(damaged, destination);
+                throw;
+            }
+            if (damaged != null) TryDelete(damaged);
+        }
+
+        private static void ExtractRuntime(string directory, CancellationToken token)
+        {
+            using (var stream = Resource("PdfRuntime.zip"))
+            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read))
+            {
+                foreach (var entry in zip.Entries)
+                {
+                    token.ThrowIfCancellationRequested();
+                    string path = ChildPath(directory, entry.FullName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    using (var input = entry.Open())
+                    using (var output = File.Create(path)) Copy(input, output, token);
+                }
+            }
+        }
+
+        private static string Digest(byte[] bytes)
+        {
+            using (var sha = SHA256.Create()) return Hex(sha.ComputeHash(bytes));
         }
 
         private static Stream Resource(string name)

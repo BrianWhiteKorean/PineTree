@@ -55,20 +55,26 @@ internal static class DesignPadSourceRegression
         while (!ready()) { if (DateTime.UtcNow > limit) throw new TimeoutException("Source operation timed out"); await Task.Delay(30); }
     }
     private static object Source(object editor) { return Get(editor, "SourceDocument"); }
-    private static void Radio(object pad, int number, string priceCategory = "수성")
+    private static void Radio(object pad, int number, string priceCategory = "수성", string bannerCategory = "현수막")
     {
         // The source test uses a local catalog; live catalog filtering is tested separately.
         var loading = pad.GetType().GetField("m_loadingProductSelection", Flags);
         loading.SetValue(pad, true);
         try
         {
-            Set(Field(pad, "rbEquipment1"), "Checked", true);
+            Set(Field(pad, priceCategory == "라텍스" ? "rbEquipment2" : "rbEquipment1"), "Checked", true);
             var prices = new DataTable(); prices.Columns.Add("PriceCategory"); prices.Rows.Add(priceCategory);
             Call(pad, "BindProductCombo", Field(pad, "cbCategory"), prices, "PriceCategory");
             var table = new DataTable(); table.Columns.Add("CategoryName");
-            foreach (string name in new[] { "현수막", "페트", "합성지", "켈지", "인화지" }) table.Rows.Add(name);
+            foreach (string name in new[] { bannerCategory, "페트", "합성지", "켈지", "인화지" }) table.Rows.Add(name);
             Call(pad, "BindProductCombo", Field(pad, "cbCategoryName"), table, "CategoryName");
             Set(Field(pad, "cbCategoryName"), "SelectedIndex", number - 1);
+            if (bannerCategory == "라텍스 현수막" && number == 1)
+            {
+                var items = new DataTable(); items.Columns.Add("PriceItemName"); items.Rows.Add("라텍스 현수막/기본");
+                Call(pad, "BindProductCombo", Field(pad, "cbItem"), items, "PriceItemName");
+                Set(Field(pad, "cbItem"), "SelectedIndex", 1);
+            }
         }
         finally { loading.SetValue(pad, false); }
         Call(pad, "UpdateSelectedOrderEditor");
@@ -100,9 +106,24 @@ internal static class DesignPadSourceRegression
         Number(banner, "inputNumericBox4", 4m); Number(banner, "tbEdgeTop", 7m);
         var hole = app.GetType("PineTree.Classes.OrderPostProcessSetting").GetMethod("Create").Invoke(null, new object[] { "HOLE" });
         Call(banner, "CommitPostProcess", -1, hole);
+        Radio(pad, 1, "라텍스", "라텍스 현수막");
+        var latexBanner = (Control)Field(pad, "m_orderEditor");
+        Check(latexBanner != null && latexBanner.GetType().Name == "UcOrder라텍스_그룹A" && Object.ReferenceEquals(Source(latexBanner), source),
+            "Latex banner opens in the latex Group A editor and shares the source");
+        Check(Number(latexBanner, "inputNumericBox4") == 1m && ((IList)Field(latexBanner, "_postProcesses")).Count == 0,
+            "Latex banner starts with independent quantity and finishing");
+        Number(pad, "tbQty", 8m);
+        Call(pad, "FooterQuantityChanged", null, EventArgs.Empty);
+        Check(Number(latexBanner, "inputNumericBox4") == 8m && Number(banner, "inputNumericBox4") == 4m,
+            "Footer quantity updates the active latex editor");
+        Radio(pad, 1);
+        Check(Object.ReferenceEquals(banner, Field(pad, "m_orderEditor")), "Returning to water-based banner retains its draft");
+        Radio(pad, 1, "라텍스");
+        Check(Object.ReferenceEquals(latexBanner, Field(pad, "m_orderEditor")) && Number(latexBanner, "inputNumericBox4") == 8m,
+            "Returning to latex banner retains its draft");
         Radio(pad, 2);
         var pet = (Control)Field(pad, "m_orderEditor");
-        Check(pet.GetType().Name == "UcOrder페트", "Radio 2 selects PET");
+        Check(pet.GetType().Name == "UcOrder수성_그룹B", "Water-based PET opens in Group B");
         NoSourceUi(pet);
         Check(Object.ReferenceEquals(Source(pet), source), "Material switch reuses analysis and preview cache");
         Check(Number(pet, "tbTargetWidth") == 212m && Number(pet, "inputNumericBox4") == 1m, "PET receives analysis and independent quantity");
@@ -193,6 +214,18 @@ internal static class DesignPadSourceRegression
                 modal.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size));
                 bitmap.Save(Path.Combine(folder, "modal.png"));
             }
+            Call(modal, "AddOrderItem", item, null);
+            modalTable.Rows[1]["PriceCategory"] = "라텍스";
+            modalTable.Rows[1]["CategoryName"] = "라텍스현수막";
+            Set(Field(modal, "FGrid1"), "Row", 2); Call(modal, "UpdateSelectedOrderEditor");
+            Check(Field(modal, "m_orderEditor").GetType() == latexBanner.GetType(),
+                "Modal opens latex banner in the latex Group A editor");
+            Call(modal, "AddOrderItem", item, null);
+            modalTable.Rows[2]["PriceCategory"] = "수성";
+            modalTable.Rows[2]["CategoryName"] = "페트";
+            Set(Field(modal, "FGrid1"), "Row", 3); Call(modal, "UpdateSelectedOrderEditor");
+            Check(Field(modal, "m_orderEditor").GetType() == pet.GetType(),
+                "Modal opens water-based PET in Group B");
             modal.Close();
         }
         Check(!banner.IsDisposed && Get(source, "CurrentImage") != null, "Closing modal leaves shared design source intact");

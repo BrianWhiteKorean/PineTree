@@ -17,6 +17,13 @@ namespace PineTree.Classes
         public bool SourceFlipHorizontal { get; set; }
         public string ZoomType { get; set; }
         public decimal ZoomRate { get; set; } = 1;
+        internal int GetZoomSelectionIndex()
+        {
+            if (ZoomType == "ORIGINAL") return 0;
+            if (ZoomType == "SCALE" && ZoomRate == 10m) return 1;
+            // Retain saved dimensions for legacy custom sizes until a supported mode is selected.
+            return WidthMm > 0 && HeightMm > 0 ? -1 : 0;
+        }
         public string FitMode { get; set; } = "CONTAIN";
         public decimal EdgeTopMm { get; set; } = 0;
         public decimal EdgeBottomMm { get; set; } = 0;

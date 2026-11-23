@@ -18,7 +18,6 @@ namespace PineTree.Dialogs
         private string m_sSelectedCustCode;
         private string m_productionStatus = OrderProductionStatusHelper.ToDbText(OrderProductionStatus.New);
         private DataTable m_orderItems;
-        private Dictionary<string, Func<UserControl>> m_orderEditorFactories;
         private string m_orderEditorCategory;
         private UserControl m_orderEditor;
         private Dictionary<DataRow, UserControl> m_orderItemEditors;
@@ -132,14 +131,6 @@ namespace PineTree.Dialogs
             m_sourcePreview = new UcOrderSourcePreview();
             panelEdit.Controls.Add(m_sourcePreview);
             panelEdit.Controls.Add(m_materialPanel);
-            // 품목분류별 편집 컨트롤은 이 목록에 등록한다.
-            m_orderEditorFactories = new Dictionary<string, Func<UserControl>>(StringComparer.Ordinal)
-            {
-                { string.Empty, () => new UcOrderBase() },
-                { "현수막", () => new UcOrder수성_그룹A() },
-                { "합성지", () => new UcOrder수성_그룹A() },
-                { "페트", () => new UcOrder페트() }
-            };
             m_orderItemEditors = new Dictionary<DataRow, UserControl>();
             Disposed += delegate { DisposeOrderEditors(); };
             ShowOrderEditor(string.Empty);
@@ -147,7 +138,7 @@ namespace PineTree.Dialogs
 
         private void UpdateSelectedOrderEditor()
         {
-            if (m_orderEditorFactories == null || m_isLoadingOrderItems)
+            if (m_orderItemEditors == null || m_isLoadingOrderItems)
             {
                 return;
             }
@@ -172,18 +163,17 @@ namespace PineTree.Dialogs
 
         private void ShowOrderItemEditor(string categoryName, DataRow orderItem)
         {
-            bool hasEditor = m_orderEditorFactories.ContainsKey(categoryName)
-                && (categoryName != "합성지" || Convert.ToString(orderItem?["PriceCategory"]).Trim() == "수성");
-            string editorCategory = hasEditor ? categoryName : string.Empty;
+            string priceCategory = Convert.ToString(orderItem?["PriceCategory"]).Trim();
+            string editorCategory = OrderItemEditorFactory.GetEditorKey(priceCategory, categoryName);
             UserControl nextEditor;
-            if (orderItem == null || editorCategory.Length == 0)
+            if (orderItem == null || editorCategory == null)
             {
-                if (m_defaultOrderEditor == null) m_defaultOrderEditor = m_orderEditorFactories[string.Empty]();
+                if (m_defaultOrderEditor == null) m_defaultOrderEditor = new UcOrderBase();
                 nextEditor = m_defaultOrderEditor;
             }
             else if (!m_orderItemEditors.TryGetValue(orderItem, out nextEditor))
             {
-                nextEditor = m_orderEditorFactories[editorCategory]();
+                nextEditor = OrderItemEditorFactory.Create(editorCategory);
                 m_orderItemEditors.Add(orderItem, nextEditor);
                 var banner = nextEditor as IOrderItemEditor;
                 if (banner != null)

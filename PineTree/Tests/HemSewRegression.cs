@@ -35,12 +35,10 @@ internal static class HemSewRegression {
    var state=editor.GetType().GetMethod("CaptureEditorState").Invoke(editor,null);var json=state.GetType().GetMethod("ToJson").Invoke(state,null);var restored=state.GetType().GetMethod("FromJson").Invoke(null,new[]{json});
    using(var other=(UserControl)Activator.CreateInstance(editor.GetType())){
     other.GetType().GetMethod("RestoreEditorState").Invoke(other,new[]{restored});var item=((IList)Field(other,"_postProcesses"))[0];
-    using(var d=(Form)Call(other,"CreatePostProcessDialog",item))Check((decimal)Get(Field(d,"tbLength"),"Value")==30&&(int)Get(Field(d,"cbType"),"SelectedIndex")==1,"state restores type and displayed margin");
+    using(var d=(Form)Call(other,"CreatePostProcessDialog",item))Check((decimal)Get(Field(d,"tbLength"),"Value")==3&&(int)Get(Field(d,"cbType"),"SelectedIndex")==1,"state restores type and displayed margin");
    }
    Mode(editor,"inputOption6");pdf=Call(editor,"ReadPdfGenerationSettings");hems=(IList)Get(pdf,"HemSewPasses");
    Check((double)Get(hems[0],"LineThicknessMm")==.06 && (decimal)Call(editor,"FinishedWidthMm")==240,"1:1 keeps 30mm margin and .06mm stroke");
-   Mode(editor,"inputOption13");Set(Field(editor,"tbTargetWidth"),"Value",450m);pdf=Call(editor,"ReadPdfGenerationSettings");hems=(IList)Get(pdf,"HemSewPasses");
-   Check((double)Get(hems[0],"LineThicknessMm")==.15 && (double)Get(hems[0],"MarginMm")==30,"fixed width 2.5x changes thickness only");
    var single=st.GetMethod("Create").Invoke(null,new object[]{"HEM_SEW"});Call(editor,"CommitPostProcess",0,single);Mode(editor,"inputOption7");
    Check((decimal)Call(editor,"FinishedWidthMm")==1830&&(decimal)Call(editor,"FinishedHeightMm")==1230,"single sample dimensions 1830x1230");
   }

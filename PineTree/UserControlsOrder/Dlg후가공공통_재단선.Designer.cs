@@ -1,7 +1,7 @@
 ﻿
 namespace PineTree.UserControlsOrder
 {
-    partial class Dlg현수막_재단선
+    partial class Dlg후가공공통_재단선
     {
         /// <summary>
         /// Required designer variable.
@@ -29,7 +29,7 @@ namespace PineTree.UserControlsOrder
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Dlg현수막_재단선));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Dlg후가공공통_재단선));
             this.c1SplitContainer1 = new C1.Win.C1SplitContainer.C1SplitContainer();
             this.c1SplitterPanel1 = new C1.Win.C1SplitContainer.C1SplitterPanel();
             this.btnCancel = new C1.Win.C1Input.C1Button();
@@ -38,15 +38,6 @@ namespace PineTree.UserControlsOrder
             this.inputGroupHeader1 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.inputLabel1 = new C1.Win.C1InputPanel.InputLabel();
             this.tbLineWidth = new C1.Win.C1InputPanel.InputNumericBox();
-            this.inputLabel2 = new C1.Win.C1InputPanel.InputLabel();
-            this.cbSpot = new C1.Win.C1InputPanel.InputComboBox();
-            this.inputOption1 = new C1.Win.C1InputPanel.InputOption();
-            this.inputLabel3 = new C1.Win.C1InputPanel.InputLabel();
-            this.tbColorName = new C1.Win.C1InputPanel.InputTextBox();
-            this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
-            this.cbCutType = new C1.Win.C1InputPanel.InputComboBox();
-            this.inputOption2 = new C1.Win.C1InputPanel.InputOption();
-            this.inputOption3 = new C1.Win.C1InputPanel.InputOption();
             this.inputLabel5 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel6 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel7 = new C1.Win.C1InputPanel.InputLabel();
@@ -56,6 +47,16 @@ namespace PineTree.UserControlsOrder
             this.tbBottom = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbLeft = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbRight = new C1.Win.C1InputPanel.InputNumericBox();
+            this.inputLabel2 = new C1.Win.C1InputPanel.InputLabel();
+            this.cbSpot = new C1.Win.C1InputPanel.InputComboBox();
+            this.inputOption1 = new C1.Win.C1InputPanel.InputOption();
+            this.inputLabel3 = new C1.Win.C1InputPanel.InputLabel();
+            this.tbColorName = new C1.Win.C1InputPanel.InputTextBox();
+            this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
+            this.cbCutType = new C1.Win.C1InputPanel.InputComboBox();
+            this.inputOption2 = new C1.Win.C1InputPanel.InputOption();
+            this.inputOption3 = new C1.Win.C1InputPanel.InputOption();
+            this.inputOption4 = new C1.Win.C1InputPanel.InputOption();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -159,66 +160,6 @@ namespace PineTree.UserControlsOrder
             this.tbLineWidth.Name = "tbLineWidth";
             this.tbLineWidth.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
             // 
-            // inputLabel2
-            // 
-            this.inputLabel2.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
-            this.inputLabel2.Name = "inputLabel2";
-            this.inputLabel2.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
-            this.inputLabel2.Text = "색상방식";
-            this.inputLabel2.Width = 60;
-            // 
-            // cbSpot
-            // 
-            this.cbSpot.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.cbSpot.Items.Add(this.inputOption1);
-            this.cbSpot.Name = "cbSpot";
-            this.cbSpot.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
-            // 
-            // inputOption1
-            // 
-            this.inputOption1.Name = "inputOption1";
-            this.inputOption1.Text = "별색 (Spot)";
-            // 
-            // inputLabel3
-            // 
-            this.inputLabel3.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
-            this.inputLabel3.Name = "inputLabel3";
-            this.inputLabel3.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
-            this.inputLabel3.Text = "별색이름";
-            this.inputLabel3.Width = 60;
-            // 
-            // tbColorName
-            // 
-            this.tbColorName.Name = "tbColorName";
-            this.tbColorName.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
-            // 
-            // inputLabel4
-            // 
-            this.inputLabel4.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
-            this.inputLabel4.Name = "inputLabel4";
-            this.inputLabel4.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
-            this.inputLabel4.Text = "재단종류";
-            this.inputLabel4.Width = 60;
-            // 
-            // cbCutType
-            // 
-            this.cbCutType.DropDownStyle = C1.Win.C1InputPanel.InputComboBoxStyle.DropDownList;
-            this.cbCutType.Items.Add(this.inputOption2);
-            this.cbCutType.Items.Add(this.inputOption3);
-            this.cbCutType.Name = "cbCutType";
-            this.cbCutType.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
-            this.cbCutType.Width = 266;
-            // 
-            // inputOption2
-            // 
-            this.inputOption2.Name = "inputOption2";
-            this.inputOption2.Text = "일반 재단";
-            // 
-            // inputOption3
-            // 
-            this.inputOption3.Name = "inputOption3";
-            this.inputOption3.Text = "정재단";
-            // 
             // inputLabel5
             // 
             this.inputLabel5.Name = "inputLabel5";
@@ -294,7 +235,73 @@ namespace PineTree.UserControlsOrder
             this.tbRight.Name = "tbRight";
             this.tbRight.Width = 50;
             // 
-            // Dlg현수막_재단선
+            // inputLabel2
+            // 
+            this.inputLabel2.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
+            this.inputLabel2.Name = "inputLabel2";
+            this.inputLabel2.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            this.inputLabel2.Text = "색상방식";
+            this.inputLabel2.Width = 60;
+            // 
+            // cbSpot
+            // 
+            this.cbSpot.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.cbSpot.Items.Add(this.inputOption1);
+            this.cbSpot.Items.Add(this.inputOption4);
+            this.cbSpot.Name = "cbSpot";
+            this.cbSpot.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            // 
+            // inputOption1
+            // 
+            this.inputOption1.Name = "inputOption1";
+            this.inputOption1.Text = "별색 (Spot)";
+            // 
+            // inputLabel3
+            // 
+            this.inputLabel3.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
+            this.inputLabel3.Name = "inputLabel3";
+            this.inputLabel3.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            this.inputLabel3.Text = "별색이름";
+            this.inputLabel3.Width = 60;
+            // 
+            // tbColorName
+            // 
+            this.tbColorName.Name = "tbColorName";
+            this.tbColorName.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            // 
+            // inputLabel4
+            // 
+            this.inputLabel4.HorizontalAlign = C1.Win.C1InputPanel.InputContentAlignment.Far;
+            this.inputLabel4.Name = "inputLabel4";
+            this.inputLabel4.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            this.inputLabel4.Text = "재단종류";
+            this.inputLabel4.Width = 60;
+            // 
+            // cbCutType
+            // 
+            this.cbCutType.DropDownStyle = C1.Win.C1InputPanel.InputComboBoxStyle.DropDownList;
+            this.cbCutType.Items.Add(this.inputOption2);
+            this.cbCutType.Items.Add(this.inputOption3);
+            this.cbCutType.Name = "cbCutType";
+            this.cbCutType.Padding = new System.Windows.Forms.Padding(0, 10, 0, 0);
+            this.cbCutType.Width = 266;
+            // 
+            // inputOption2
+            // 
+            this.inputOption2.Name = "inputOption2";
+            this.inputOption2.Text = "일반 재단";
+            // 
+            // inputOption3
+            // 
+            this.inputOption3.Name = "inputOption3";
+            this.inputOption3.Text = "정재단";
+            // 
+            // inputOption4
+            // 
+            this.inputOption4.Name = "inputOption4";
+            this.inputOption4.Text = "검정(Black)";
+            // 
+            // Dlg후가공공통_재단선
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -303,7 +310,7 @@ namespace PineTree.UserControlsOrder
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
-            this.Name = "Dlg현수막_재단선";
+            this.Name = "Dlg후가공공통_재단선";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "현수막 후가공 정보";
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).EndInit();
@@ -344,5 +351,6 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputNumericBox tbBottom;
         private C1.Win.C1InputPanel.InputNumericBox tbLeft;
         private C1.Win.C1InputPanel.InputNumericBox tbRight;
+        private C1.Win.C1InputPanel.InputOption inputOption4;
     }
 }

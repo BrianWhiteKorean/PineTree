@@ -143,10 +143,8 @@ namespace PineTree.Dialogs
             try
             {
                 tbQty.Value = quantity;
-                var banner = m_orderEditor as UcOrder수성_그룹A;
-                if (banner != null) banner.SetOrderQuantity(quantity);
-                var pet = m_orderEditor as UcOrder페트;
-                if (pet != null) pet.SetOrderQuantity(quantity);
+                var editor = m_orderEditor as IOrderItemEditor;
+                if (editor != null) editor.SetOrderQuantity(quantity);
             }
             finally { m_updatingPricing = false; }
             UpdateOrderPriceSummary(false);

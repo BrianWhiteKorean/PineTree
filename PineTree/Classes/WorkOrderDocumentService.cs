@@ -143,7 +143,7 @@ namespace PineTree.Classes
             }
         }
 
-        private static void SetText(dynamic sheet, string address, string value)
+        internal static void SetText(dynamic sheet, string address, string value)
         {
             dynamic range = null;
             try
@@ -162,6 +162,8 @@ namespace PineTree.Classes
             if (string.IsNullOrWhiteSpace(json)) return "";
             var state = new JavaScriptSerializer().Deserialize<BannerOrderEditorState>(json);
             if (state == null) return "";
+            if (state.OutputServerFile != null)
+                return (state.OutputServerFile.RipScale ?? 1m).ToString("0.###", CultureInfo.InvariantCulture) + "배";
             decimal rate;
             switch (state.ZoomType)
             {
@@ -181,7 +183,7 @@ namespace PineTree.Classes
             return row.Table.Columns.Contains(column) && row[column] != DBNull.Value ? Convert.ToString(row[column]) : "";
         }
 
-        private static void Release(object value)
+        internal static void Release(object value)
         {
             if (value != null && Marshal.IsComObject(value)) Marshal.FinalReleaseComObject(value);
         }

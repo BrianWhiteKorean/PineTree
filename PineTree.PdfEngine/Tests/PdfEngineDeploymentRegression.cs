@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,15 +37,30 @@ internal static class PdfEngineDeploymentRegression
             string application = Path.GetFullPath(args[0]);
             string source = Path.GetFullPath(args[1]);
             string output = Path.GetFullPath(args[2]);
+            string mode = args.Length > 3 ? args[3] : "";
             Check(!Directory.Exists(Path.Combine(Path.GetDirectoryName(application), "Tools", "PdfWorker")), "No external PdfWorker folder");
             Check(!File.Exists(Path.Combine(Path.GetDirectoryName(application), "PineTree.PdfEngine.dll")), "No adjacent PdfEngine DLL");
-            var app = Assembly.LoadFrom(application);
-            RuntimeHelpers.RunModuleConstructor(app.ManifestModule.ModuleHandle);
-            var engine = Assembly.Load("PineTree.PdfEngine");
-            Check(string.IsNullOrEmpty(engine.Location), "Costura loaded embedded PdfEngine from memory");
+            Assembly engine;
+            if (mode == "engine-inspect") engine = Assembly.LoadFrom(application);
+            else
+            {
+                var app = Assembly.LoadFrom(application);
+                RuntimeHelpers.RunModuleConstructor(app.ManifestModule.ModuleHandle);
+                engine = Assembly.Load("PineTree.PdfEngine");
+                Check(string.IsNullOrEmpty(engine.Location), "Costura loaded embedded PdfEngine from memory");
+            }
+            if (mode == "legacy-key")
+            {
+                using (var stream = engine.GetManifestResourceStream("PineTree.PdfEngine.PdfWorker.manifest"))
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
+                using (var sha = SHA256.Create())
+                    Console.WriteLine("LEGACY_KEY " + BitConverter.ToString(sha.ComputeHash(
+                        Encoding.UTF8.GetBytes(reader.ReadToEnd()))).Replace("-", "").ToLowerInvariant());
+                return 0;
+            }
             var service = engine.GetType("PineTree.PdfEngine.OrderDocumentService", true);
             var settingsType = engine.GetType("PineTree.PdfEngine.PdfGenerationSettings", true);
-            if (args.Length > 3 && args[3] == "cancel-prepare")
+            if (mode == "cancel-prepare")
             {
                 using (var cancel = new CancellationTokenSource(100))
                 {
@@ -61,13 +78,15 @@ internal static class PdfEngineDeploymentRegression
                 var info = Await(pending);
                 Check((bool)info.GetType().GetProperty("Success").GetValue(info, null), "Concurrent inspection succeeds");
             }
-            if (args.Length > 3 && args[3] == "inspect") return 0;
+            if (mode == "inspect" || mode == "engine-inspect") return 0;
             var preview = Await(Invoke(service, "PreviewAsync", source, 0, 800, false, CancellationToken.None));
             using (var image = (IDisposable)preview.GetType().GetProperty("PreviewImage").GetValue(preview, null))
                 Check(image != null, "Preview image returned");
             var settings = Activator.CreateInstance(settingsType);
             settingsType.GetProperty("MakeCutline").SetValue(settings, true, null);
             settingsType.GetProperty("SpotColorName").SetValue(settings, "deployment-test-cut", null);
+            settingsType.GetProperty("EdgeLeftMm").SetValue(settings, 2d, null);
+            settingsType.GetProperty("EdgeRightMm").SetValue(settings, 2d, null);
             var generated = Await(Invoke(service, "GenerateAsync", source, output, settings, CancellationToken.None));
             Check(File.Exists(output) && new FileInfo(output).Length > 0, "PDF generated using embedded worker");
             Check(Math.Abs((double)generated.GetType().GetProperty("OutputWidthMm").GetValue(generated, null) - 604) < 0.000001, "Generation settings survive DLL boundary");

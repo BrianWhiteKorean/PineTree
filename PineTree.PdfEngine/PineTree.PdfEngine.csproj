@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="OrderDocumentService.cs" />
     <Compile Include="PdfRuntime.cs" />
+    <Compile Include="PdfTiming.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <None Include="Directory.Build.targets" />
   </ItemGroup>

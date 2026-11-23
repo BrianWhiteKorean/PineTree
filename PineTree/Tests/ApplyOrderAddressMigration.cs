@@ -1,0 +1,4 @@
+using System;using System.Data.Common;using System.IO;using System.Reflection;
+class ApplyOrderAddressMigration{
+ static int Main(string[] args){try{var a=Assembly.LoadFrom(Path.GetFullPath(args[0]));using(var c=(DbConnection)a.GetType("PineTree.Classes.DB").GetMethod("CreateConnection").Invoke(null,null)){c.Open();using(var q=c.CreateCommand()){q.CommandText="SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='OrderInfo' AND COLUMN_NAME='DeliveryAddress'";if(Convert.ToInt32(q.ExecuteScalar())==0){q.CommandText="ALTER TABLE OrderInfo ADD COLUMN DeliveryAddress TEXT NULL COMMENT '배송지 주소'";q.ExecuteNonQuery();}Console.WriteLine("PASS: OrderInfo.DeliveryAddress exists; existing orders retained");}}return 0;}catch(Exception e){Console.Error.WriteLine(e);return 1;}}
+}

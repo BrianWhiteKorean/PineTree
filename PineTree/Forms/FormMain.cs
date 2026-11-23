@@ -15,6 +15,7 @@ namespace PineTree.Forms
         private UcDesignModeContainer _designModeContainer;
         private Panel _modeSwitchPanel;
         private Button _modeButton;
+        private Panel _rightModeSwitchPanel;
         private bool _isManagementMode = true;
 
         protected override CreateParams CreateParams
@@ -69,11 +70,36 @@ namespace PineTree.Forms
                 Location = new Point(panel1.ClientSize.Width - UiTheme.ModeSwitchAreaWidth, 0),
                 Size = new Size(UiTheme.ModeSwitchAreaWidth, UiTheme.TopBarHeight)
             };
-            _modeButton = new Button
+            _modeButton = CreateModeButton("modeButton", "디자인 모드로 변경");
+            _modeButton.FlatAppearance.BorderSize = 0;
+            _modeButton.Click += ModeButton_Click;
+            _modeSwitchPanel.Controls.Add(_modeButton);
+            panel1.Controls.Add(_modeSwitchPanel);
+            _modeSwitchPanel.BringToFront();
+
+            _rightModeSwitchPanel = new Panel
             {
-                Name = "modeButton",
-                Text = "디자인 모드로 변경",
-                AccessibleName = "디자인 모드로 변경",
+                Name = "rightModeSwitchPanel",
+                BackColor = UiTheme.TopBarBackground,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(panel1.ClientSize.Width - UiTheme.ModeSwitchAreaWidth, 0),
+                Size = new Size(UiTheme.ModeSwitchAreaWidth, UiTheme.TopBarHeight),
+                Visible = false
+            };
+            var rightModeButton = CreateModeButton("rightModeButton", "관리 모드로 변경");
+            rightModeButton.FlatAppearance.BorderSize = 0;
+            rightModeButton.Click += ModeButton_Click;
+            _rightModeSwitchPanel.Controls.Add(rightModeButton);
+            panel1.Controls.Add(_rightModeSwitchPanel);
+        }
+
+        private static Button CreateModeButton(string name, string text)
+        {
+            return new Button
+            {
+                Name = name,
+                Text = text,
+                AccessibleName = text,
                 ForeColor = UiTheme.TextPrimary,
                 BackColor = Color.FromArgb(31, 47, 86),
                 Font = new Font("맑은 고딕", 9F, FontStyle.Bold, GraphicsUnit.Point, 129),
@@ -83,11 +109,6 @@ namespace PineTree.Forms
                 Location = new Point(5, 15),
                 Size = new Size(170, 28)
             };
-            _modeButton.FlatAppearance.BorderSize = 0;
-            _modeButton.Click += ModeButton_Click;
-            _modeSwitchPanel.Controls.Add(_modeButton);
-            panel1.Controls.Add(_modeSwitchPanel);
-            _modeSwitchPanel.BringToFront();
         }
 
         private void ModeButton_Click(object sender, EventArgs e)
@@ -121,12 +142,18 @@ namespace PineTree.Forms
             _managementContainer.RefreshDashboardOrders();
         }
 
+        private void DesignModeContainer_ManagementModeRequested(object sender, EventArgs e)
+        {
+            if (!_isManagementMode) ModeButton_Click(sender, e);
+        }
+
         private void SetManagementMode(bool managementMode)
         {
             if (!managementMode && _designModeContainer == null)
             {
                 _designModeContainer = new UcDesignModeContainer();
                 _designModeContainer.OrderSaved += DesignModeContainer_OrderSaved;
+                _designModeContainer.ManagementModeRequested += DesignModeContainer_ManagementModeRequested;
                 _designModeContainer.Visible = false;
                 panel1.Controls.Add(_designModeContainer);
             }
@@ -139,6 +166,8 @@ namespace PineTree.Forms
                 Control activeContainer = managementMode ? (Control)_managementContainer : _designModeContainer;
                 activeContainer.BringToFront();
                 _modeSwitchPanel.BringToFront();
+                _rightModeSwitchPanel.Visible = !managementMode;
+                if (!managementMode) _rightModeSwitchPanel.BringToFront();
                 _isManagementMode = managementMode;
                 _modeSwitchPanel.Anchor = AnchorStyles.Top | (managementMode ? AnchorStyles.Right : AnchorStyles.Left);
                 _modeSwitchPanel.Left = managementMode ? panel1.ClientSize.Width - _modeSwitchPanel.Width : 0;

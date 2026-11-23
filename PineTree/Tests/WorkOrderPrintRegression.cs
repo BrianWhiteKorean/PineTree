@@ -32,6 +32,10 @@ internal static class WorkOrderPrintRegression
             Check((string)scale.Invoke(null, new object[] { row }) == "1배", "original size scale");
             row["EditorStateJson"] = "{\"Version\":1,\"ZoomType\":\"FIXED_SIZE\",\"SourceWidthMm\":100,\"SourceHeightMm\":200,\"WidthMm\":250,\"HeightMm\":500}";
             Check((string)scale.Invoke(null, new object[] { row }) == "2.5배", "fixed size scale derived from original dimensions");
+            row["EditorStateJson"] = "{\"Version\":1,\"ZoomType\":\"SCALE\",\"ZoomRate\":10,\"OutputServerFile\":{\"RipScale\":10}}";
+            Check((string)scale.Invoke(null, new object[] { row }) == "10배", "work order uses the reduced PDF's RIP scale");
+            row["EditorStateJson"] = "{\"Version\":1,\"ZoomType\":\"SCALE\",\"ZoomRate\":10,\"OutputServerFile\":{}}";
+            Check((string)scale.Invoke(null, new object[] { row }) == "1배", "legacy full-size output PDF is printed at 1x");
             row["EditorStateJson"] = "{\"Version\":1,\"ZoomType\":\"SCALE\",\"ZoomRate\":2.5}";
             var dialogType = assembly.GetType("PineTree.Dialogs.DialogPrint", true);
             using (var dialog = (Form)Activator.CreateInstance(dialogType, new object[] { row }))

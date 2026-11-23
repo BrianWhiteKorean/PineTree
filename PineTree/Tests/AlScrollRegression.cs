@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
@@ -18,7 +18,7 @@ internal static class AlScrollRegression
   var type=app.GetType("PineTree.Classes.OrderPostProcessSetting",true);
   foreach(var name in new[]{"족자및쫄대","족자및 쫄대"})Check((string)type.GetMethod("CodeForName").Invoke(null,new object[]{name})=="AL_SCROLL","combo text mapping");
   var setting=type.GetMethod("Create").Invoke(null,new object[]{"AL_SCROLL"});
-  using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder.UcOrder페트",true))){
+  using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹B",true))){
    using(var d=(Form)Call(editor,"CreatePostProcessDialog",setting)){
     Check(d.GetType().Name=="Dlg페트_AL족자","factory opens AL dialog");
     Check(Convert.ToDecimal(Get(Field(d,"tbTop"),"Value"))==5m&&Convert.ToDecimal(Get(Field(d,"tbBottom"),"Value"))==5m,"default 5mm margins");

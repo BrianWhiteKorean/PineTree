@@ -39,14 +39,196 @@ namespace PineTree.PdfEngine
                     throw new ArgumentException("사방줄미싱 간격과 선두께는 양수여야 합니다.");
         }
     }
+    public sealed class HoleMarkEdges
+    {
+        public bool LeftEnabled { get; set; } = true;
+        public bool RightEnabled { get; set; } = true;
+        public bool TopEnabled { get; set; } = true;
+        public bool BottomEnabled { get; set; } = true;
+        public double LeftMm { get; set; }
+        public double RightMm { get; set; }
+        public double TopMm { get; set; }
+        public double BottomMm { get; set; }
+
+        public static HoleMarkEdges FromSymmetric(double horizontalMm, double verticalMm)
+        {
+            return new HoleMarkEdges { LeftMm = horizontalMm, RightMm = horizontalMm, TopMm = verticalMm, BottomMm = verticalMm };
+        }
+
+        public bool HasEnabledEdge() { return LeftEnabled || RightEnabled || TopEnabled || BottomEnabled; }
+
+        public void ValidateInsets()
+        {
+            if (!HasEnabledEdge()) return;
+            foreach (double inset in new[] { LeftMm, RightMm, TopMm, BottomMm })
+                if (double.IsNaN(inset) || double.IsInfinity(inset) || inset < (double)PdfGenerationSettings.MinimumHoleInsetMm)
+                    throw new ArgumentException(FormattableString.Invariant($"타공 안쪽 거리는 {PdfGenerationSettings.MinimumHoleInsetMm}mm 이상으로 입력해주세요."));
+        }
+
+        private int HorizontalEdgeCount() { return (TopEnabled ? 1 : 0) + (BottomEnabled ? 1 : 0); }
+        private int VerticalEdgeCount() { return (LeftEnabled ? 1 : 0) + (RightEnabled ? 1 : 0); }
+
+        public int GetCornerCount()
+        {
+            int horizontal = HorizontalEdgeCount();
+            return 2 * horizontal + (2 - horizontal) * VerticalEdgeCount();
+        }
+
+        public int GetMarkCount(double width, double height, string type, double spacing)
+        {
+            if (!HasEnabledEdge()) return 0;
+            ValidateInsets();
+            double horizontalSpan = width - LeftMm - RightMm;
+            double verticalSpan = height - TopMm - BottomMm;
+            if (horizontalSpan <= 0 || verticalSpan <= 0)
+                throw new ArgumentException("타공 안쪽 거리의 좌우·상하 합은 각각 완성 가로·세로보다 작아야 합니다.");
+            if (type == "FOUR_CORNERS") return GetCornerCount();
+            if (double.IsNaN(spacing) || double.IsInfinity(spacing) || spacing <= 0)
+                throw new ArgumentException("타공 최대 간격은 양수여야 합니다.");
+            int horizontal = HorizontalEdgeCount();
+            int vertical = VerticalEdgeCount();
+            double count = GetCornerCount();
+            if (horizontal > 0) count += horizontal * (Math.Max(1, Math.Ceiling(horizontalSpan / spacing)) - 1);
+            if (vertical > 0) count += vertical * (Math.Max(1, Math.Ceiling(verticalSpan / spacing)) - 1);
+            if (count > 2000)
+                throw new ArgumentException("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.");
+            return (int)count;
+        }
+    }
+
+    public sealed class HoleMarkRun
+    {
+        public string Mode { get; set; }
+        public int Count { get; set; }
+        public double StartLeftMm { get; set; }
+        public double? StartRightMm { get; set; }
+        public double StartTopMm { get; set; }
+        public double? StartBottomMm { get; set; }
+        public double EndLeftMm { get; set; }
+        public double? EndRightMm { get; set; }
+        public double EndTopMm { get; set; }
+        public double? EndBottomMm { get; set; }
+        public double SpacingMm { get; set; }
+
+        private const double RoundingToleranceMm = 1e-9;
+
+        public int GetMarkCount(double width = 0, double height = 0, bool vertical = false)
+        {
+            if (Count < 1 || Count > 2000) throw new ArgumentException("타공 개수는 1~2,000개로 입력해주세요.");
+            double startX = StartRightMm ?? StartLeftMm;
+            double startY = StartBottomMm ?? StartTopMm;
+            ValidatePosition(startX, startY, width, height);
+            if (Mode == "UNIFORM")
+            {
+                double endY = EndBottomMm ?? EndTopMm;
+                double endX = EndRightMm ?? EndLeftMm;
+                ValidatePosition(endX, endY, width, height);
+                bool oppositeX = StartRightMm.HasValue != EndRightMm.HasValue;
+                bool oppositeY = StartBottomMm.HasValue != EndBottomMm.HasValue;
+                if ((oppositeX && width <= 0) || (oppositeY && height <= 0)) return Count;
+                double differenceX = oppositeX ? startX + endX - width : startX - endX;
+                double differenceY = oppositeY ? startY + endY - height : startY - endY;
+                bool samePoint = Math.Abs(differenceX) <= RoundingToleranceMm && Math.Abs(differenceY) <= RoundingToleranceMm;
+                if (samePoint && Count != 1)
+                    throw new ArgumentException("균등간격의 시작점과 끝점이 같으면 1개를 입력해주세요.");
+                return Count;
+            }
+            if (Mode == "FIXED")
+            {
+                if (double.IsNaN(SpacingMm) || double.IsInfinity(SpacingMm) || SpacingMm <= 0)
+                    throw new ArgumentException("고정간격은 0mm보다 커야 합니다.");
+                double limit = vertical ? height : width;
+                if (limit <= 0) return Count;
+                double start = vertical
+                    ? (StartBottomMm.HasValue ? height - startY : startY)
+                    : (StartRightMm.HasValue ? width - startX : startX);
+                int actualCount = 1;
+                while (actualCount < Count && start + actualCount * SpacingMm <= limit + RoundingToleranceMm)
+                    actualCount++;
+                return actualCount;
+            }
+            throw new ArgumentException("타공 간격 방식을 선택해주세요.");
+        }
+
+        private static void ValidatePosition(double left, double top, double width, double height)
+        {
+            if (!(left >= 0) || !(top >= 0) || double.IsInfinity(left) || double.IsInfinity(top)
+                || (width > 0 && left > width + RoundingToleranceMm) || (height > 0 && top > height + RoundingToleranceMm))
+                throw new ArgumentException("타공 위치가 이미지 가로·세로 범위를 벗어났습니다.");
+        }
+    }
+
+    public sealed class HoleMarkPlacement
+    {
+        public string TypeCode { get; set; }
+        public HoleMarkEdges Edges { get; set; }
+        public double SpacingMm { get; set; }
+        public HoleMarkRun TopRun { get; set; }
+        public HoleMarkRun BottomRun { get; set; }
+        public HoleMarkRun LeftRun { get; set; }
+        public HoleMarkRun RightRun { get; set; }
+        public bool ImageCoordinates { get; set; }
+
+        public bool HasSideRuns() { return LeftRun != null || RightRun != null; }
+        public bool HasRuns() { return TopRun != null || BottomRun != null || HasSideRuns(); }
+
+        public void Validate()
+        {
+            if (HasRuns())
+            {
+                if (TypeCode != "CUSTOM_SPACING") throw new ArgumentException("타공 배치를 선택해주세요.");
+                TopRun?.GetMarkCount();
+                BottomRun?.GetMarkCount();
+                LeftRun?.GetMarkCount(vertical: true);
+                RightRun?.GetMarkCount(vertical: true);
+                return;
+            }
+            if (Edges == null || (TypeCode != "FOUR_CORNERS" && TypeCode != "CUSTOM_SPACING"))
+                throw new ArgumentException("타공 배치를 선택해주세요.");
+            Edges.ValidateInsets();
+            if (Edges.HasEnabledEdge() && TypeCode == "CUSTOM_SPACING" &&
+                (double.IsNaN(SpacingMm) || double.IsInfinity(SpacingMm) || SpacingMm <= 0))
+                throw new ArgumentException("타공 최대 간격은 양수여야 합니다.");
+        }
+
+        public int GetMarkCount(double width, double height, double? imageWidth = null, double? imageHeight = null)
+        {
+            Validate();
+            if (!HasRuns()) return Edges.GetMarkCount(width, height, TypeCode, SpacingMm);
+            double runWidth = ImageCoordinates ? imageWidth ?? width : width;
+            double runHeight = ImageCoordinates ? imageHeight ?? height : height;
+            int count = (TopRun?.GetMarkCount(runWidth, runHeight) ?? 0) + (BottomRun?.GetMarkCount(runWidth, runHeight) ?? 0)
+                + (LeftRun?.GetMarkCount(runWidth, runHeight, vertical: true) ?? 0) + (RightRun?.GetMarkCount(runWidth, runHeight, vertical: true) ?? 0);
+            if (count > 2000) throw new ArgumentException("전체 타공마크는 최대 2,000개까지 생성할 수 있습니다.");
+            return count;
+        }
+
+        public static int GetTotalMarkCount(IEnumerable<HoleMarkPlacement> placements, double width, double height,
+            double? imageWidth = null, double? imageHeight = null)
+        {
+            int count = 0;
+            foreach (var placement in placements)
+            {
+                if (placement == null) throw new ArgumentException("타공 배치가 비어 있습니다.");
+                count += placement.GetMarkCount(width, height, imageWidth, imageHeight);
+                if (count > 2000) throw new ArgumentException("전체 타공마크는 최대 2,000개까지 생성할 수 있습니다.");
+            }
+            return count;
+        }
+    }
+
     // Direct UI settings. These are independent of the reusable finishing rules.
     public sealed class PdfGenerationSettings
     {
+        public const decimal MinimumHoleInsetMm = 1.5m;
+
         public bool GenerateAllPages { get; set; }
         public int SourcePageIndex { get; set; }
         public bool RequireSourceCutline { get; set; }
         public string SourceSizingMode { get; set; } = "FIXED_SIZE";
         public double SourceScale { get; set; } = 1;
+        // Target sizes and finishing inputs are in final print millimetres.
+        public double OutputRipScale { get; set; } = 1;
         public bool RoundSourceDimensionsBeforeScale { get; set; }
         public double TargetWidthMm { get; set; } = 600;
         public double TargetHeightMm { get; set; } = 1800;
@@ -68,6 +250,7 @@ namespace PineTree.PdfEngine
         public double CutInsetLeftMm { get; set; }
         public double CutInsetRightMm { get; set; }
         public double LineWidthMm { get; set; } = 0.18;
+        public string CutlineColorMode { get; set; } = "SPOT";
         public string SpotColorName { get; set; } = "thru";
         public bool MakeHole { get; set; }
         public string HoleType { get; set; } = "FOUR_CORNERS";
@@ -76,6 +259,8 @@ namespace PineTree.PdfEngine
         public string HoleMarkKind { get; set; } = "CROSS";
         public double MarkLeftRightMm { get; set; } = 20;
         public double MarkTopBottomMm { get; set; } = 20;
+        public HoleMarkEdges HoleEdges { get; set; }
+        public List<HoleMarkPlacement> HolePlacements { get; set; }
         public double HoleSpacingMm { get; set; } = 500;
 
         public bool MakeWood { get; set; }
@@ -112,17 +297,16 @@ namespace PineTree.PdfEngine
         public int GetMarkCount()
         {
             if (!MakeHole) return 0;
-            if (HoleType == "FOUR_CORNERS") return 4;
-            double horizontal = Math.Ceiling((FinishedWidthMm() - 2 * MarkLeftRightMm) / HoleSpacingMm);
-            double vertical = Math.Ceiling((FinishedHeightMm() - 2 * MarkTopBottomMm) / HoleSpacingMm);
-            double count = 2 * (horizontal + vertical);
-            if (double.IsNaN(count) || double.IsInfinity(count) || count > 2000)
-                throw new ArgumentException("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.");
-            return (int)count;
+            if (HolePlacements != null)
+                return HoleMarkPlacement.GetTotalMarkCount(HolePlacements, FinishedWidthMm(), FinishedHeightMm(), TargetWidthMm, TargetHeightMm);
+            var edges = HoleEdges ?? HoleMarkEdges.FromSymmetric(MarkLeftRightMm, MarkTopBottomMm);
+            return edges.GetMarkCount(FinishedWidthMm(), FinishedHeightMm(), HoleType, HoleSpacingMm);
         }
 
         public void Validate()
         {
+            if (double.IsNaN(OutputRipScale) || double.IsInfinity(OutputRipScale) || OutputRipScale < 1)
+                throw new ArgumentException("RIP 출력 배율은 1 이상이어야 합니다.");
             if (SourceRotationDegreesClockwise < 0 || SourceRotationDegreesClockwise > 270 || SourceRotationDegreesClockwise % 90 != 0)
                 throw new ArgumentException("원본 회전은 0, 90, 180, 270도여야 합니다.");
             if (HemSewPasses == null) throw new ArgumentException("사방시접미싱 목록이 비어 있습니다.");
@@ -164,20 +348,21 @@ namespace PineTree.PdfEngine
                 || CutInsetLeftMm + CutInsetRightMm >= FinishedWidthMm() + (CutInsetsFromPage ? EdgeLeftMm + EdgeRightMm : 0)
                 || CutInsetTopMm + CutInsetBottomMm >= FinishedHeightMm() + (CutInsetsFromPage ? EdgeTopMm + EdgeBottomMm : 0)))
                 throw new ArgumentException("재단 여백은 0 이상이며 좌우·상하 여백의 합은 출력 폭·길이보다 작아야 합니다.");
-            if (MakeCutline && (LineWidthMm <= 0 || LineWidthMm > 10 || string.IsNullOrWhiteSpace(SpotColorName)
+            if (MakeCutline && (LineWidthMm <= 0 || LineWidthMm > 10))
+                throw new ArgumentException("재단선 두께는 0 초과 10mm 이하로 입력해주세요.");
+            if (MakeCutline && CutlineColorMode != "SPOT" && CutlineColorMode != "BLACK")
+                throw new ArgumentException("재단선 색상방식을 선택해주세요.");
+            if (MakeCutline && CutlineColorMode == "SPOT" && (string.IsNullOrWhiteSpace(SpotColorName)
                 || SpotColorName.Length > 100 || SpotColorName.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0))
-                throw new ArgumentException("재단선 두께는 0 초과 10mm 이하, 별색 이름은 100자 이내로 입력해주세요.");
+                throw new ArgumentException("별색 이름은 100자 이내로 입력해주세요.");
             if (MakeHole)
             {
                 foreach (string color in new[] { HoleBackgroundColor, HoleMarkerColor })
                     if (color == null || !System.Text.RegularExpressions.Regex.IsMatch(color, @"\A#[0-9a-fA-F]{6}\z"))
                         throw new ArgumentException("타공 색상은 #RRGGBB 형식이어야 합니다.");
                 if (HoleMarkKind != "DOT" && HoleMarkKind != "CROSS") throw new ArgumentException("타공 마크종류를 선택해주세요.");
-                if (HoleType != "FOUR_CORNERS" && HoleType != "CUSTOM_SPACING") throw new ArgumentException("타공 배치를 선택해주세요.");
-                if (MarkLeftRightMm < 2.5 || MarkTopBottomMm < 2.5 || 2 * MarkLeftRightMm >= FinishedWidthMm()
-                    || 2 * MarkTopBottomMm >= FinishedHeightMm())
-                    throw new ArgumentException("마크 안쪽 거리는 2.5mm 이상이며 완성 가로·세로의 절반보다 작아야 합니다.");
-                if (HoleType == "CUSTOM_SPACING" && HoleSpacingMm <= 0) throw new ArgumentException("타공 최대 간격은 양수여야 합니다.");
+                if (HolePlacements == null && HoleType != "FOUR_CORNERS" && HoleType != "CUSTOM_SPACING")
+                    throw new ArgumentException("타공 배치를 선택해주세요.");
                 GetMarkCount();
             }
         }
@@ -203,6 +388,7 @@ namespace PineTree.PdfEngine
         public double Scale { get; set; }
         public double OutputWidthMm { get; set; }
         public double OutputHeightMm { get; set; }
+        public double OutputRipScale { get; set; } = 1;
         public int MarkCount { get; set; }
         [ScriptIgnore]
         public Image PreviewImage { get; set; }
@@ -273,7 +459,22 @@ namespace PineTree.PdfEngine
 
         public static Task PrepareRuntimeAsync(CancellationToken token)
         {
-            return Task.Run(() => { PdfRuntime.EnsureAvailable(token); }, token);
+            return Task.Run(() =>
+            {
+                var timing = PdfTiming.Start(Guid.NewGuid().ToString("N"), "prepare");
+                string status = "failed";
+                try
+                {
+                    using (timing?.Measure("runtime_prepare")) PdfRuntime.EnsureAvailable(token, timing);
+                    status = "success";
+                }
+                catch (OperationCanceledException)
+                {
+                    status = "canceled";
+                    throw;
+                }
+                finally { timing?.Write(status); }
+            }, token);
         }
 
         public const string InputFilter = "출력 원본 (PDF/AI/EPS/PNG/JPG)|*.pdf;*.ai;*.eps;*.png;*.jpg;*.jpeg|PDF 문서|*.pdf|Illustrator 문서|*.ai|EPS 문서|*.eps|PNG 이미지|*.png|JPEG 이미지|*.jpg;*.jpeg";
@@ -344,6 +545,28 @@ namespace PineTree.PdfEngine
         private static OrderDocumentResult RunWorker(string operation, string source, string output,
             int page, int maxPixels, bool fullCanvas, CancellationToken token, string settingsJson = null, double[] viewportRegion = null, bool suppressCancellation = false)
         {
+            string requestId = Guid.NewGuid().ToString("N");
+            var timing = PdfTiming.Start(requestId, operation);
+            string status = "failed";
+            try
+            {
+                var result = ExecuteWorker(operation, source, output, page, maxPixels, fullCanvas, token,
+                    settingsJson, viewportRegion, suppressCancellation, requestId, timing);
+                status = result.IsCanceled ? "canceled" : "success";
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                status = "canceled";
+                throw;
+            }
+            finally { timing?.Write(status); }
+        }
+
+        private static OrderDocumentResult ExecuteWorker(string operation, string source, string output, int page,
+            int maxPixels, bool fullCanvas, CancellationToken token, string settingsJson, double[] viewportRegion,
+            bool suppressCancellation, string requestId, PdfTiming timing)
+        {
             bool quietCancellation = viewportRegion != null || suppressCancellation;
             if (ShouldStop(token, quietCancellation)) return new OrderDocumentResult { IsCanceled = true };
             if (string.IsNullOrWhiteSpace(source) || !File.Exists(source))
@@ -356,6 +579,7 @@ namespace PineTree.PdfEngine
                 var cached = ReadSourceCache(cacheKey);
                 if (cached != null)
                 {
+                    timing?.Record("source_cache_hit", 0);
                     if (token.IsCancellationRequested)
                     {
                         if (cached.PreviewImage != null) cached.PreviewImage.Dispose();
@@ -365,13 +589,18 @@ namespace PineTree.PdfEngine
                 }
             }
             // Shared runtime preparation should finish once even if this particular viewport closes.
-            string tools = PdfRuntime.EnsureAvailable(quietCancellation ? CancellationToken.None : token);
+            PdfRuntime runtime;
+            using (timing?.Measure("runtime_prepare"))
+                runtime = PdfRuntime.EnsureAvailable(quietCancellation ? CancellationToken.None : token, timing);
             if (ShouldStop(token, quietCancellation)) return new OrderDocumentResult { IsCanceled = true };
-            string worker = Path.Combine(tools, "pdf_worker.py");
             string python = ConfigurationManager.AppSettings["PdfPythonPath"];
-            if (string.IsNullOrWhiteSpace(python)) python = Path.Combine(tools, "runtime", "python.exe");
+            if (string.IsNullOrWhiteSpace(python)) python = runtime.PythonPath;
             if (!File.Exists(python)) throw new FileNotFoundException("PDF Python 실행 파일이 없습니다.", python);
-            string work = Path.Combine(Path.GetTempPath(), "PineTreePdf", Guid.NewGuid().ToString("N"));
+            string ghostscript = ConfigurationManager.AppSettings["PdfGhostscriptDllPath"];
+            if (string.IsNullOrWhiteSpace(ghostscript)) ghostscript = runtime.GhostscriptPath;
+            else if (!Path.IsPathRooted(ghostscript))
+                ghostscript = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ghostscript));
+            string work = Path.Combine(Path.GetTempPath(), "PineTreePdf", requestId);
             Directory.CreateDirectory(work);
             string preview = Path.Combine(work, "preview.png");
             string generated = Path.Combine(work, "generated.pdf");
@@ -380,11 +609,11 @@ namespace PineTree.PdfEngine
             {
                 var request = new Dictionary<string, object>
                 {
-                    { "Operation", operation }, { "SourcePath", Path.GetFullPath(source) }, { "PageIndex", page },
+                    { "RequestId", requestId }, { "Operation", operation }, { "SourcePath", Path.GetFullPath(source) }, { "PageIndex", page },
                     { "WorkDirectory", work },
                     { "MaxPixels", maxPixels }, { "FullCanvas", fullCanvas },
                     { "OutputPath", operation == "generate" || operation == "extract" ? generated : preview },
-                    { "GhostscriptDll", ConfigurationManager.AppSettings["PdfGhostscriptDllPath"] }
+                    { "GhostscriptDll", ghostscript }
                 };
                 var json = new JavaScriptSerializer { MaxJsonLength = 4 * 1024 * 1024 };
                 if (viewportRegion != null) request["ViewportRegion"] = viewportRegion;
@@ -395,8 +624,8 @@ namespace PineTree.PdfEngine
                 var start = new ProcessStartInfo
                 {
                     FileName = python,
-                    Arguments = QuoteArgument(worker) + " " + QuoteArgument(requestFile) + " " + QuoteArgument(responseFile),
-                    WorkingDirectory = tools,
+                    Arguments = "-B " + QuoteArgument(runtime.WorkerPath) + " " + QuoteArgument(requestFile) + " " + QuoteArgument(responseFile),
+                    WorkingDirectory = runtime.DirectoryPath,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardError = true,
@@ -407,7 +636,9 @@ namespace PineTree.PdfEngine
                 start.EnvironmentVariables["PYTHONUTF8"] = "1";
                 start.EnvironmentVariables["PYTHONNOUSERSITE"] = "1";
                 start.EnvironmentVariables["PYTHONDONTWRITEBYTECODE"] = "1";
-                using (var process = Process.Start(start))
+                start.EnvironmentVariables["PINETREE_PDF_WORKER_TIMING"] = timing == null ? "0" : "1";
+                using (timing?.Measure("python_process"))
+                using (var process = StartWorker(start, timing))
                 {
                     var stdout = process.StandardOutput.ReadToEndAsync();
                     var stderr = process.StandardError.ReadToEndAsync();
@@ -422,6 +653,7 @@ namespace PineTree.PdfEngine
                         }
                         if (ShouldStop(token, quietCancellation)) return new OrderDocumentResult { IsCanceled = true };
                         Task.WaitAll(stdout, stderr);
+                        timing?.ReadWorker(stdout.Result);
                         if (!File.Exists(responseFile))
                             throw new InvalidOperationException("PDF 처리 엔진이 응답하지 않았습니다. 런타임 설치 상태를 확인해주세요.\r\n" +
                                 (stderr.Result.Length > 1200 ? stderr.Result.Substring(0, 1200) : stderr.Result));
@@ -451,6 +683,7 @@ namespace PineTree.PdfEngine
                     if (operation == "preview") WriteSourceCache(sourceKey + "|inspect|1600|False", result);
                 }
                 if (operation == "generate" || operation == "extract")
+                using (timing?.Measure("final_pdf_save"))
                 {
                     string final = Path.GetFullPath(output);
                     string directory = Path.GetDirectoryName(final);
@@ -481,6 +714,11 @@ namespace PineTree.PdfEngine
                 if (staging != null && File.Exists(staging)) File.Delete(staging);
                 try { Directory.Delete(work, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             }
+        }
+
+        private static Process StartWorker(ProcessStartInfo start, PdfTiming timing)
+        {
+            using (timing?.Measure("python_start")) return Process.Start(start);
         }
 
         private static bool ShouldStop(CancellationToken token, bool quietCancellation)

@@ -20,7 +20,7 @@ internal static class BannerCutRegression
             var setting=settingType.GetMethod("Create").Invoke(null,new object[]{"CUT"});
             using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A",true))) {
                 using(var dialog=(Form)Call(editor,"CreatePostProcessDialog",setting)) {
-                    Check(dialog.GetType().Name=="Dlg현수막_재단선","banner factory opens banner dialog");
+                    Check(dialog.GetType().Name=="Dlg후가공공통_재단선","banner factory opens shared cut dialog");
                     foreach(var name in new[]{"tbTop","tbBottom","tbLeft","tbRight"})
                         Check(Convert.ToDecimal(Get(Field(dialog,name),"Value"))==0m,"default 0mm: "+name);
                     Set(Field(dialog,"tbTop"),"Value",3m);Set(Field(dialog,"tbBottom"),"Value",5m);

@@ -14,6 +14,11 @@ internal static class PostProcessRegression
     private static Type settingType;
     private static object Field(object o,string name) { return o.GetType().GetField(name,F).GetValue(o); }
     private static object Get(object o,string name) { return o.GetType().GetProperty(name).GetValue(o,null); }
+    private static Task LoadSource(object editor, string path)
+    {
+        var document = Get(editor, "SourceDocument");
+        return (Task)document.GetType().GetMethod("LoadAsync").Invoke(document, new object[] { path });
+    }
     private static void Set(object o,string name,object value) { o.GetType().GetProperty(name).SetValue(o,value,null); }
     private static object Call(object o,string name,params object[] args) { return o.GetType().GetMethod(name,F).Invoke(o,args); }
     private static void Check(bool value,string name) { if(!value)throw new Exception(name); checks++; }
@@ -125,25 +130,23 @@ internal static class PostProcessRegression
         string sample=Path.GetFullPath("../../1.요구분석/샘플파일/페트_재단선+사방타공마크_604X1804_1EA_별색.ai");
         using(var editor=(UserControl)Activator.CreateInstance(editorType)) {
             host.Controls.Add(editor);editor.Dock=DockStyle.Fill;editor.BringToFront();
-            await (Task)Call(editor,"LoadSourceFileAsync",sample);
+            await LoadSource(editor, sample);
             Check(Field(editor,"_sourceDetails")!=null,"customer AI inspection");
             Check((decimal)Get(editor,"WidthMm")==60 && (decimal)Get(editor,"HeightMm")==180,"customer AI original is 1:10");
-            Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));Number(editor,"tbZoomRate",10);
+            Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));
             Check((decimal)Get(editor,"WidthMm")==600 && (decimal)Get(editor,"HeightMm")==1800,"customer scale gives final trim size");
             var cut=Create("CUT");var hole=Create("HOLE");
             Call(editor,"CommitPostProcess",-1,cut);Call(editor,"CommitPostProcess",-1,hole);
             using(var dialog=(Form)Call(editor,"CreatePostProcessDialog",hole)) {
-                Check(Field(dialog,"_spacingInput")!=null,"designer spacing field connected");
-                Set(Field(dialog,"cbHoleType"),"SelectedIndex",1);
-                Number(dialog,"tbHoleSpacing",500);
-                Check(Convert.ToInt32(Get(Field(dialog,"tbHoleCount"),"Value"))==12,"spacing input calculates hole count");
-                Set(Field(dialog,"cbHoleType"),"SelectedIndex",0);
-                Check(Convert.ToInt32(Get(Field(dialog,"tbHoleCount"),"Value"))==4,"four-corner mode restores four marks");
+                var grid=Field(dialog,"FGrid1");
+                Check(Convert.ToInt32(grid.GetType().GetProperty("Item",new[]{typeof(int),typeof(int)}).GetValue(grid,new object[]{1,1}))==4,"existing four-corner placement appears in grid");
+                Set(Field(dialog,"cbDeployType"),"SelectedIndex",1);
+                Check((bool)Get(Field(dialog,"btnAdd"),"Enabled"),"requested spacing placement can be added");
             }
             var settings=Call(editor,"ReadPdfGenerationSettings");
             var generation=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"customer-pet.pdf"),settings);await generation;
             var result=Get(generation,"Result");
-            Check(Math.Abs((double)Get(result,"OutputWidthMm")-604)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-1804)<.0001,"customer output page is 604 by 1804");
+            Check(Math.Abs((double)Get(result,"OutputWidthMm")-60.4)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-180.4)<.0001 && (double)Get(result,"OutputRipScale")==10,"customer delivery PDF is at 1:10");
             Check((int)Get(result,"MarkCount")==4,"customer four corner marks generated");
             string summary=(string)Field(editor,"_pdfSummary");
             Check(summary.Contains("604")&&summary.Contains("1804")&&summary.Contains("완성/재단"),"summary distinguishes trim and output sizes");
@@ -160,7 +163,7 @@ internal static class PostProcessRegression
         string sample=Path.GetFullPath("../../1.요구분석/1026/현수막_좌우각목_8000x600_1EA.ai");
         using(var editor=(UserControl)Activator.CreateInstance(editorType)) {
             host.Controls.Add(editor);editor.Dock=DockStyle.Fill;editor.BringToFront();
-            await (Task)Call(editor,"LoadSourceFileAsync",sample);
+            await LoadSource(editor, sample);
             Check(Field(editor,"_sourceDetails")!=null,"customer wood AI inspection");
             Check((decimal)Get(editor,"WidthMm")==800 && (decimal)Get(editor,"HeightMm")==59,"customer wood source dimensions");
             foreach(string name in new[]{"tbEdgeLeft","tbEdgeRight","tbEdgeTop","tbEdgeBottom"}) Number(editor,name,0);
@@ -223,19 +226,19 @@ internal static class PostProcessRegression
                 Check(empty.ShowDialog(host)==DialogResult.OK && (decimal)Get(Params(Get(empty,"Setting")),"ExtraLineMm")==0,"top empty margin returns zero");
             }
             string sample=Path.GetFullPath("../../1.요구분석/1026/현수막_좌우각목_8000x600_1EA.ai");
-            await (Task)Call(editor,"LoadSourceFileAsync",sample);
-            Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));Number(editor,"tbZoomRate",10);
+            await LoadSource(editor, sample);
+            Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));
             foreach(string name in new[]{"tbEdgeLeft","tbEdgeRight","tbEdgeTop","tbEdgeBottom"})Number(editor,name,0);
             var settings=Call(editor,"ReadPdfGenerationSettings");
             Check((bool)Get(settings,"MakeWoodTopBottom") && (double)Get(settings,"WoodTopBottomExtraMm")==80 && (double)Get(settings,"WoodTopBottomDesignOffsetMm")==20,"top settings reach PDF with absolute mm");
             var task=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"top-bottom.pdf"),settings);await task;
             var result=Get(task,"Result");
-            Check(Math.Abs((double)Get(result,"OutputWidthMm")-8000)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-750)<.0001,"top margin applies after ten-times zoom");
+            Check(Math.Abs((double)Get(result,"OutputWidthMm")-800)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-75)<.0001 && (double)Get(result,"OutputRipScale")==10,"top margin is included in the 1:10 delivery PDF");
             var wood=Create("WOOD");Set(Params(wood),"ExtraLineMm",15m);Set(Params(wood),"MakeDesignLine",true);Set(Params(wood),"DesignLineMm",2m);Call(editor,"CommitPostProcess",-1,wood);
             settings=Call(editor,"ReadPdfGenerationSettings");
             task=(Task)Call(editor,"GeneratePdfToPathAsync",Path.Combine(folder,"wood-both-axes.pdf"),settings);await task;
             result=Get(task,"Result");
-            Check(Math.Abs((double)Get(result,"OutputWidthMm")-8030)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-750)<.0001,"both wood axes combine independently");
+            Check(Math.Abs((double)Get(result,"OutputWidthMm")-803)<.0001 && Math.Abs((double)Get(result,"OutputHeightMm")-75)<.0001,"both wood axes combine independently before scaling the delivery PDF");
             var state=Capture(editor);
             using(var restored=(UserControl)Activator.CreateInstance(editorType)) {
                 Restore(restored,state);var list=(IList)Field(restored,"_postProcesses");

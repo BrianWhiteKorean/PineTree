@@ -42,12 +42,10 @@ internal static class DesignPadOrderNameRegression {
    Call(pad,"ApplyLoadedOrder",row);Check((string)Get(Field(pad,"tbOrderName"),"Text")=="다시 여는 주문","loading restores order title into text box");
   }
   var display=new DataTable();display.Columns.Add("OrderTitle");display.Columns.Add("CustomName");display.Columns.Add("ItemName");var r=display.Rows.Add("입력한 주문명","부속품 이름","가격표 품명");
-  foreach(var name in new[]{"UcOrderInfo","UcDashboardHome"}){
-   var m=app.GetType("PineTree.UserControls."+name).GetMethod("GetOrderItemDisplayName",BindingFlags.NonPublic|BindingFlags.Static);
-   Check((string)m.Invoke(null,new object[]{r,true})=="입력한 주문명",name+" primary displays order title");
-   Check((string)m.Invoke(null,new object[]{r,false})=="부속품 이름",name+" accessory remains distinct");
-   r["OrderTitle"]=DBNull.Value;Check((string)m.Invoke(null,new object[]{r,true})=="부속품 이름",name+" legacy title fallback");r["OrderTitle"]="입력한 주문명";
-  }
+  var m=app.GetType("PineTree.UserControls.UcOrderInfo").GetMethod("GetOrderItemDisplayName",BindingFlags.NonPublic|BindingFlags.Static);
+  Check((string)m.Invoke(null,new object[]{r,true})=="입력한 주문명","Order management primary displays order title");
+  Check((string)m.Invoke(null,new object[]{r,false})=="부속품 이름","Order management accessory remains distinct");
+  r["OrderTitle"]=DBNull.Value;Check((string)m.Invoke(null,new object[]{r,true})=="부속품 이름","Order management legacy title fallback");
   Console.WriteLine("PASS: design pad order name / list display / area / accessory totals: "+checks);return 0;
  }catch(Exception e){Console.Error.WriteLine(e);return 1;}}
 }

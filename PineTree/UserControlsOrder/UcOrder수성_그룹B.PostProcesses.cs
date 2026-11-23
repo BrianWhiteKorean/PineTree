@@ -9,7 +9,7 @@ using PineTree.PdfEngine;
 
 namespace PineTree.UserControlsOrder
 {
-    public partial class UcOrder페트
+    public partial class UcOrder수성_그룹B
     {
         private readonly List<OrderPostProcessSetting> _postProcesses = new List<OrderPostProcessSetting>();
         private void InitializePostProcesses()
@@ -65,7 +65,7 @@ namespace PineTree.UserControlsOrder
                 for(int i=0;i<_postProcesses.Count;i++) {
                     var item = _postProcesses[i]; item.SeqNo = i+1; int row = i + FGrid1.Rows.Fixed;
                     FGrid1[row, "SeqNo"] = item.SeqNo; FGrid1[row,"ProcessName"] = item.ProcessName;
-                    FGrid1[row,"Summary"] = item.Summary(FinishedWidthMm(),FinishedHeightMm()); FGrid1[row,"Delete"] = "삭제";
+                    FGrid1[row,"Summary"] = item.SummaryForImage(FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm); FGrid1[row,"Delete"] = "삭제";
                     FGrid1.Rows[row].UserData = item;
                 }
                 if (_postProcesses.Count > 0) FGrid1.Row = Math.Max(FGrid1.Rows.Fixed, Math.Min(selected,FGrid1.Rows.Count-1));
@@ -75,16 +75,17 @@ namespace PineTree.UserControlsOrder
         }
         private Form CreatePostProcessDialog(OrderPostProcessSetting setting)
         {
+            decimal sourceScaleDivisor = ReadZoomRate();
             switch(setting.ProcessCode) {
-                case "HOLE": return new Dlg후가공공통_타공마크(setting,FinishedWidthMm(),FinishedHeightMm());
-                case "WOOD": return new Dlg현수막_좌우각목(setting, PostProcessImageScale());
-                case "WOOD_TB": return new Dlg현수막_상하각목(setting, PostProcessImageScale());
-                case "POLE_SEW": return new Dlg현수막_봉미싱(setting);
-                case "HEM_SEW": return new Dlg현수막_사방시접미싱(setting);
-                case "BAND_SEW": return new Dlg현수막_밴드미싱(setting);
-                case "ROPE_SEW": return new Dlg현수막_사방줄미싱(setting);
-                case "CUT": return new Dlg페트_재단(setting);
-                case "AL_SCROLL": return new Dlg페트_AL족자(setting);
+                case "HOLE": return new Dlg후가공공통_타공마크(setting, FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm, sourceScaleDivisor);
+                case "WOOD": return new Dlg현수막_좌우각목(setting, sourceScaleDivisor);
+                case "WOOD_TB": return new Dlg현수막_상하각목(setting, sourceScaleDivisor);
+                case "POLE_SEW": return new Dlg현수막_봉미싱(setting, sourceScaleDivisor);
+                case "HEM_SEW": return new Dlg현수막_사방시접미싱(setting, sourceScaleDivisor);
+                case "BAND_SEW": return new Dlg현수막_밴드미싱(setting, sourceScaleDivisor);
+                case "ROPE_SEW": return new Dlg현수막_사방줄미싱(setting, sourceScaleDivisor);
+                case "CUT": return new Dlg후가공공통_재단선(setting, 0m, sourceScaleDivisor);
+                case "AL_SCROLL": return new Dlg페트_AL족자(setting, sourceScaleDivisor);
                 default: throw new ArgumentException("지원하지 않는 후가공입니다.");
             }
         }
@@ -93,17 +94,18 @@ namespace PineTree.UserControlsOrder
             if(_generating || cbWork.SelectedIndex < 0) return;
             string code = OrderPostProcessSetting.CodeForName(cbWork.SelectedOption.Text);
             int existing = _postProcesses.FindIndex(x => x.ProcessCode == code);
-            if((code == "CUT" || code == "HOLE" || code == "WOOD" || code == "WOOD_TB" || code == "AL_SCROLL") && existing >= 0) { EditPostProcess(existing); return; }
-            using(var dialog = CreatePostProcessDialog(OrderPostProcessSetting.Create(code))) {
+            if((code == "CUT" || code == "HOLE" || code == "WOOD" || code == "WOOD_TB") && existing >= 0) { EditPostProcess(existing); return; }
+            var setting = code == "HOLE" ? Dlg후가공공통_타공마크.CreateEmptySetting() : OrderPostProcessSetting.Create(code);
+            using(var dialog = CreatePostProcessDialog(setting)) {
                 if(dialog.ShowDialog(this) != DialogResult.OK) return;
                 CommitPostProcess(-1, ((IPostProcessDialog)dialog).Setting);
             }
         }
         private decimal PostProcessImageScale()
         {
-            if (cbZoomType.SelectedOption == inputOption13 && _sourceWidthMm > 0 && WidthMm > 0)
+            if (cbZoomType.SelectedIndex < 0 && _sourceWidthMm > 0 && WidthMm > 0)
                 return WidthMm / _sourceWidthMm;
-            return cbZoomType.SelectedOption == inputOption7 ? ReadZoomRate() : 1m;
+            return ReadZoomRate();
         }
         private void EditPostProcess(int index)
         {
@@ -133,7 +135,8 @@ namespace PineTree.UserControlsOrder
             var wood = _postProcesses.Find(item => item.ProcessCode == "WOOD");
             decimal result = WidthMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
             foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "ROPE_SEW"))
-                result += item.Parameters.RopeMargin(item.Parameters.RopeLeftMm) + item.Parameters.RopeMargin(item.Parameters.RopeRightMm) + RopeGuideThicknessMm();
+                result += item.Parameters.RopeMargin(item.Parameters.RopeLeftMm) + item.Parameters.RopeMargin(item.Parameters.RopeRightMm);
+            foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "HEM_SEW")) result += 2 * item.Parameters.HemMarginMm();
             return result;
         }
         private decimal FinishedHeightMm()
@@ -141,38 +144,50 @@ namespace PineTree.UserControlsOrder
             var wood = _postProcesses.Find(item => item.ProcessCode == "WOOD_TB");
             decimal result = HeightMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
             foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "ROPE_SEW"))
-                result += item.Parameters.RopeMargin(item.Parameters.RopeTopMm) + item.Parameters.RopeMargin(item.Parameters.RopeBottomMm) + RopeGuideThicknessMm();
+                result += item.Parameters.RopeMargin(item.Parameters.RopeTopMm) + item.Parameters.RopeMargin(item.Parameters.RopeBottomMm);
+            foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "HEM_SEW")) result += 2 * item.Parameters.HemMarginMm();
             var scroll = _postProcesses.Find(item => item.ProcessCode == "AL_SCROLL");
             if (scroll != null) result += scroll.Parameters.ScrollTopMm + scroll.Parameters.ScrollBottomMm;
             return result;
         }
-        private decimal RopeGuideThicknessMm() { return .17m * 25.4m / 72m * PostProcessImageScale(); }
+        private decimal RopeGuideThicknessMm() { return .17m * 25.4m / 72m; }
         private void ApplyPostProcessesToPdf(PdfGenerationSettings settings)
         {
+            // Retain the PDF settings of saved PET scroll jobs. The scroll preset is not in the Group B menu.
             var scroll = _postProcesses.Find(item => item.ProcessCode == "AL_SCROLL");
-            if (scroll != null) {
+            const decimal scrollCutInsetMm = 2m;
+            if (scroll != null)
+            {
                 if (_sourceHasCutline) throw new ArgumentException("족자및쫄대는 재단선이 없는 원본파일을 선택해주세요.");
-                var p = scroll.Parameters;
+                var parameters = scroll.Parameters;
                 settings.MakeAlScroll = true;
-                settings.ScrollTopMm = (double)p.ScrollTopMm; settings.ScrollBottomMm = (double)p.ScrollBottomMm;
-                settings.MakeCutline = true; settings.LineWidthMm = (double)p.LineWidthMm; settings.SpotColorName = p.SpotColorName;
-                settings.CutInsetTopMm = settings.CutInsetBottomMm = settings.CutInsetLeftMm = settings.CutInsetRightMm = 2;
+                settings.ScrollTopMm = (double)parameters.ScrollTopMm;
+                settings.ScrollBottomMm = (double)parameters.ScrollBottomMm;
+                settings.MakeCutline = true;
+                settings.LineWidthMm = (double)parameters.LineWidthMm;
+                settings.SpotColorName = parameters.SpotColorName;
+                settings.CutInsetTopMm = settings.CutInsetBottomMm = settings.CutInsetLeftMm = settings.CutInsetRightMm = (double)scrollCutInsetMm;
             }
-            // A separate CUT row overrides the scroll's default cut settings regardless of row order.
             foreach(var item in _postProcesses) {
                 var p = item.Parameters;
                 if(item.ProcessCode == "CUT") {
                     settings.MakeCutline = !_sourceHasCutline;
+                    settings.CutlineColorMode = p.ColorMode;
                     settings.LineWidthMm = (double)p.LineWidthMm; settings.SpotColorName = p.SpotColorName;
-                    settings.CutInsetTopMm = (double)(p.CutInsetTopMm ?? (p.FromSource ? 0m : 2m));
-                    settings.CutInsetBottomMm = (double)(p.CutInsetBottomMm ?? (p.FromSource ? 0m : 2m));
-                    settings.CutInsetLeftMm = (double)(p.CutInsetLeftMm ?? (p.FromSource ? 0m : 2m));
-                    settings.CutInsetRightMm = (double)(p.CutInsetRightMm ?? (p.FromSource ? 0m : 2m));
+                    var inset = scroll != null && !p.FromSource ? scrollCutInsetMm : 0m;
+                    settings.CutInsetsFromPage = scroll == null
+                        && (p.CutInsetTopMm.HasValue || p.CutInsetBottomMm.HasValue || p.CutInsetLeftMm.HasValue || p.CutInsetRightMm.HasValue);
+                    settings.CutInsetTopMm = (double)(p.CutInsetTopMm ?? inset);
+                    settings.CutInsetBottomMm = (double)(p.CutInsetBottomMm ?? inset);
+                    settings.CutInsetLeftMm = (double)(p.CutInsetLeftMm ?? inset);
+                    settings.CutInsetRightMm = (double)(p.CutInsetRightMm ?? inset);
                 }
                 else if(item.ProcessCode == "HOLE") {
-                    item.GetMarkCount(FinishedWidthMm(),FinishedHeightMm());
+                    item.GetMarkCountForImage(FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm);
                     settings.MakeHole = true; settings.HoleType = p.TypeCode; settings.HoleMarkKind = p.HoleMarkKind;
                     settings.MarkLeftRightMm = (double)p.MarkLeftRightMm; settings.MarkTopBottomMm = (double)p.MarkTopBottomMm;
+                    settings.HoleEdges = p.HoleEdges;
+                    settings.HolePlacements = p.HolePlacements;
                     settings.HoleSpacingMm = (double)p.HoleSpacingMm;
                     settings.HoleBackgroundColor = p.HoleBackgroundColor ?? "#FFFFFF";
                     settings.HoleMarkerColor = p.HoleMarkerColor ?? "#000000";
@@ -198,6 +213,11 @@ namespace PineTree.UserControlsOrder
                         TypeCode = p.TypeCode, TopMm = (double)p.RopeMargin(p.RopeTopMm), BottomMm = (double)p.RopeMargin(p.RopeBottomMm),
                         LeftMm = (double)p.RopeMargin(p.RopeLeftMm), RightMm = (double)p.RopeMargin(p.RopeRightMm),
                         LineThicknessMm = (double)RopeGuideThicknessMm()
+                    });
+                }
+                else if(item.ProcessCode == "HEM_SEW") {
+                    settings.HemSewPasses.Add(new PdfHemSewSettings {
+                        TypeCode = p.TypeCode, LineThicknessMm = (double)(.06m * PostProcessImageScale())
                     });
                 }
                 // Other sewing PDF rules are pending customer confirmation.

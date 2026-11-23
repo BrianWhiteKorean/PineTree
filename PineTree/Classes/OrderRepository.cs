@@ -19,6 +19,7 @@ namespace PineTree.Classes
         public DateTime? RequestedDueAt { get; set; }
         public string OrderTitle { get; set; }
         public string OrderDescription { get; set; }
+        public string DeliveryAddress { get; set; }
         public string ProductionStatus { get; set; }
         public string SourceChannel { get; set; }
         public long PriceItemSeqNo { get; set; }
@@ -99,6 +100,7 @@ SELECT
     oi.CustCode,
     c.CustName,
     oi.OrderTitle,
+    oi.OrderTitle AS StoredOrderTitle,
     oi.ProductionStatus,
     oi.RequestedDueAt,
     oi.SourceChannel,
@@ -164,6 +166,7 @@ ORDER BY oi.ReceivedAt DESC, oi.OrderId DESC, item.LineNo, item.OrderItemId";
                         DataRow product = result.NewRow();
                         product.ItemArray = (object[])row.ItemArray.Clone();
                         product["OrderItemId"] = DBNull.Value;
+                        // StoredOrderTitle retains the order header when this row represents the design product.
                         product["OrderTitle"] = product["ItemName"] = product["CustomName"] = state.ProductName;
                         product["SpecText"] = OrderDesignPadState.FormatSpecification(state.Editor.WidthMm, state.Editor.HeightMm, state.Editor.Quantity);
                         product["WidthMm"] = state.Editor.WidthMm;
@@ -236,6 +239,7 @@ SELECT
     oi.RequestedDueAt,
     oi.OrderTitle,
     oi.OrderDescription,
+    oi.DeliveryAddress,
     oi.ProductionStatus,
     oi.SourceChannel,
     item.OrderItemId,
@@ -344,6 +348,11 @@ ORDER BY item.LineNo, item.OrderItemId";
 
         public static long UpsertOrder(OrderSaveData order)
         {
+            return SaveOrderWithIdentifiers(order, out _, out _);
+        }
+
+        internal static long SaveOrderWithIdentifiers(OrderSaveData order, out string newOrderNo, out List<long> itemIds)
+        {
             using (MySqlConnection conn = DB.CreateConnection())
             {
                 conn.Open();
@@ -351,7 +360,7 @@ ORDER BY item.LineNo, item.OrderItemId";
                 {
                     try
                     {
-                        long orderId = SaveOrderCore(conn, transaction, order);
+                        long orderId = SaveOrderWithIdentifiersCore(conn, transaction, order, out newOrderNo, out itemIds);
                         transaction.Commit();
                         return orderId;
                     }
@@ -366,8 +375,14 @@ ORDER BY item.LineNo, item.OrderItemId";
 
         internal static long SaveOrderCore(MySqlConnection conn, MySqlTransaction transaction, OrderSaveData order)
         {
-            long orderId = UpsertOrderInfo(conn, transaction, order);
-            List<long> savedOrderItemIds = new List<long>();
+            return SaveOrderWithIdentifiersCore(conn, transaction, order, out _, out _);
+        }
+
+        private static long SaveOrderWithIdentifiersCore(MySqlConnection conn, MySqlTransaction transaction, OrderSaveData order,
+            out string newOrderNo, out List<long> savedOrderItemIds)
+        {
+            long orderId = UpsertOrderInfo(conn, transaction, order, out newOrderNo);
+            savedOrderItemIds = new List<long>();
             List<OrderItemSaveData> items = GetOrderItems(order);
 
             for (int i = 0; i < items.Count; i++)
@@ -438,8 +453,9 @@ AND OrderItemId = @OrderItemId";
             }
         }
 
-        private static long UpsertOrderInfo(MySqlConnection conn, MySqlTransaction transaction, OrderSaveData order)
+        private static long UpsertOrderInfo(MySqlConnection conn, MySqlTransaction transaction, OrderSaveData order, out string newOrderNo)
         {
+            newOrderNo = null;
             if (order.OrderId.HasValue && order.OrderId.Value > 0)
             {
                 PreserveLinkedOrderHeader(conn, transaction, order);
@@ -454,6 +470,7 @@ SET
     RequestedDueAt = @RequestedDueAt,
     OrderTitle = @OrderTitle,
     OrderDescription = @OrderDescription,
+    DeliveryAddress = CASE WHEN @DeliveryAddress IS NULL THEN DeliveryAddress ELSE NULLIF(@DeliveryAddress, '') END,
     ProductionStatus = @ProductionStatus,
     SourceChannel = @SourceChannel
 WHERE OrderId = @OrderId";
@@ -469,6 +486,7 @@ WHERE OrderId = @OrderId";
                     new ParamValuePair("@RequestedDueAt", order.RequestedDueAt),
                     new ParamValuePair("@OrderTitle", EmptyToNull(order.OrderTitle)),
                     new ParamValuePair("@OrderDescription", EmptyToNull(order.OrderDescription)),
+                    new ParamValuePair("@DeliveryAddress", order.DeliveryAddress),
                     new ParamValuePair("@ProductionStatus", order.ProductionStatus),
                     new ParamValuePair("@SourceChannel", EmptyToNull(order.SourceChannel))
                 });
@@ -494,6 +512,7 @@ INSERT INTO OrderInfo
     RequestedDueAt,
     OrderTitle,
     OrderDescription,
+    DeliveryAddress,
     ProductionStatus,
     SourceChannel
 )
@@ -512,6 +531,7 @@ VALUES
     @RequestedDueAt,
     @OrderTitle,
     @OrderDescription,
+    NULLIF(@DeliveryAddress, ''),
     @ProductionStatus,
     @SourceChannel
 );
@@ -531,10 +551,12 @@ SELECT LAST_INSERT_ID();";
                 new ParamValuePair("@RequestedDueAt", order.RequestedDueAt),
                 new ParamValuePair("@OrderTitle", EmptyToNull(order.OrderTitle)),
                 new ParamValuePair("@OrderDescription", EmptyToNull(order.OrderDescription)),
+                new ParamValuePair("@DeliveryAddress", order.DeliveryAddress),
                 new ParamValuePair("@ProductionStatus", order.ProductionStatus),
                 new ParamValuePair("@SourceChannel", EmptyToNull(order.SourceChannel))
             });
 
+            newOrderNo = orderNo;
             return Convert.ToInt64(value);
         }
 

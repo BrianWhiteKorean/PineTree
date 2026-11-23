@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Data;
 using System.Drawing;
 using System.IO;
@@ -42,9 +42,9 @@ class SourceTransformRegression {
   using(var restored=(Control)Activator.CreateInstance(editor.GetType())){
    Call(restored,"RestoreEditorState",state);await(Task)Call(Get(restored,"SourceDocument"),"EnsureLoadedAsync");Orient(restored,270,true,40,80);
   }
-  editor.GetType().GetField("_updatingInputs",F).SetValue(editor,true);Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption13"));editor.GetType().GetField("_updatingInputs",F).SetValue(editor,false);
-  Set(Field(editor,"tbTargetWidth"),"Value",120m);Orient(editor,270,true,120,240);Click(pad,"btn90CW");Orient(editor,180,true,240,120);
-  var petType=app.GetType("PineTree.UserControlsOrder.UcOrder페트");using(var pet=(Control)Activator.CreateInstance(petType)){
+  Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));
+  Orient(editor,270,true,400,800);Click(pad,"btn90CW");Orient(editor,180,true,800,400);
+  var petType=app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹B");using(var pet=(Control)Activator.CreateInstance(petType)){
    Call(pet,"RestoreEditorState",state);await(Task)Call(Get(pet,"SourceDocument"),"EnsureLoadedAsync");Orient(pet,270,true,40,80);Call(pet,"RotateSource",90);Orient(pet,180,true,80,40);
   }
   await(Task)Call(source,"LoadAsync",Path.Combine(folder,"replacement.pdf"));Orient(editor,0,false,80,40);Pixel(picture,Color.Red);

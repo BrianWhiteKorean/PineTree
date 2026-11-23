@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Script.Serialization;
+using PineTree.PdfEngine;
 
 namespace PineTree.Classes
 {
@@ -50,9 +51,13 @@ namespace PineTree.Classes
             var p = Parameters;
             if (ProcessCode == "CUT" || ProcessCode == "AL_SCROLL")
             {
-                if (p.LineWidthMm <= 0 || p.LineWidthMm > 10 || p.ColorMode != "SPOT" || string.IsNullOrWhiteSpace(p.SpotColorName)
-                    || p.SpotColorName.Length > 100 || p.SpotColorName.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0)
-                    throw new ArgumentException("재단선은 0 초과 10mm 이하의 선두께와 별색 이름(100자 이내)을 입력해주세요.");
+                if (p.LineWidthMm <= 0 || p.LineWidthMm > 10)
+                    throw new ArgumentException("재단선 두께는 0 초과 10mm 이하로 입력해주세요.");
+                if (p.ColorMode != "SPOT" && (ProcessCode != "CUT" || p.ColorMode != "BLACK"))
+                    throw new ArgumentException("재단선 색상방식을 선택해주세요.");
+                if (p.ColorMode == "SPOT" && (string.IsNullOrWhiteSpace(p.SpotColorName)
+                    || p.SpotColorName.Length > 100 || p.SpotColorName.IndexOfAny(new[] { '\r', '\n', '\0' }) >= 0))
+                    throw new ArgumentException("별색 이름은 100자 이내로 입력해주세요.");
                 if (ProcessCode == "AL_SCROLL" && (p.ScrollTopMm < 0 || p.ScrollBottomMm < 0 || p.ScrollTopMm > 100000 || p.ScrollBottomMm > 100000))
                     throw new ArgumentException("족자및쫄대 상·하 여백은 0 이상 100,000mm 이하로 입력해주세요.");
                 foreach (decimal? inset in new[] { p.CutInsetTopMm, p.CutInsetBottomMm, p.CutInsetLeftMm, p.CutInsetRightMm })
@@ -65,8 +70,11 @@ namespace PineTree.Classes
                     if (color != null && !System.Text.RegularExpressions.Regex.IsMatch(color, @"\A#[0-9a-fA-F]{6}\z"))
                         throw new ArgumentException("타공 색상은 #RRGGBB 형식이어야 합니다.");
                 if (p.HoleMarkKind != "DOT" && p.HoleMarkKind != "CROSS") throw new ArgumentException("타공 마크종류를 선택해주세요.");
-                if (p.MarkLeftRightMm < 2.5m || p.MarkTopBottomMm < 2.5m || (p.TypeCode == "CUSTOM_SPACING" && p.HoleSpacingMm <= 0))
-                    throw new ArgumentException("타공 안쪽 거리는 2.5mm 이상, 최대 간격은 양수로 입력해주세요.");
+                foreach (var placement in p.GetHolePlacements())
+                {
+                    if (placement == null) throw new ArgumentException("타공 배치가 비어 있습니다.");
+                    placement.Validate();
+                }
             }
             else if (ProcessCode == "WOOD" || ProcessCode == "WOOD_TB")
             {
@@ -87,16 +95,19 @@ namespace PineTree.Classes
         }
         public int GetMarkCount(decimal width, decimal height)
         {
+            return GetMarkCountForImage(width, height, width, height);
+        }
+        public int GetMarkCountForImage(decimal width, decimal height, decimal imageWidth, decimal imageHeight)
+        {
             if (ProcessCode != "HOLE") return 0;
             Validate(); var p = Parameters;
-            if (width <= 2 * p.MarkLeftRightMm || height <= 2 * p.MarkTopBottomMm)
-                throw new ArgumentException("타공 안쪽 거리는 완성 가로·세로의 절반보다 작아야 합니다.");
-            if (p.TypeCode == "FOUR_CORNERS") return 4;
-            decimal count = 2 * (Math.Ceiling((width - 2*p.MarkLeftRightMm) / p.HoleSpacingMm) + Math.Ceiling((height - 2*p.MarkTopBottomMm) / p.HoleSpacingMm));
-            if (count > 2000) throw new ArgumentException("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.");
-            return (int)count;
+            return HoleMarkPlacement.GetTotalMarkCount(p.GetHolePlacements(), (double)width, (double)height, (double)imageWidth, (double)imageHeight);
         }
         public string Summary(decimal width, decimal height)
+        {
+            return SummaryForImage(width, height, width, height);
+        }
+        public string SummaryForImage(decimal width, decimal height, decimal imageWidth, decimal imageHeight)
         {
             var p = Parameters;
             if (ProcessCode == "AL_SCROLL") return string.Format("상 여백 {0:0.###}·하 여백 {1:0.###}mm / 재단선 {2:0.###}mm / 별색 {3}", p.ScrollTopMm, p.ScrollBottomMm, p.LineWidthMm, p.SpotColorName);
@@ -105,9 +116,25 @@ namespace PineTree.Classes
             if (ProcessCode == "CUT") return string.Format("{0} / 사방 외곽선 / {1:0.###}mm / 별색 {2}{3}", p.TypeCode == "EXACT" ? "정재단" : "일반 재단", p.LineWidthMm, p.SpotColorName, p.FromSource ? " (원본 포함)" : "");
             if (ProcessCode == "HOLE")
             {
-                string count; try { count = width > 0 && height > 0 ? GetMarkCount(width, height) + "개" : "개수: 치수 입력 후 계산"; }
+                if (p.HolePlacements != null)
+                {
+                    string total;
+                    try { total = width > 0 && height > 0 ? $" / {GetMarkCountForImage(width, height, imageWidth, imageHeight)}개" : ""; }
+                    catch (ArgumentException) { total = " / 치수 확인 필요"; }
+                    return $"타공 배치 {p.HolePlacements.Count}건{total} / {(p.HoleMarkKind == "CROSS" ? "십자마크" : "점")}";
+                }
+                var edges = p.GetHoleEdges();
+                string count;
+                try { count = !edges.HasEnabledEdge() ? "0개" : width > 0 && height > 0 ? GetMarkCount(width, height) + "개" : "개수: 치수 입력 후 계산"; }
                 catch (ArgumentException) { count = "치수 확인 필요"; }
-                return string.Format("{0} / {1} / 재단선 기준 좌우 {2:0.###}·상하 {3:0.###}mm", p.TypeCode == "FOUR_CORNERS" ? "사방타공" : "최대 " + p.HoleSpacingMm.ToString("0.###") + "mm 간격", count, p.MarkLeftRightMm, p.MarkTopBottomMm) + " / " + (p.HoleMarkKind == "CROSS" ? "십자마크" : "점");
+                string positions = string.Join("·", new[] {
+                    edges.LeftEnabled ? $"좌 {edges.LeftMm:0.###}" : null,
+                    edges.RightEnabled ? $"우 {edges.RightMm:0.###}" : null,
+                    edges.TopEnabled ? $"상 {edges.TopMm:0.###}" : null,
+                    edges.BottomEnabled ? $"하 {edges.BottomMm:0.###}" : null
+                }.Where(x => x != null));
+                string layout = p.TypeCode == "FOUR_CORNERS" ? "사방타공" : $"최대 {p.HoleSpacingMm:0.###}mm 간격";
+                return $"{layout} / {count} / {(edges.HasEnabledEdge() ? "재단선 기준 " + positions + "mm" : "선택한 방향 없음")} / {(p.HoleMarkKind == "CROSS" ? "십자마크" : "점")}";
             }
             if (ProcessCode == "WOOD" || ProcessCode == "WOOD_TB") return string.Format("{0} 여분 각 {1:0.###}mm{3} / 디자인선 {2}{4}",
                 ProcessCode == "WOOD_TB" ? "상하" : "좌우", p.ExtraLineMm ?? p.DimensionMm, p.MakeDesignLine ? p.DesignLineMm.ToString("0.###") + "mm" : "없음",
@@ -182,6 +209,18 @@ namespace PineTree.Classes
         public string HoleMarkKind { get; set; } = "DOT";
         public decimal MarkLeftRightMm { get; set; } = 20;
         public decimal MarkTopBottomMm { get; set; } = 20;
+        public HoleMarkEdges HoleEdges { get; set; }
+        // Null represents the single placement used by older orders.
+        public List<HoleMarkPlacement> HolePlacements { get; set; }
+        public IEnumerable<HoleMarkPlacement> GetHolePlacements()
+        {
+            if (HolePlacements != null) return HolePlacements;
+            return new[] { new HoleMarkPlacement { TypeCode = TypeCode, Edges = GetHoleEdges(), SpacingMm = (double)HoleSpacingMm } };
+        }
+        public HoleMarkEdges GetHoleEdges()
+        {
+            return HoleEdges ?? HoleMarkEdges.FromSymmetric((double)MarkLeftRightMm, (double)MarkTopBottomMm);
+        }
         public decimal HoleSpacingMm { get; set; } = 500;
     }
 }

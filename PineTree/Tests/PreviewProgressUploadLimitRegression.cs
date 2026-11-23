@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -39,14 +39,15 @@ internal static class PreviewProgressUploadLimitRegression
             bitmap.Save(source, System.Drawing.Imaging.ImageFormat.Png);
         }
         string output = null;
-        foreach (string name in new[] { "UcOrder페트", "UcOrder수성_그룹A" })
+        foreach (string name in new[] { "UcOrder수성_그룹B", "UcOrder수성_그룹A" })
         using (var editor = (UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder." + name, true)))
         {
             editor.Dock = DockStyle.Fill;
             host.Controls.Add(editor);
-            await (Task)Call(editor, "LoadSourceFileAsync", source);
+            var document = editor.GetType().GetProperty("SourceDocument").GetValue(editor, null);
+            await (Task)document.GetType().GetMethod("LoadAsync").Invoke(document, new object[] { source });
             Check(Field(editor, "_sourceDetails") != null, name + " source load: "
-                + ((Control)Field(editor, "tbFileInfo")).Text);
+                + document.GetType().GetProperty("FileInfo").GetValue(document, null));
             var settings = Call(editor, "ReadPdfGenerationSettings");
             output = Path.Combine(folder, name + ".pdf");
             var task = (Task)Call(editor, "GeneratePdfToPathAsync", output, settings);
@@ -75,16 +76,19 @@ internal static class PreviewProgressUploadLimitRegression
             await WaitUntil(() => Field(viewer, "_renderProgress") != null);
             var progress = (Form)Field(viewer, "_renderProgress");
             Check(progress != null && progress.Visible && progress.Owner == viewer, "preview rendering progress visible");
-            await WaitUntil(() => Field(viewer, "_render") == null);
-            Check(((PictureBox)Field(viewer, "_picture")).Image != null && progress.IsDisposed, "render success closes progress");
-            Call(viewer, "Render");
-            progress = (Form)Field(viewer, "_renderProgress");
             Call(viewer, "Render");
             Check(object.ReferenceEquals(progress, Field(viewer, "_renderProgress")), "replacement render reuses progress");
             await WaitUntil(() => Field(viewer, "_render") == null);
-            Check(progress.IsDisposed && Field(viewer, "_renderProgress") == null, "latest render closes progress");
+            Check(((PictureBox)Field(viewer, "_picture")).Image != null && progress.IsDisposed, "latest render closes progress");
             Call(viewer, "Render");
-            progress = (Form)Field(viewer, "_renderProgress");
+            Check(Field(viewer, "_renderProgress") == null, "cached preview does not open progress");
+        }
+        using (var viewer = (Form)Activator.CreateInstance(viewerType, new object[] { output, true }))
+        {
+            viewer.ShowInTaskbar = false;
+            viewer.Show(host);
+            await WaitUntil(() => Field(viewer, "_renderProgress") != null);
+            var progress = (Form)Field(viewer, "_renderProgress");
             viewer.Dispose();
             Check(progress.IsDisposed && Field(viewer, "_renderProgress") == null, "closing preview disposes progress");
         }

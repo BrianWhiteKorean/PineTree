@@ -8,7 +8,7 @@ import unittest
 from PIL import Image, ImageChops, ImageDraw, ImageStat
 import pypdfium2 as pdfium
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import ContentStream, DictionaryObject, NameObject, FloatObject, DecodedStreamObject
+from pypdf.generic import ContentStream, DictionaryObject, NameObject, FloatObject, DecodedStreamObject, RectangleObject
 
 PROJECT = Path(__file__).resolve().parents[1]
 ROOT = PROJECT.parents[1]
@@ -43,6 +43,33 @@ class PdfWorkerTests(unittest.TestCase):
         self.assertAlmostEqual(info["DesignWidthMm"], 60, places=2)
         self.assertAlmostEqual(info["DesignHeightMm"], 180, places=2)
         self.assertGreater(info["PageWidthMm"], 5000)
+
+    def test_single_ai_preserves_artwork_outside_internal_clip(self):
+        source = self.temp / "full-artboard.ai"
+        writer = PdfWriter()
+        page = writer.add_blank_page(width=200, height=400)
+        page.artbox = RectangleObject([0, 0, 200, 400])
+        content = DecodedStreamObject()
+        content.set_data(b".5 g 0 0 200 400 re f q 0 60 200 340 re W n 1 1 0 rg 0 0 200 400 re f Q")
+        page[NameObject("/Contents")] = writer._add_object(content)
+        writer.write(source)
+
+        preview = self.temp / "full-artboard.png"
+        result = worker.execute({"Operation": "preview", "SourcePath": str(source),
+                                 "OutputPath": str(preview), "MaxPixels": 400})
+        self.assertEqual(result["Region"], [0, 0, 200, 400])
+        with Image.open(preview) as image:
+            self.assertEqual(image.size, (200, 400))
+            self.assertEqual(image.convert("RGB").getpixel((100, 380)), (128, 128, 128))
+
+        output = self.temp / "full-artboard-output.pdf"
+        worker.execute({"Operation": "generate", "SourcePath": str(source), "OutputPath": str(output),
+                        "Settings": {"TargetWidthMm": 200/worker.MM, "TargetHeightMm": 400/worker.MM,
+                                     "MakeCutline": False, "MakeHole": False}})
+        output_page = PdfReader(output).pages[0]
+        worker.render_preview(output, output_page, list(output_page.cropbox), preview, 400, True)
+        with Image.open(preview) as image:
+            self.assertEqual(image.convert("RGB").getpixel((100, 380)), (128, 128, 128))
 
     def test_png_transparency_preview_and_generation(self):
         source = self.temp / "투명 원본.png"

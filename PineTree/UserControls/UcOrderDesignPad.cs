@@ -3,6 +3,8 @@ using PineTree.Classes;
 using PineTree.UserControlsOrder;
 using PineTree.Dialogs;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System;
 using System.Data;
 using System.Drawing;
@@ -22,7 +24,6 @@ namespace PineTree.UserControls
         private string m_sSelectedCustCode;
         private string m_productionStatus = OrderProductionStatusHelper.ToDbText(OrderProductionStatus.New);
         private DataTable m_orderItems;
-        private Dictionary<string, Func<UserControl>> m_orderEditorFactories;
         private string m_orderEditorCategory;
         private UserControl m_orderEditor;
         private Dictionary<DataRow, UserControl> m_orderItemEditors;
@@ -110,7 +111,8 @@ namespace PineTree.UserControls
                 m_productionStatus = OrderProductionStatusHelper.ToDbText(OrderProductionStatus.New);
                 inputGroupHeader1.Text = "주문 등록";
                 tbOrderNo.Text = "저장 시 자동 할당됩니다";
-                tbCustName.Text = tbCustCode.Text = tbRemark.Text = tbSpec.Text = string.Empty;
+                tbOrderName.Text = string.Empty;
+                tbCustName.Text = tbCustCode.Text = tbRemark.Text = tbSpec.Text = tbAddress.Text = tbZipcode.Text = string.Empty;
                 tbDeliveryFee.Value = 0;
                 dtmOrder.Value = dtmDelivery.Value = DateTime.Today;
                 cbChannel.SelectedIndex = cbChannel.Items.Count > 0 ? 0 : -1;
@@ -199,6 +201,7 @@ namespace PineTree.UserControls
             btnFlip.Click += delegate { TransformCurrentSource(0, true); };
             UpdateSourceTransformButtons();
             btnSave.Click += btnSave_Click;
+            btnWorkOrder.Click += btnWorkOrder_Click;
             btnCancel.Click += btnCancel_Click;
             btnCustList.Click += btnCustList_Click;
             cbDeliveryType.SelectedIndexChanged += delegate { ApplySelectedDeliveryFee(); };
@@ -232,14 +235,6 @@ namespace PineTree.UserControls
         {
             m_materialEditors = new Dictionary<string, UserControl>();
             m_materialRows = new Dictionary<string, DataRow>();
-            // 품목분류별 편집 컨트롤은 이 목록에 등록한다.
-            m_orderEditorFactories = new Dictionary<string, Func<UserControl>>(StringComparer.Ordinal)
-            {
-                { string.Empty, () => new UcOrderBase() },
-                { "현수막", () => new UcOrder수성_그룹A() },
-                { "합성지", () => new UcOrder수성_그룹A() },
-                { "페트", () => new UcOrder페트() }
-            };
             m_orderItemEditors = new Dictionary<DataRow, UserControl>();
             m_sourceDocument = new OrderSourceDocument();
             m_sourcePreview = new OrderSourcePreview(panelPreview, pictureBox1, panelCanvas, tbFileInfo);
@@ -278,28 +273,26 @@ namespace PineTree.UserControls
 
         private void UpdateSelectedOrderEditor()
         {
-            if (m_orderEditorFactories == null || m_isLoadingOrderItems) return;
+            if (m_orderItemEditors == null || m_isLoadingOrderItems) return;
             string category = cbCategoryName.SelectedIndex >= 0 ? cbCategoryName.Text.Trim() : null;
-            if (string.IsNullOrEmpty(category) || !m_orderEditorFactories.ContainsKey(category)
-                || (category == "합성지" && GetSelectedPriceCategory() != "수성")) category = null;
+            string editorKey = OrderItemEditorFactory.GetEditorKey(GetSelectedPriceCategory(), category);
             UserControl editor = null;
-            if (category != null)
+            if (editorKey != null)
             {
-                if (!m_materialEditors.TryGetValue(category, out editor) || editor.IsDisposed)
+                if (!m_materialEditors.TryGetValue(editorKey, out editor) || editor.IsDisposed)
                 {
-                    editor = m_orderEditorFactories[category]();
+                    editor = OrderItemEditorFactory.Create(editorKey);
                     ((IOrderSourceEditor)editor).AttachSourceDocument(m_sourceDocument);
-                    m_materialEditors[category] = editor;
+                    m_materialEditors[editorKey] = editor;
                     var sourceEditor = (IOrderSourceEditor)editor;
                     sourceEditor.SourceViewChanged += delegate {
                         if (ReferenceEquals(m_orderEditor, editor)) UpdateSourceTransformPreview();
                     };
                     var materialEditor = (IOrderItemEditor)editor;
-                    string materialCategory = category;
                     materialEditor.OrderValuesChanged += delegate
                     {
                         DataRow row;
-                        if (m_materialRows.TryGetValue(materialCategory, out row)) UpdateBannerOrderValues(row, materialEditor);
+                        if (m_materialRows.TryGetValue(editorKey, out row)) UpdateBannerOrderValues(row, materialEditor);
                         if (ReferenceEquals(m_orderEditor, editor)) UpdateOrderPriceSummary(true);
                     };
                 }
@@ -504,18 +497,19 @@ namespace PineTree.UserControls
         // Merely moving the grid selection never changes or replaces the material editor.
         private void BindMaterialRow(DataRow row)
         {
-            string category = Convert.ToString(row["CategoryName"]);
-            if (category == "합성지" && Convert.ToString(row["PriceCategory"]).Trim() != "수성") return;
+            string priceCategory = Convert.ToString(row["PriceCategory"]).Trim();
+            string category = Convert.ToString(row["CategoryName"]).Trim();
+            string editorKey = OrderItemEditorFactory.GetEditorKey(priceCategory, category);
             UserControl control;
-            if (!m_materialEditors.TryGetValue(category, out control) || control.IsDisposed) return;
+            if (editorKey == null || !m_materialEditors.TryGetValue(editorKey, out control) || control.IsDisposed) return;
             DataRow previous;
-            if (m_materialRows.TryGetValue(category, out previous) && previous != row)
+            if (m_materialRows.TryGetValue(editorKey, out previous) && previous != row)
             {
                 if (previous.RowState != DataRowState.Detached && previous.RowState != DataRowState.Deleted)
                     previous["EditorStateJson"] = ((IOrderItemEditor)control).CaptureEditorState().ToJson();
                 m_orderItemEditors.Remove(previous);
             }
-            m_materialRows[category] = row;
+            m_materialRows[editorKey] = row;
             m_orderItemEditors[row] = control;
             UpdateBannerOrderValues(row, (IOrderItemEditor)control);
         }
@@ -704,6 +698,21 @@ namespace PineTree.UserControls
             }
 
             ShowCustomerListDialog(custName);
+        }
+
+        private void btnAddress_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new DialogAddressSearch())
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                var address = dialog.SelectedAddress;
+                tbAddress.Text = address.RoadAddress;
+                tbZipcode.Text = address.ZipCode;
+            }
         }
 
         private void btnCustList_Click(object sender, EventArgs e)
@@ -1087,15 +1096,79 @@ namespace PineTree.UserControls
             dialog.Location = new Point(x, y);
         }
 
+        private async void btnWorkOrder_Click(object sender, EventArgs e)
+        {
+            btnWorkOrder.Enabled = false;
+            try
+            {
+                var source = (m_orderEditor as IOrderSourceEditor)?.SourceDocument ?? m_sourceDocument;
+                if (source != null)
+                {
+                    await source.EnsureLoadedAsync();
+                    if (IsDisposed || Disposing) return;
+                    if (source.IsPreviewBusy)
+                    {
+                        MessageBox.Show(this, "주문 이미지 미리보기를 불러오는 중입니다.", "작업지시서",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                }
+
+                var editor = m_orderEditor as IOrderItemEditor;
+                var settings = editor?.CaptureEditorState();
+                decimal quantity = GetDecimal(tbQty.Value);
+                var order = new DeliveryWorkOrder
+                {
+                    OrderNo = m_orderId > 0 ? tbOrderNo.Text.Trim() : null,
+                    WrittenAt = GetDateValue(dtmOrder.Value),
+                    DueAt = (m_linkedOrderId.HasValue ? m_linkedDueAt : GetDateValue(dtmDelivery.Value)) ?? default(DateTime),
+                    Customer = tbCustName.Text,
+                    Delivery = cbDeliveryType.Text,
+                    Equipment = GetSelectedEquipmentName(),
+                    Paper = string.IsNullOrWhiteSpace(cbCategoryName.Text) || cbCategoryName.Text == "[선택]" ? cbItem.Text : cbCategoryName.Text,
+                    Size = editor != null && editor.WidthMm > 0 && editor.HeightMm > 0
+                        ? FormattableString.Invariant($"{editor.WidthMm:0.####}x{editor.HeightMm:0.####}") : "",
+                    Quantity = quantity > 0 ? quantity.ToString("0.####", CultureInfo.InvariantCulture) + "장" : "",
+                    Coating = (m_orderEditor as IOrderCoatingEditor)?.WorkOrderCoating,
+                    Finishing = settings == null ? "" : string.Join(", ", settings.GetPostProcesses().Select(process =>
+                        process.ProcessCode == "WOOD" && process.Parameters.TypeCode == "TOP_BOTTOM" ? "상하각목" : process.ProcessName)),
+                    Materials = string.Join(", ", m_orderItems.Rows.Cast<DataRow>().Select(row =>
+                        $"{row["OrderName"]} {row["Qty"]:0.####}{row["UnitName"]}".Trim())),
+                    Remarks = tbRemark.Text,
+                    CoverImage = pictureBox1.Image ?? source?.CurrentImage
+                };
+
+                using (var dialog = new DialogWorkOrder(order, CreateOrderNumberForWorkOrderAsync))
+                    dialog.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed && !Disposing)
+                    MessageBox.Show(this, "작업지시서를 열 수 없습니다.\r\n" + ex.Message, "작업지시서", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                if (!IsDisposed && !Disposing) btnWorkOrder.Enabled = true;
+            }
+        }
+
         private async void btnSave_Click(object sender, EventArgs e)
         {
-            if (m_isSaving) return;
+            await SaveOrderAsync(this, false);
+        }
+
+        private async Task<string> CreateOrderNumberForWorkOrderAsync(IWin32Window owner)
+        {
+            if (m_orderId > 0) return tbOrderNo.Text.Trim();
+            return await SaveOrderAsync(owner, true);
+        }
+
+        private async Task<string> SaveOrderAsync(IWin32Window owner, bool keepEditing)
+        {
+            if (m_isSaving) return null;
             FGrid1.FinishEditing();
             BindingContext[m_orderItems].EndCurrentEdit();
-            if (!CheckValidation())
-            {
-                return;
-            }
+            if (!(keepEditing ? ValidateOrderForSave(owner) : CheckValidation())) return null;
 
             m_isSaving = true;
             Enabled = false;
@@ -1106,26 +1179,39 @@ namespace PineTree.UserControls
                 var sourceEditor = m_orderEditor as IOrderSourceEditor;
                 var document = sourceEditor == null ? m_sourceDocument : sourceEditor.SourceDocument;
                 var snapshot = await document.CapturePreviewSnapshotAsync(System.Threading.CancellationToken.None);
-                if (IsDisposed || Disposing) return;
+                if (IsDisposed || Disposing) return null;
                 var order = CreateOrderSaveData();
                 order.PreviewSnapshotJson = snapshot == null ? null : snapshot.ToJson();
-                m_orderId = OrderRepository.UpsertOrder(order);
+                m_orderId = OrderRepository.SaveOrderWithIdentifiers(order, out string newOrderNo, out List<long> itemIds);
                 m_savedSourcePreview = snapshot;
+                if (keepEditing) ApplySavedOrderIdentifiers(newOrderNo, itemIds);
             }
-            catch (OperationCanceledException) { return; }
+            catch (OperationCanceledException) { return null; }
             catch (Exception ex)
             {
                 if (!IsDisposed && !Disposing)
-                    MessageBox.Show("저장 중 오류가 발생했습니다.\r\n" + ex.Message, "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                    MessageBox.Show(owner, "저장 중 오류가 발생했습니다.\r\n" + ex.Message, "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
             }
             finally
             {
                 m_isSaving = false;
                 if (!IsDisposed && !Disposing) { Enabled = true; btnSave.Text = previousSaveText; }
             }
-            EventHandler handler = OrderSaved;
-            if (handler != null) handler(this, EventArgs.Empty);
+            string orderNo = keepEditing ? tbOrderNo.Text.Trim() : null;
+            OrderSaved?.Invoke(this, keepEditing ? new OrderSavedForWorkOrderEventArgs() : EventArgs.Empty);
+            return orderNo;
+        }
+
+        private void ApplySavedOrderIdentifiers(string orderNo, List<long> itemIds)
+        {
+            m_DialogMode = DialogMode.Edit;
+            inputGroupHeader1.Text = "주문 수정";
+            tbOrderNo.Text = orderNo;
+            tbOrderNo.ToolTipText = string.Empty;
+            inputButton1.Enabled = false;
+            for (int i = 0; i < itemIds.Count; i++)
+                m_orderItems.Rows[i]["OrderItemId"] = itemIds[i];
         }
 
         private OrderSaveData CreateOrderSaveData()
@@ -1140,38 +1226,16 @@ namespace PineTree.UserControls
                 DeliveryType = cbDeliveryType.Text.Trim(),
                 DeliveryFee = GetDecimal(tbDeliveryFee.Value),
                 RequestedDueAt = m_linkedOrderId.HasValue ? m_linkedDueAt : GetDateValue(dtmDelivery.Value),
-                OrderTitle = GetOrderTitle(),
+                OrderTitle = tbOrderName.Text.Trim(),
                 SpecText = tbSpec.Text,
                 OrderDescription = tbRemark.Text,
+                DeliveryAddress = tbAddress.Text.Trim(),
                 ProductionStatus = m_productionStatus,
                 SourceChannel = "직접입력",
                 CreatedBy = Environment.UserName,
                 DesignPadStateJson = CaptureDesignPadState(),
                 Items = CreateOrderItemSaveDataList()
             };
-        }
-
-        private string GetOrderTitle()
-        {
-            string productName = cbItem.Text.Trim();
-            if (!string.IsNullOrWhiteSpace(productName) && productName != "[선택]") return productName;
-
-            if (m_orderItems.Rows.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            string firstItemName = m_orderItems.Rows[0]["OrderName"].ToString();
-            if (string.IsNullOrWhiteSpace(firstItemName))
-            {
-                firstItemName = m_orderItems.Rows[0]["ItemName"].ToString();
-            }
-            if (m_orderItems.Rows.Count == 1)
-            {
-                return firstItemName;
-            }
-
-            return string.Format("{0} 외 {1}건", firstItemName, m_orderItems.Rows.Count - 1);
         }
 
         private System.Collections.Generic.List<OrderItemSaveData> CreateOrderItemSaveDataList()
@@ -1251,6 +1315,7 @@ namespace PineTree.UserControls
         {
             m_isInitializing = true;
             tbOrderNo.Text = Convert.ToString(row["OrderNo"]);
+            tbOrderName.Text = row.Table.Columns.Contains("OrderTitle") ? Convert.ToString(row["OrderTitle"]) : string.Empty;
             SetLinkedHeaderLocked(row.Table.Columns.Contains("OrderGroupSequence") && row["OrderGroupSequence"] != DBNull.Value);
             tbSpec.Text = row.Table.Columns.Contains("SpecText") ? Convert.ToString(row["SpecText"]) : string.Empty;
             dtmOrder.Value = GetDateValue(row["OrderDate"]) ?? DateTime.Today;
@@ -1262,6 +1327,8 @@ namespace PineTree.UserControls
             tbDeliveryFee.Value = GetDecimal(row["DeliveryFee"]);
             m_productionStatus = row["ProductionStatus"].ToString();
             tbRemark.Text = row["OrderDescription"].ToString();
+            tbAddress.Text = row.Table.Columns.Contains("DeliveryAddress") ? Convert.ToString(row["DeliveryAddress"]) : string.Empty;
+            tbZipcode.Text = string.Empty;
 
             DateTime? dueAt = GetDateValue(row["RequestedDueAt"]);
             if (dueAt.HasValue)
@@ -1311,35 +1378,40 @@ namespace PineTree.UserControls
 
         private bool CheckValidation()
         {
+            return ValidateOrderForSave(this);
+        }
+
+        private bool ValidateOrderForSave(IWin32Window owner)
+        {
             if (string.IsNullOrWhiteSpace(m_sSelectedCustCode))
             {
-                MessageBox.Show("거래처를 선택해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(owner, "거래처를 선택해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return false;
             }
 
             if (cbItem.SelectedIndex < 0 || string.IsNullOrWhiteSpace(cbItem.Text) || cbItem.Text == "[선택]")
             {
-                MessageBox.Show("제품을 선택해주세요", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(owner, "제품을 선택해주세요", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return false;
             }
             UpdateAutomaticSpecification();
             if (string.IsNullOrWhiteSpace(tbSpec.Text))
             {
-                MessageBox.Show("원본파일을 불러와 규격을 확인해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(owner, "원본파일을 불러와 규격을 확인해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return false;
             }
             foreach (DataRow row in m_orderItems.Rows)
             {
                 if (row["OrderName"].ToString().Length > 50)
                 {
-                    MessageBox.Show("주문명은 50자 이내로 입력해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(owner, "주문명은 50자 이내로 입력해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return false;
                 }
             }
             var activeEditor = m_orderEditor as IOrderItemEditor;
             if (activeEditor != null && activeEditor.IsProcessing)
             {
-                MessageBox.Show("파일 처리가 완료된 후 저장해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(owner, "파일 처리가 완료된 후 저장해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return false;
             }
             if (m_orderItemEditors != null)
@@ -1348,7 +1420,7 @@ namespace PineTree.UserControls
                     var banner = editor as IOrderItemEditor;
                     if (banner != null && banner.IsProcessing)
                     {
-                        MessageBox.Show("파일 처리가 완료된 후 저장해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(owner, "파일 처리가 완료된 후 저장해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return false;
                     }
                 }
@@ -1413,4 +1485,6 @@ namespace PineTree.UserControls
             return result > 0M ? (decimal?)result : null;
         }
     }
+
+    internal sealed class OrderSavedForWorkOrderEventArgs : EventArgs { }
 }

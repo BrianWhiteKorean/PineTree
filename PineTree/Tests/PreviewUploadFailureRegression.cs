@@ -1,7 +1,8 @@
-using PineTree.Classes;
+﻿using PineTree.Classes;
 using PineTree.PdfEngine;
 using PineTree.UserControlsOrder;
 using System;
+using System.Data;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -16,7 +17,7 @@ internal static class PreviewUploadFailureRegression
     private static int checks;
     private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
     private interface IFakeUpload { Func<string, Task<OrderServerFile>> Upload { get; set; } }
-    private sealed class PetEditor : UcOrder페트, IFakeUpload
+    private sealed class PetEditor : UcOrder수성_그룹B, IFakeUpload
     {
         public Func<string, Task<OrderServerFile>> Upload { get; set; }
         protected override Task<OrderServerFile> UploadOrderFileAsync(string path) { return Upload(path); }
@@ -50,13 +51,14 @@ internal static class PreviewUploadFailureRegression
         using (editor)
         {
             host.Controls.Add(editor);
-            await (Task)Call(editor, "LoadSourceFileAsync", source);
+            await ((IOrderSourceEditor)editor).SourceDocument.LoadAsync(source);
             Check(Field(editor, "_sourceDetails") != null, "reported PDF loads");
             var cut = OrderPostProcessSetting.Create("CUT");
             cut.Parameters.CutInsetTopMm = cut.Parameters.CutInsetBottomMm = cut.Parameters.CutInsetLeftMm = cut.Parameters.CutInsetRightMm = 5;
             Call(editor, "CommitPostProcess", -1, cut);
             Call(editor, "CommitPostProcess", -1, OrderPostProcessSetting.Create("HOLE"));
             var settings = (PdfGenerationSettings)Call(editor, "ReadPdfGenerationSettings");
+            settings.OutputRipScale = 10;
             foreach (int failAt in new[] { 1, 2, 0 })
             {
                 int uploads = 0;
@@ -69,11 +71,26 @@ internal static class PreviewUploadFailureRegression
                 string output = Path.Combine(folder, editor.GetType().Name + "-" + failAt + ".pdf");
                 var result = await (Task<OrderDocumentResult>)Call(editor, "GenerateAndUploadPdfAsync", output, settings);
                 Check(File.Exists(result.OutputPath), "upload failure preserves generated PDF");
+                Check(result.OutputRipScale == 10 && Math.Abs(result.OutputWidthMm * 10 -
+                    (settings.FinishedWidthMm() + settings.EdgeLeftMm + settings.EdgeRightMm)) < .00001,
+                    "generated PDF uses the RIP delivery scale");
                 Check(Field(editor, "_sourceProgress") == null && !(bool)Field(editor, "_generating"), "progress and busy state cleaned up");
                 Check(failAt == 0 ? Field(editor, "_serverUploadWarning") == null
                     : ((string)Field(editor, "_serverUploadWarning")).Contains("HTTPS 인증서"), "warning resets on successful retry");
                 Check(failAt == 0 ? Field(editor, "_outputServerFile") != null : Field(editor, "_outputServerFile") == null, "failed upload never records output as uploaded");
                 Check(failAt == 1 ? Field(editor, "_sourceServerFile") == null : Field(editor, "_sourceServerFile") != null, "successful source upload retained");
+                if (failAt == 0)
+                {
+                    var state = ((IOrderItemEditor)editor).CaptureEditorState();
+                    var restored = BannerOrderEditorState.FromJson(state.ToJson());
+                    Check(restored.OutputServerFile.RipScale == 10m, "uploaded PDF's scale survives saving and reopening");
+                    var table = new DataTable();
+                    table.Columns.Add("EditorStateJson");
+                    var row = table.Rows.Add(state.ToJson());
+                    var service = typeof(BannerOrderEditorState).Assembly.GetType("PineTree.Classes.WorkOrderDocumentService", true);
+                    var scale = service.GetMethod("ScaleText", BindingFlags.Static | BindingFlags.NonPublic);
+                    Check((string)scale.Invoke(null, new object[] { row }) == "10배", "work order displays the uploaded PDF's RIP scale");
+                }
                 if (failAt == 1)
                 {
                     var preview = await OrderDocumentService.PreviewAsync(result.OutputPath, 0, 800, false, CancellationToken.None);

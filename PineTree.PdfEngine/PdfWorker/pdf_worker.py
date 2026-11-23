@@ -5,13 +5,17 @@ Original files are never modified. Run this worker with its packaged runtime.
 """
 from __future__ import annotations
 
+import os
+from time import perf_counter_ns
+
+_IMPORT_START = perf_counter_ns() if os.environ.get("PINETREE_PDF_WORKER_TIMING") == "1" else None
+
 import copy
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import ctypes
 import io
 import json
 import math
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -26,6 +30,22 @@ from pypdf.generic import (
     ArrayObject, BooleanObject, ContentStream, DecodedStreamObject, DictionaryObject,
     FloatObject, NameObject, NumberObject, RectangleObject,
 )
+
+_TIMINGS = {"module_init": perf_counter_ns() - _IMPORT_START} if _IMPORT_START is not None else None
+_NO_TIMING = nullcontext()
+
+
+@contextmanager
+def _timed(stage):
+    start = perf_counter_ns()
+    try:
+        yield
+    finally:
+        _TIMINGS[stage] = _TIMINGS.get(stage, 0) + perf_counter_ns() - start
+
+
+def measure(stage):
+    return _NO_TIMING if _TIMINGS is None else _timed(stage)
 
 MM = 72.0 / 25.4
 SUPPORTED = {".pdf", ".ai", ".eps", ".png", ".jpg", ".jpeg"}
@@ -146,7 +166,17 @@ def source_region(page, is_ai: bool):
     box = tuple(map(float, page.cropbox))
     # Multi-page PDF-compatible AI already has one bounded page per artboard.
     # An internal clip may be just one tile (e.g. the apple in Yokel), not the design.
-    if not is_ai or len(page.pdf.pages) > 1:
+    if not is_ai or len(page.pdf.pages) > 1 or "/ArtBox" not in page:
+        return box, "페이지 전체"
+    # Only infer a design region for legacy canvases with an explicit inner ArtBox.
+    # When the ArtBox spans the page, internal clips can cover individual objects.
+    art_box = tuple(map(float, page.artbox))
+    tolerance = .02
+    page_area = (box[2]-box[0])*(box[3]-box[1])
+    inner_area_limit = page_area*.995
+    if (not (box[0]-tolerance <= art_box[0] < art_box[2] <= box[2]+tolerance
+                    and box[1]-tolerance <= art_box[1] < art_box[3] <= box[3]+tolerance)
+            or (art_box[2]-art_box[0])*(art_box[3]-art_box[1]) >= inner_area_limit):
         return box, "페이지 전체"
     # Prefer a large shallow design clip/background over the Illustrator canvas.
     # ArtBox may also include notes; a full-page clip is not a design boundary.
@@ -178,10 +208,9 @@ def source_region(page, is_ai: bool):
             rw, rh = x1-x0, y1-y0
             if rw <= 0 or rh <= 0:
                 continue
-            tolerance = .02
             if (depth <= 2 and box[0]-tolerance <= x0 < x1 <= box[2]+tolerance
                     and box[1]-tolerance <= y0 < y1 <= box[3]+tolerance
-                    and rw*rh < (box[2]-box[0])*(box[3]-box[1])*.995):
+                    and rw*rh < inner_area_limit):
                 candidates.append((-(rw*rh), depth, (max(box[0], x0), max(box[1], y0), min(box[2], x1), min(box[3], y1))))
     if candidates:
         return sorted(candidates)[0][2], "디자인 영역 자동 인식 (사각 클립/배경 기준)"
@@ -337,12 +366,12 @@ def has_thru(resources, visited=None, spot_name="thru"):
 
 def generation_settings(raw=None):
     # No Settings is the legacy PET preset used by DialogOrderInfoEdit.
-    s = {"TargetWidthMm": 600, "TargetHeightMm": 1800, "FitMode": "CONTAIN", "ExpandImage": False, "SourceRotationDegreesClockwise": 0, "SourceFlipHorizontal": False,
+    s = {"TargetWidthMm": 600, "TargetHeightMm": 1800, "OutputRipScale": 1, "FitMode": "CONTAIN", "ExpandImage": False, "SourceRotationDegreesClockwise": 0, "SourceFlipHorizontal": False,
          "EdgeTopMm": 0, "EdgeBottomMm": 0, "EdgeLeftMm": 0, "EdgeRightMm": 0,
          "MakeAlScroll": False, "ScrollTopMm": 5, "ScrollBottomMm": 5,
          "CutInsetsFromPage": False, "CutInsetTopMm": 0, "CutInsetBottomMm": 0, "CutInsetLeftMm": 0, "CutInsetRightMm": 0,
-         "MakeCutline": True, "LineWidthMm": .18, "SpotColorName": "thru", "MakeHole": True,
-         "HoleBackgroundColor": "#FFFFFF", "HoleMarkerColor": "#000000", "HoleMarkKind": "CROSS", "HoleType": "FOUR_CORNERS", "MarkLeftRightMm": 20, "MarkTopBottomMm": 20, "HoleSpacingMm": 500,
+         "MakeCutline": True, "LineWidthMm": .18, "CutlineColorMode": "SPOT", "SpotColorName": "thru", "MakeHole": True,
+         "HoleBackgroundColor": "#FFFFFF", "HoleMarkerColor": "#000000", "HoleMarkKind": "CROSS", "HoleType": "FOUR_CORNERS", "MarkLeftRightMm": 20, "MarkTopBottomMm": 20, "HoleEdges": None, "HolePlacements": None, "HoleSpacingMm": 500,
          "MakeWood": False, "WoodExtraMm": 0, "MakeWoodDesignLine": False, "WoodDesignOffsetMm": 0,
          "WoodExtraLineThicknessMm": .17/MM, "WoodDesignLineThicknessMm": .17/MM,
          "MakeWoodTopBottom": False, "WoodTopBottomExtraMm": 0, "MakeWoodTopBottomDesignLine": False, "WoodTopBottomDesignOffsetMm": 0,
@@ -352,7 +381,7 @@ def generation_settings(raw=None):
         if not isinstance(raw, dict):
             raise ValueError("PDF 생성 조건은 JSON 객체여야 합니다.")
         s.update({k: v for k, v in raw.items() if k in s and v is not None and v != ""})
-    for key in ("TargetWidthMm", "TargetHeightMm", "EdgeTopMm", "EdgeBottomMm", "EdgeLeftMm", "EdgeRightMm",
+    for key in ("TargetWidthMm", "TargetHeightMm", "OutputRipScale", "EdgeTopMm", "EdgeBottomMm", "EdgeLeftMm", "EdgeRightMm",
                 "ScrollTopMm", "ScrollBottomMm", "CutInsetTopMm", "CutInsetBottomMm", "CutInsetLeftMm", "CutInsetRightMm",
                 "LineWidthMm", "MarkLeftRightMm", "MarkTopBottomMm", "HoleSpacingMm", "WoodExtraMm", "WoodDesignOffsetMm", "WoodTopBottomExtraMm", "WoodTopBottomDesignOffsetMm",
                 "WoodTopBottomExtraLineThicknessMm", "WoodTopBottomDesignLineThicknessMm", "WoodExtraLineThicknessMm", "WoodDesignLineThicknessMm"):
@@ -362,6 +391,8 @@ def generation_settings(raw=None):
             raise ValueError("숫자가 아닌 PDF 생성 조건입니다: " + key)
         if not math.isfinite(s[key]):
             raise ValueError("유효한 숫자가 아닙니다: " + key)
+    if s["OutputRipScale"] < 1:
+        raise ValueError("RIP 출력 배율은 1 이상이어야 합니다.")
     for key in ("SourceFlipHorizontal", "CutInsetsFromPage", "ExpandImage", "MakeAlScroll", "MakeCutline", "MakeHole", "MakeWood", "MakeWoodDesignLine", "MakeWoodTopBottom", "MakeWoodTopBottomDesignLine"):
         if not isinstance(s[key], bool):
             raise ValueError("생성 여부는 true/false 값이어야 합니다.")
@@ -408,12 +439,11 @@ def generation_settings(raw=None):
         raise ValueError("상하 각목 여분은 0 이상이며 디자인선 이격은 여분 이내여야 합니다.")
     if s["MakeAlScroll"] and min(s["ScrollTopMm"], s["ScrollBottomMm"]) < 0:
         raise ValueError("족자및쫄대 상·하 여백은 0 이상이어야 합니다.")
-    finished_height = (s["ScrollTopMm"]+s["ScrollBottomMm"] if s["MakeAlScroll"] else 0) + s["TargetHeightMm"] + (2*s["WoodTopBottomExtraMm"] if s["MakeWoodTopBottom"] else 0) + rope_padding(s,"TopMm") + rope_padding(s,"BottomMm")
     if s["MakeWood"] and any(not 0 < s[k] <= 100000 for k in ("WoodExtraLineThicknessMm", "WoodDesignLineThicknessMm")):
         raise ValueError("좌우각목 선두께는 0 초과 100,000mm 이하로 입력해주세요.")
     if s["MakeWoodTopBottom"] and any(not 0 < s[k] <= 100000 for k in ("WoodTopBottomExtraLineThicknessMm", "WoodTopBottomDesignLineThicknessMm")):
         raise ValueError("상하각목 선두께는 0 초과 100,000mm 이하로 입력해주세요.")
-    finished_width = s["TargetWidthMm"] + (2*s["WoodExtraMm"] if s["MakeWood"] else 0) + rope_padding(s,"LeftMm") + rope_padding(s,"RightMm")
+    finished_width, finished_height = hole_finished_size(s)
     if max(finished_width+s["EdgeLeftMm"]+s["EdgeRightMm"], finished_height+s["EdgeTopMm"]+s["EdgeBottomMm"]) > 14400:
         raise ValueError("출력 크기는 14,400mm 이하여야 합니다.")
     if s["FitMode"] not in ("CONTAIN", "COVER"):
@@ -422,9 +452,14 @@ def generation_settings(raw=None):
             or s["CutInsetLeftMm"]+s["CutInsetRightMm"] >= finished_width+(s["EdgeLeftMm"]+s["EdgeRightMm"] if s["CutInsetsFromPage"] else 0)
             or s["CutInsetTopMm"]+s["CutInsetBottomMm"] >= finished_height+(s["EdgeTopMm"]+s["EdgeBottomMm"] if s["CutInsetsFromPage"] else 0)):
         raise ValueError("재단 여백은 0 이상이며 좌우·상하 합은 출력 폭·길이보다 작아야 합니다.")
-    if s["MakeCutline"] and (not 0 < s["LineWidthMm"] <= 10 or len(s["SpotColorName"]) > 100
-                              or any(c in s["SpotColorName"] for c in "\r\n\0")):
-        raise ValueError("재단선 두께 또는 별색 이름이 올바르지 않습니다.")
+    if s["MakeCutline"]:
+        if not 0 < s["LineWidthMm"] <= 10:
+            raise ValueError("재단선 두께는 0 초과 10mm 이하로 입력해주세요.")
+        if s["CutlineColorMode"] not in ("SPOT", "BLACK"):
+            raise ValueError("재단선 색상방식을 선택해주세요.")
+        if s["CutlineColorMode"] == "SPOT" and (len(s["SpotColorName"]) > 100
+                or any(c in s["SpotColorName"] for c in "\r\n\0")):
+            raise ValueError("별색 이름은 100자 이내로 입력해주세요.")
     if s["MakeHole"]:
         for key in ("HoleBackgroundColor", "HoleMarkerColor"):
             color = s[key]
@@ -432,12 +467,21 @@ def generation_settings(raw=None):
                 raise ValueError("타공 색상은 #RRGGBB 형식이어야 합니다.")
         if s["HoleMarkKind"] not in ("DOT", "CROSS"):
             raise ValueError("지원하지 않는 타공 마크종류입니다.")
-        if s["HoleType"] not in ("FOUR_CORNERS", "CUSTOM_SPACING"):
-            raise ValueError("지원하지 않는 타공 배치입니다.")
-        if min(s["MarkLeftRightMm"], s["MarkTopBottomMm"]) < 2.5 or 2*s["MarkLeftRightMm"] >= finished_width or 2*s["MarkTopBottomMm"] >= finished_height:
-            raise ValueError("마크 안쪽 거리는 2.5mm 이상이며 완성 크기의 절반보다 작아야 합니다.")
-        if s["HoleType"] == "CUSTOM_SPACING" and s["HoleSpacingMm"] <= 0:
-            raise ValueError("타공 최대 간격은 양수여야 합니다.")
+        for kind, edges, spacing, runs, image_coordinates in hole_placements(s):
+            if kind not in ("FOUR_CORNERS", "CUSTOM_SPACING"):
+                raise ValueError("지원하지 않는 타공 배치입니다.")
+            if runs:
+                for run, vertical in runs:
+                    hole_run_endpoints(run, s["TargetWidthMm"] if image_coordinates else finished_width,
+                                       s["TargetHeightMm"] if image_coordinates else finished_height, vertical)
+                continue
+            if any(edges[side+"Enabled"] for side in ("Left", "Right", "Top", "Bottom")):
+                if min(edges[side+"Mm"] for side in ("Left", "Right", "Top", "Bottom")) < 1.5:
+                    raise ValueError("타공 안쪽 거리는 1.5mm 이상으로 입력해주세요.")
+                if edges["LeftMm"] + edges["RightMm"] >= finished_width or edges["TopMm"] + edges["BottomMm"] >= finished_height:
+                    raise ValueError("타공 안쪽 거리의 좌우·상하 합은 각각 완성 가로·세로보다 작아야 합니다.")
+                if kind == "CUSTOM_SPACING" and (type(spacing) not in (int, float) or not math.isfinite(spacing) or spacing <= 0):
+                    raise ValueError("타공 최대 간격은 양수여야 합니다.")
     return s
 
 
@@ -453,19 +497,186 @@ def rope_padding(s, side):
     return sum(rope[side] for rope in sewing_passes(s))
 
 
+def hole_edges(s, raw):
+    if raw is not None and not isinstance(raw, dict):
+        raise ValueError("타공 방향 설정이 올바르지 않습니다.")
+    raw = raw or {}
+    edges = {}
+    for side, legacy in (("Left", "MarkLeftRightMm"), ("Right", "MarkLeftRightMm"),
+                         ("Top", "MarkTopBottomMm"), ("Bottom", "MarkTopBottomMm")):
+        enabled_key, inset_key = side+"Enabled", side+"Mm"
+        enabled = raw.get(enabled_key, True)
+        inset = raw.get(inset_key, s[legacy])
+        if not isinstance(enabled, bool) or type(inset) not in (int, float) or not math.isfinite(inset):
+            raise ValueError("타공 방향 또는 안쪽 거리가 올바르지 않습니다.")
+        edges.update({enabled_key: enabled, inset_key: inset})
+    return edges
+
+
+def hole_placements(s):
+    rows = s.get("HolePlacements")
+    if rows is None:
+        yield s["HoleType"], hole_edges(s, s.get("HoleEdges")), s["HoleSpacingMm"], (), False
+        return
+    if not isinstance(rows, list):
+        raise ValueError("타공 배치 목록이 올바르지 않습니다.")
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("타공 배치가 비어 있습니다.")
+        kind = row.get("TypeCode")
+        runs = tuple((row[key], key in ("LeftRun", "RightRun"))
+                     for key in ("TopRun", "BottomRun", "LeftRun", "RightRun") if row.get(key) is not None)
+        if runs:
+            if kind != "CUSTOM_SPACING":
+                raise ValueError("지원하지 않는 타공 배치입니다.")
+            yield kind, None, None, runs, row.get("ImageCoordinates", False)
+        else:
+            if not isinstance(row.get("Edges"), dict):
+                raise ValueError("타공 배치가 비어 있습니다.")
+            yield kind, hole_edges(s, row["Edges"]), row.get("SpacingMm"), (), False
+
+
+def hole_finished_size(s):
+    width = s["TargetWidthMm"] + (2*s["WoodExtraMm"] if s["MakeWood"] else 0)
+    height = s["TargetHeightMm"] + (2*s["WoodTopBottomExtraMm"] if s["MakeWoodTopBottom"] else 0)
+    if s["MakeAlScroll"]:
+        height += s["ScrollTopMm"] + s["ScrollBottomMm"]
+    return (width + rope_padding(s, "LeftMm") + rope_padding(s, "RightMm"),
+            height + rope_padding(s, "TopMm") + rope_padding(s, "BottomMm"))
+
+
+def run_coordinate(run, near_key, far_key, size):
+    far = run.get(far_key)
+    if far is None:
+        return run.get(near_key)
+    return max(0, size - far) if valid_coordinate(far, size) else None
+
+
+def hole_run_endpoints(run, width, height, vertical):
+    if not isinstance(run, dict) or type(run.get("Count")) is not int or not 1 <= run["Count"] <= 2000:
+        raise ValueError("타공 개수는 1~2,000개로 입력해주세요.")
+    count = run["Count"]
+    left = run_coordinate(run, "StartLeftMm", "StartRightMm", width)
+    top = run_coordinate(run, "StartTopMm", "StartBottomMm", height)
+    if not valid_coordinate(left, width) or not valid_coordinate(top, height):
+        raise ValueError("타공 시작 위치가 완성품의 가로·세로 범위를 벗어났습니다.")
+    if run.get("Mode") == "UNIFORM":
+        end_left = run_coordinate(run, "EndLeftMm", "EndRightMm", width)
+        end_top = run_coordinate(run, "EndTopMm", "EndBottomMm", height)
+        if not valid_coordinate(end_left, width) or not valid_coordinate(end_top, height):
+            raise ValueError("타공 끝 위치가 이미지 가로·세로 범위를 벗어났습니다.")
+        if count != 1 and same_hole_position((left, top), (end_left, end_top)):
+            raise ValueError("균등간격의 시작점과 끝점이 같으면 1개를 입력해주세요.")
+    elif run.get("Mode") == "FIXED":
+        spacing = run.get("SpacingMm")
+        if type(spacing) not in (int, float) or not math.isfinite(spacing) or spacing <= 0:
+            raise ValueError("고정간격은 0mm보다 커야 합니다.")
+        actual_count = 1
+        start, limit = (top, height) if vertical else (left, width)
+        while actual_count < count and valid_coordinate(start + actual_count * spacing, limit):
+            actual_count += 1
+        count = actual_count
+        offset = (count - 1) * spacing
+        end_left, end_top = (left, top + offset) if vertical else (left + offset, top)
+    else:
+        raise ValueError("타공 간격 방식을 선택해주세요.")
+    return count, left, top, end_left, end_top
+
+
+def valid_coordinate(value, limit):
+    return type(value) in (int, float) and 0 <= value <= limit + 1e-9
+
+
+def same_hole_position(point, other):
+    return abs(point[0] - other[0]) <= 1e-9 and abs(point[1] - other[1]) <= 1e-9
+
+
+def uniform_mark_positions(start, end, count, perpendicular_marks):
+    if same_hole_position(start, end):
+        return [start]
+    skip_start = any(same_hole_position(start, point) for point in perpendicular_marks)
+    skip_end = any(same_hole_position(end, point) for point in perpendicular_marks)
+    intervals = count + skip_start + skip_end - 1
+    if intervals == 0:
+        return [((start[0] + end[0])/2, (start[1] + end[1])/2)]
+
+    step_x, step_y = (end[0] - start[0])/intervals, (end[1] - start[1])/intervals
+    marks = []
+    for i in range(int(skip_start), int(skip_start) + count):
+        if i == 0:
+            marks.append(start)
+        elif i == intervals:
+            marks.append(end)
+        else:
+            marks.append((start[0] + i*step_x, start[1] + i*step_y))
+    return marks
+
+
+def run_mark_positions(s, run, width, height, image_coordinates, vertical, perpendicular_marks):
+    origin_x = s["EdgeLeftMm"]
+    origin_bottom = s["EdgeBottomMm"]
+    if image_coordinates:
+        width, height = s["TargetWidthMm"], s["TargetHeightMm"]
+        origin_x += rope_padding(s, "LeftMm") + (s["WoodExtraMm"] if s["MakeWood"] else 0)
+        origin_bottom += (rope_padding(s, "BottomMm") + (s["WoodTopBottomExtraMm"] if s["MakeWoodTopBottom"] else 0)
+                          + (s["ScrollBottomMm"] if s["MakeAlScroll"] else 0))
+    count, left, top, end_left, end_top = hole_run_endpoints(run, width, height, vertical)
+    origin_y = origin_bottom + height
+    start = (origin_x + left, origin_y - top)
+    if run["Mode"] == "FIXED":
+        if vertical:
+            return [(start[0], start[1] - i*run["SpacingMm"]) for i in range(count)]
+        return [(start[0] + i*run["SpacingMm"], start[1]) for i in range(count)]
+    end = (origin_x + end_left, origin_y - end_top)
+    return uniform_mark_positions(start, end, count, perpendicular_marks)
+
+
 def mark_positions(s):
     if not s["MakeHole"]:
         return []
-    x0, y0 = s["EdgeLeftMm"]+s["MarkLeftRightMm"], s["EdgeBottomMm"]+s["MarkTopBottomMm"]
-    w = s["TargetWidthMm"]+(2*s["WoodExtraMm"] if s["MakeWood"] else 0)+rope_padding(s,"LeftMm")+rope_padding(s,"RightMm")-2*s["MarkLeftRightMm"]
-    h = (s["ScrollTopMm"]+s["ScrollBottomMm"] if s["MakeAlScroll"] else 0)+s["TargetHeightMm"]+(2*s["WoodTopBottomExtraMm"] if s["MakeWoodTopBottom"] else 0)+rope_padding(s,"TopMm")+rope_padding(s,"BottomMm")-2*s["MarkTopBottomMm"]
-    if s["HoleType"] == "FOUR_CORNERS":
-        return [(x0+x, y0+y) for x in (0, w) for y in (0, h)]
-    nx, ny = max(1, math.ceil(w/s["HoleSpacingMm"])), max(1, math.ceil(h/s["HoleSpacingMm"]))
-    if 2*(nx+ny) > 2000:
+    marks = []
+    earlier_runs = {False: [], True: []}
+    width, height = hole_finished_size(s)
+    for kind, edges, spacing, runs, image_coordinates in hole_placements(s):
+        if runs:
+            row_runs = {False: [], True: []}
+            for run, vertical in runs:
+                points = run_mark_positions(s, run, width, height, image_coordinates, vertical, earlier_runs[not vertical])
+                marks.extend(points)
+                row_runs[vertical].extend(points)
+            for direction, points in row_runs.items():
+                earlier_runs[direction].extend(points)
+        else:
+            marks.extend(placement_mark_positions(s, kind, edges, spacing, width, height))
+        if len(marks) > 2000:
+            raise ValueError("전체 타공마크는 최대 2,000개까지 생성할 수 있습니다.")
+    return marks
+
+
+def placement_mark_positions(s, kind, edges, spacing, width, height):
+    left, right = edges["LeftEnabled"], edges["RightEnabled"]
+    bottom, top = edges["BottomEnabled"], edges["TopEnabled"]
+    if not (left or right or bottom or top):
+        return []
+    x0, y0 = s["EdgeLeftMm"]+edges["LeftMm"], s["EdgeBottomMm"]+edges["BottomMm"]
+    w = width - edges["LeftMm"] - edges["RightMm"]
+    h = height - edges["TopMm"] - edges["BottomMm"]
+    vertical_edges = [(x, enabled) for x, enabled in ((x0, left), (x0+w, right))]
+    horizontal_edges = [(y, enabled) for y, enabled in ((y0, bottom), (y0+h, top))]
+    corners = [(x, y) for x, vertical in vertical_edges for y, horizontal in horizontal_edges if vertical or horizontal]
+    if kind == "FOUR_CORNERS":
+        return corners
+    horizontal_count, vertical_count = int(bottom)+int(top), int(left)+int(right)
+    horizontal_steps = w/spacing if horizontal_count else 0
+    vertical_steps = h/spacing if vertical_count else 0
+    if max(horizontal_steps, vertical_steps) > 2000:
         raise ValueError("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.")
-    return ([(x0+w*i/nx, y0+y) for y in (0, h) for i in range(nx+1)]
-            + [(x0+x, y0+h*i/ny) for x in (0, w) for i in range(1, ny)])
+    nx, ny = max(1, math.ceil(horizontal_steps)), max(1, math.ceil(vertical_steps))
+    if len(corners)+horizontal_count*(nx-1)+vertical_count*(ny-1) > 2000:
+        raise ValueError("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.")
+    return (corners
+            + [(x0+w*i/nx, y) for y, enabled in horizontal_edges if enabled for i in range(1, nx)]
+            + [(x, y0+h*i/ny) for x, enabled in vertical_edges if enabled for i in range(1, ny)])
 
 
 def wood_process_colors(resources, visited=None):
@@ -518,7 +729,8 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
     source = reader.pages[page_index]
     if source.get_contents() is None:
         raise ValueError("선택한 페이지에 출력할 그림이 없습니다.")
-    if s["MakeCutline"] and detect_cutline(source, s["SpotColorName"])["HasCutline"]:
+    spot_cutline = s["MakeCutline"] and s["CutlineColorMode"] == "SPOT"
+    if spot_cutline and detect_cutline(source, s["SpotColorName"])["HasCutline"]:
         raise ValueError("입력파일에 이미 " + s["SpotColorName"] + " 별색 경로가 있습니다. 재단선 생성을 끄거나 후가공 전 원본을 선택해주세요.")
     if s["MakeWood"] or s["MakeWoodTopBottom"]:
         wood_process_colors(source.get("/Resources", {}))
@@ -607,8 +819,6 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
             for sx0, sx1, tx, corner_width in [(x0, x0+band, 0, x), (x1-band, x1, x+w, right)]:
                 for sy0, sy1, ty, corner_height in [(y0, y0+band, 0, y), (y1-band, y1, y+h, top)]:
                     stamp((sx0, sy0, sx1, sy1), (tx, ty, corner_width, corner_height))
-    tint = DictionaryObject({NameObject("/FunctionType"): NumberObject(2), NameObject("/Domain"): array([0, 1]),
-                             NameObject("/C0"): array([0, 0, 0, 0]), NameObject("/C1"): array([1, 0, 0, 0]), NameObject("/N"): NumberObject(1)})
     # Add our resources without replacing the original CMYK/DeviceN and soft masks.
     colors = resources.setdefault(NameObject("/ColorSpace"), DictionaryObject())
     states = resources.setdefault(NameObject("/ExtGState"), DictionaryObject())
@@ -622,12 +832,16 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
             name = stem + str(index)
             index += 1
         return NameObject(name)
-    cut_name = unused_name(colors, "/CutColor")
     white_name = unused_name(states, "/NoOverprint")
     black_name = unused_name(states, "/BlackOverprint")
-    if s["MakeCutline"]:
+    cut_stroke_color = "0 0 0 1 K"
+    if spot_cutline:
+        cut_name = unused_name(colors, "/CutColor")
+        tint = DictionaryObject({NameObject("/FunctionType"): NumberObject(2), NameObject("/Domain"): array([0, 1]),
+                                 NameObject("/C0"): array([0, 0, 0, 0]), NameObject("/C1"): array([1, 0, 0, 0]), NameObject("/N"): NumberObject(1)})
         colors[cut_name] = ArrayObject([
             NameObject("/Separation"), NameObject("/"+s["SpotColorName"]), NameObject("/DeviceCMYK"), writer._add_object(tint)])
+        cut_stroke_color = f"{cut_name} CS 1 SCN"
     states[white_name] = DictionaryObject({NameObject("/OP"): BooleanObject(False), NameObject("/op"): BooleanObject(False)})
     states[black_name] = DictionaryObject({NameObject("/OP"): BooleanObject(True), NameObject("/op"): BooleanObject(True), NameObject("/OPM"): NumberObject(1)})
     if s["MakeWood"]:
@@ -685,10 +899,12 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
     for mx, my in marks:
         cx, cy = mx*MM, my*MM
         if s["HoleMarkKind"] == "DOT":
-            # A 1pt round dot with a white knockout halo, visible over any artwork.
+            # The halo is 2 mm at final print size. The delivery page is scaled below.
+            halo_diameter = 2*MM
+            center_diameter = halo_diameter*.8
             point = f"{cx:.8f} {cy:.8f} m {cx:.8f} {cy:.8f} l S"
-            instructions += [f"q 1 J {white_name} gs {hole_color} {1.5*MM:.8f} w {point}",
-                             f"{dot_state} gs {dot_color} 1 w {point} Q"]
+            instructions += [f"q 1 J {white_name} gs {hole_color} {halo_diameter:.8f} w {point}",
+                             f"{dot_state} gs {dot_color} {center_diameter:.8f} w {point} Q"]
             continue
         radius = 2.5*MM
         cross = f"{cx-radius:.8f} {cy:.8f} m {cx+radius:.8f} {cy:.8f} l {cx:.8f} {cy-radius:.8f} m {cx:.8f} {cy+radius:.8f} l S"
@@ -699,34 +915,43 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
         cut_width = (pw if s["CutInsetsFromPage"] else tw)-(s["CutInsetLeftMm"]+s["CutInsetRightMm"])*MM
         cut_height = (ph if s["CutInsetsFromPage"] else th)-(s["CutInsetTopMm"]+s["CutInsetBottomMm"])*MM
         page.trimbox = RectangleObject([cut_left, cut_bottom, cut_left+cut_width, cut_bottom+cut_height])
-        instructions.append(f"q {white_name} gs {cut_name} CS 1 SCN {s['LineWidthMm']*MM:.8f} w {cut_left:.8f} {cut_bottom:.8f} {cut_width:.8f} {cut_height:.8f} re S Q")
+        instructions.append(f"q {white_name} gs {cut_stroke_color} {s['LineWidthMm']*MM:.8f} w {cut_left:.8f} {cut_bottom:.8f} {cut_width:.8f} {cut_height:.8f} re S Q")
     content = DecodedStreamObject()
     content.set_data(main_content + ("\n".join(instructions) + "\n").encode("ascii"))
     page[NameObject("/Contents")] = writer._add_object(content)
+    rip_scale = s["OutputRipScale"]
+    if rip_scale != 1:
+        # Scale artwork, finishing marks and page boxes together for RIP delivery.
+        page.scale_by(1/rip_scale)
     page.compress_content_streams()
+    pdf_width, pdf_height = pw/MM/rip_scale, ph/MM/rip_scale
     snapshot = {"schemaVersion": 1, "sourceRegionPt": list(region), "pageIndex": page_index,
                 "settings": s, "markCount": len(marks), "engineVersion": "PineTreePdf/2"}
-    writer.add_metadata({"/Title": f"PineTree output - {s['TargetWidthMm']:g}x{s['TargetHeightMm']:g}mm",
+    writer.add_metadata({"/Title": f"PineTree output - {pdf_width:g}x{pdf_height:g}mm",
+                         "/PineTreeRipScale": f"{rip_scale:g}",
                          "/Producer": "PineTree PDF worker", "/PineTreeGenerationSettings": json.dumps(snapshot, ensure_ascii=False)})
     if "/OutputIntents" in reader.trailer["/Root"]:
         writer._root_object[NameObject("/OutputIntents")] = reader.trailer["/Root"]["/OutputIntents"].clone(writer)
     if own_writer:
-        writer.write(destination)
+        with measure("pdf_write"):
+            writer.write(destination)
         with PdfReader(destination) as check:
             if len(check.pages) != 1:
                 raise ValueError("생성한 PDF의 페이지 수 검증에 실패했습니다.")
-    if s["MakeCutline"] and not has_thru(page["/Resources"], spot_name=s["SpotColorName"]):
+    if spot_cutline and not has_thru(page["/Resources"], spot_name=s["SpotColorName"]):
         raise ValueError("생성한 PDF의 페이지/별색 검증에 실패했습니다.")
+    cutline_color_label = s["SpotColorName"] if spot_cutline else "검정(Black)"
     return {"OutputPath": str(destination), "Recipe": f"완성 {tw/MM:g}×{th/MM:g}mm / 출력 {pw/MM:g}×{ph/MM:g}mm / "
+            + (f"전달 PDF {pdf_width:g}×{pdf_height:g}mm / RIP {rip_scale:g}배 / " if rip_scale != 1 else "")
             + ("맞춤" if s["FitMode"] == "CONTAIN" else "채움")
-            + (f" / {s['SpotColorName']} 재단선 {s['LineWidthMm']:g}mm" if s["MakeCutline"] else " / 재단선 없음")
+            + (f" / {cutline_color_label} 재단선 {s['LineWidthMm']:g}mm" if s["MakeCutline"] else " / 재단선 없음")
             + (f" / 족자및쫄대 상 {s['ScrollTopMm']:g}·하 {s['ScrollBottomMm']:g}mm" if s["MakeAlScroll"] else "")
             + (f" / 좌우각목 여분 각 {s['WoodExtraMm']:g}mm" if s["MakeWood"] else "")
             + (f" / 상하각목 여분 각 {s['WoodTopBottomExtraMm']:g}mm" if s["MakeWoodTopBottom"] else "")
             + (f" / 사방줄미싱 {len(s['RopeSewPasses'])}건" if s["RopeSewPasses"] else "")
             + (f" / 사방시접미싱 {len(s['HemSewPasses'])}건" if s["HemSewPasses"] else "")
             + f" / 타공 {'십자마크' if s['HoleMarkKind'] == 'CROSS' else '점'} {len(marks)}개", "Scale": factor, "FitMode": s["FitMode"].lower(), "PageCount": 1,
-            "OutputWidthMm": pw/MM, "OutputHeightMm": ph/MM, "MarkCount": len(marks)}
+            "OutputWidthMm": pdf_width, "OutputHeightMm": pdf_height, "OutputRipScale": rip_scale, "MarkCount": len(marks)}
 
 
 def generate_pages(source, reader, details, destination, settings):
@@ -734,10 +959,11 @@ def generate_pages(source, reader, details, destination, settings):
     results = []
     for index in range(len(reader.pages)):
         try:
-            info = inspect_file(source, reader, details, index)
-            current = dict(settings)
-            if current.get("RequireSourceCutline") and not detect_cutline(reader.pages[index], current.get("SpotColorName"))["HasCutline"]:
-                raise ValueError("첫 대지에서 인식한 원본 재단선이 이 페이지에는 없습니다. 원본의 재단선을 확인해주세요.")
+            with measure("source_analysis"):
+                info = inspect_file(source, reader, details, index)
+                current = dict(settings)
+                if current.get("RequireSourceCutline") and not detect_cutline(reader.pages[index], current.get("SpotColorName"))["HasCutline"]:
+                    raise ValueError("첫 대지에서 인식한 원본 재단선이 이 페이지에는 없습니다. 원본의 재단선을 확인해주세요.")
             width, height = info["SourceWidthMm"], info["SourceHeightMm"]
             if current.get("SourceRotationDegreesClockwise", 0) in (90, 270):
                 width, height = height, width
@@ -757,7 +983,8 @@ def generate_pages(source, reader, details, destination, settings):
         except Exception as error:
             raise ValueError(f"대지 {index + 1}: {error}") from error
     writer.add_metadata({"/PineTreePageResults": json.dumps(results, ensure_ascii=False)})
-    writer.write(destination)
+    with measure("pdf_write"):
+        writer.write(destination)
     with PdfReader(destination) as check:
         if len(check.pages) != len(reader.pages):
             raise ValueError("생성한 PDF의 페이지 수 검증에 실패했습니다.")
@@ -769,9 +996,10 @@ def execute(request):
     source = Path(request["SourcePath"]).resolve()
     with source_stream_limit(source), tempfile.TemporaryDirectory(prefix="pinetree_pdf_", dir=request.get("WorkDirectory")) as folder:
         work = Path(folder)
-        reader, normalized, details = open_document(source, work, request)
-        index = int(request.get("PageIndex", 0))
-        info = inspect_file(source, reader, details, index)
+        with measure("source_analysis"):
+            reader, normalized, details = open_document(source, work, request)
+            index = int(request.get("PageIndex", 0))
+            info = inspect_file(source, reader, details, index)
         operation = request["Operation"]
         if operation == "inspect":
             return info
@@ -780,20 +1008,23 @@ def execute(request):
             raise ValueError("원본파일을 덮어쓸 수 없습니다. 다른 저장 경로를 선택해주세요.")
         destination.parent.mkdir(parents=True, exist_ok=True)
         if operation == "preview":
-            render_preview(normalized, reader.pages[index], info["Region"], destination,
-                           request.get("MaxPixels", 1600), request.get("FullCanvas", False), request.get("ViewportRegion"))
+            with measure("preview_render"):
+                render_preview(normalized, reader.pages[index], info["Region"], destination,
+                               request.get("MaxPixels", 1600), request.get("FullCanvas", False), request.get("ViewportRegion"))
             return {**info, "PreviewPath": str(destination)}
         if operation == "generate":
             settings = request.get("Settings") or {}
-            if settings.get("GenerateAllPages") and source.suffix.lower() == ".ai" and len(reader.pages) > 1:
-                return {**info, **generate_pages(source, reader, details, destination, settings)}
-            return {**info, **generate_pdf(reader, index, info["Region"], destination, request.get("Settings"))}
+            with measure("pdf_generation"):
+                if settings.get("GenerateAllPages") and source.suffix.lower() == ".ai" and len(reader.pages) > 1:
+                    return {**info, **generate_pages(source, reader, details, destination, settings)}
+                return {**info, **generate_pdf(reader, index, info["Region"], destination, request.get("Settings"))}
         if operation == "extract":
             writer = PdfWriter()
             writer.add_page(reader.pages[index])
             if "/OutputIntents" in reader.trailer["/Root"]:
                 writer._root_object[NameObject("/OutputIntents")] = reader.trailer["/Root"]["/OutputIntents"].clone(writer)
-            writer.write(destination)
+            with measure("pdf_write"):
+                writer.write(destination)
             return {**info, "OutputPath": str(destination), "PageCount": 1}
         raise ValueError("지원하지 않는 파일 처리 작업입니다.")
 
@@ -802,6 +1033,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     request_path, response_path = map(Path, sys.argv[1:3])
+    request = None
     try:
         request = json.loads(request_path.read_text(encoding="utf-8-sig"))
         response = {"Success": True, **execute(request)}
@@ -809,6 +1041,10 @@ def main():
         traceback.print_exc(file=sys.stderr)
         response = {"Success": False, "Error": str(error)}
     response_path.write_text(json.dumps(response, ensure_ascii=False), encoding="utf-8")
+    if _TIMINGS is not None and isinstance(request, dict) and request.get("RequestId"):
+        timing = {"requestId": request["RequestId"],
+                  "elapsedMs": {stage: round(ns / 1_000_000, 3) for stage, ns in _TIMINGS.items()}}
+        print("\nPINETREE_PDF_TIMING " + json.dumps(timing))
     return 0 if response["Success"] else 1
 
 

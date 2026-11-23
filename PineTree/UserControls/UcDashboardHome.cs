@@ -463,13 +463,15 @@ namespace PineTree.UserControls
             grid.TotalCount = 0;
             grid.TotalText = CreateTotalText(0);
 
-            grid.Columns.Add(new PagedGridColumn("OrderNo", "주문번호", 210, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Customer", "거래처명", 240, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Item", "품목(주문명)", 260, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Size", "규격", 215, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Quantity", "수량/회배", 150, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Status", "진행상태", 170, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Manage", "관리", 0, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("OrderNo", "주문번호", 160, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Customer", "거래처명", 190, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Item", "품목", 210, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Size", "규격", 165, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Quantity", "수량", 100, ContentAlignment.MiddleLeft));
+            // The title uses the 50 px recovered from each of the seven existing columns.
+            grid.Columns.Add(new PagedGridColumn("OrderTitle", "주문명", 350, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Status", "진행상태", 120, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("Manage", "관리", 0, ContentAlignment.MiddleLeft) { MinimumFillWidth = 30 });
 
             grid.SetRows(new Dictionary<string, PagedGridCell>[0]);
             return grid;
@@ -524,12 +526,10 @@ namespace PineTree.UserControls
             }
         }
 
-        private static string GetOrderItemDisplayName(DataRow row, bool firstItem)
+        private static string GetOrderItemDisplayName(DataRow row)
         {
-            string title = row.Table.Columns.Contains("OrderTitle") ? Convert.ToString(row["OrderTitle"]) : string.Empty;
-            if (firstItem && !string.IsNullOrWhiteSpace(title)) return title;
-            string customName = row.Table.Columns.Contains("CustomName") ? Convert.ToString(row["CustomName"]) : string.Empty;
-            return string.IsNullOrWhiteSpace(customName) ? Convert.ToString(row["ItemName"]) : customName;
+            string itemName = ToText(row["ItemName"]);
+            return string.IsNullOrWhiteSpace(itemName) ? ToText(row["CustomName"]) : itemName;
         }
 
         private void BindTodayOrderPage()
@@ -553,9 +553,10 @@ namespace PineTree.UserControls
                         ToText(row["OrderId"]),
                         ToText(row["OrderNo"]),
                         ToText(row["CustName"]),
-                        GetOrderItemDisplayName(row, firstItem),
+                        GetOrderItemDisplayName(row),
                         CreateSizeText(row),
                         CreateQuantityText(row),
+                        firstItem ? ToText(row["StoredOrderTitle"]) : string.Empty,
                         CreateStatusText(ToText(row["ProductionStatus"])));
                     if (!firstItem) {
                         displayRow["OrderNo"] = new PagedGridCell(string.Empty);
@@ -568,9 +569,9 @@ namespace PineTree.UserControls
             _todayOrderGrid.SetRows(rows);
         }
 
-        private static System.Collections.Generic.Dictionary<string, PagedGridCell> CreateOrderRow(string orderId, string orderNo, string customer, string item, string size, string quantity, string status)
+        private static Dictionary<string, PagedGridCell> CreateOrderRow(string orderId, string orderNo, string customer, string item, string size, string quantity, string orderTitle, string status)
         {
-            return new System.Collections.Generic.Dictionary<string, PagedGridCell>
+            return new Dictionary<string, PagedGridCell>
             {
                 { "OrderId", new PagedGridCell(orderId) },
                 { "OrderNo", new PagedGridCell(orderNo) },
@@ -578,6 +579,7 @@ namespace PineTree.UserControls
                 { "Item", new PagedGridCell(item) },
                 { "Size", new PagedGridCell(size) },
                 { "Quantity", new PagedGridCell(quantity) },
+                { "OrderTitle", new PagedGridCell(orderTitle) },
                 { "Status", new PagedGridCell(status) { CellType = PagedGridCellType.Badge } },
                 { "Manage", new PagedGridCell("상세 >") { CellType = PagedGridCellType.Link } }
             };

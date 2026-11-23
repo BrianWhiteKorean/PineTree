@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from PIL import Image, ImageChops, ImageStat
 from pypdf import PdfWriter, PdfReader
-from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject, RectangleObject
 import pypdfium2 as pdfium
 
 spec = importlib.util.spec_from_file_location("worker", Path(__file__).resolve().parents[1]/"PdfWorker/pdf_worker.py")
@@ -13,6 +13,28 @@ worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
 
 class DetailTests(unittest.TestCase):
+    def test_ai_with_nearly_full_artbox_keeps_artwork_outside_internal_clip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)/"banner.ai"
+            preview = Path(tmp)/"preview.png"
+            writer = PdfWriter()
+            page = writer.add_blank_page(width=1000, height=360)
+            page.artbox = RectangleObject((1.5, 0, 998.5, 360))
+            stream = DecodedStreamObject()
+            stream.set_data(b"q 50 100 400 60 re W n 0 0 0 rg 0 0 1000 360 re f Q\n"
+                            b"q 1 0 0 rg 550 0 450 360 re f Q")
+            page[NameObject("/Contents")] = writer._add_object(stream)
+            writer.write(source)
+
+            info = worker.execute(dict(Operation="preview", SourcePath=str(source),
+                                       OutputPath=str(preview), MaxPixels=1000))
+
+            self.assertEqual(info["Region"], [0, 0, 1000, 360])
+            with Image.open(preview) as image:
+                self.assertEqual(image.size, (1000, 360))
+                self.assertEqual(image.getpixel((100, 230))[:3], (0, 0, 0))
+                self.assertEqual(image.getpixel((900, 180))[:3], (255, 0, 0))
+
     def test_vector_text_and_visible_region(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)

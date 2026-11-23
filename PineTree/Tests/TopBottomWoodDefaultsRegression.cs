@@ -30,28 +30,21 @@ internal static class TopBottomWoodDefaultsRegression
                 editor.GetType().GetField("_sourceWidthMm",F).SetValue(editor,800m);
                 editor.GetType().GetField("_sourceHeightMm",F).SetValue(editor,59m);
                 Call(editor,"UpdateDocumentState");
-                foreach(decimal rate in new[]{1m,5.5m,10m}) {
+                foreach(decimal rate in new[]{1m,10m}) {
                     Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,rate==1?"inputOption6":"inputOption7"));
-                    Num(editor,"tbZoomRate",rate);
                     using(var dialog=(Form)Call(editor,"CreatePostProcessDialog",create())) {
-                        Check(Value(dialog,"tbExtraLine")==8*rate && Value(dialog,"tbDesignLine")==0,"scaled spacing default "+rate);
-                        Check(Value(dialog,"tbExtraLineThickness")==.6m*rate && Value(dialog,"tbDesignLineThickness")==.6m*rate,"scaled thickness defaults "+rate);
+                        Check(Value(dialog,"tbExtraLine")==80/rate && Value(dialog,"tbDesignLine")==0,"scaled spacing default "+rate);
+                        Check(Value(dialog,"tbExtraLineThickness")==.6m/rate && Value(dialog,"tbDesignLineThickness")==.6m/rate,"scaled thickness defaults "+rate);
                         Check(!(bool)Get(Field(dialog,"tbDesignLineThickness"),"Enabled"),"unchecked design thickness disabled");
                     }
                 }
-                // Select fixed-size without showing its user guidance message in this test.
-                editor.GetType().GetField("_updatingInputs",F).SetValue(editor,true);
-                Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption13"));
-                editor.GetType().GetField("_updatingInputs",F).SetValue(editor,false);
-                Num(editor,"tbTargetWidth",4000);
                 object accepted;
                 using(var dialog=(Form)Call(editor,"CreatePostProcessDialog",create())) {
-                    Check(Value(dialog,"tbExtraLine")==40 && Value(dialog,"tbExtraLineThickness")==3,"fixed-size uses actual width/source scale");
                     dialog.Shown+=delegate {
                         Set(Field(dialog,"chkDesignLine"),"Checked",true);
                         Check((bool)Get(Field(dialog,"tbDesignLineThickness"),"Enabled"),"design thickness follows checkbox");
-                        Num(dialog,"tbExtraLine",52);Num(dialog,"tbDesignLine",2);
-                        Num(dialog,"tbExtraLineThickness",3.3m);Num(dialog,"tbDesignLineThickness",1.2m);
+                        Num(dialog,"tbExtraLine",5.2m);Num(dialog,"tbDesignLine",.2m);
+                        Num(dialog,"tbExtraLineThickness",.33m);Num(dialog,"tbDesignLineThickness",.12m);
                         Field(dialog,"btnOK").GetType().GetMethod("PerformClick").Invoke(Field(dialog,"btnOK"),null);
                     };
                     Check(dialog.ShowDialog(host)==DialogResult.OK,"settings accepted");accepted=Get(dialog,"Setting");
@@ -60,7 +53,7 @@ internal static class TopBottomWoodDefaultsRegression
                 var pdf=Call(editor,"ReadPdfGenerationSettings");
                 Check((double)Get(pdf,prefix+"ExtraMm")==52 && (double)Get(pdf,prefix+"DesignOffsetMm")==2,"spacing reaches parent PDF settings");
                 Check((double)Get(pdf,prefix+"ExtraLineThicknessMm")==3.3 && (double)Get(pdf,prefix+"DesignLineThicknessMm")==1.2,"separate thickness reaches PDF settings");
-                string summary=(string)accepted.GetType().GetMethod("Summary").Invoke(accepted,new object[]{4000m,295m});
+                string summary=(string)accepted.GetType().GetMethod("Summary").Invoke(accepted,new object[]{8000m,590m});
                 Check(summary.Contains("3.3mm") && summary.Contains("1.2mm"),"parent summary includes both thicknesses");
                 var state=editor.GetType().GetMethod("CaptureEditorState").Invoke(editor,null);
                 var json=(string)state.GetType().GetMethod("ToJson").Invoke(state,null);
@@ -69,8 +62,8 @@ internal static class TopBottomWoodDefaultsRegression
                     restored.GetType().GetMethod("RestoreEditorState").Invoke(restored,new[]{decoded});
                     var items=(System.Collections.IList)Field(restored,"_postProcesses");
                     using(var dialog=(Form)Call(restored,"CreatePostProcessDialog",items[0])) {
-                        Check(Value(dialog,"tbExtraLine")==52 && Value(dialog,"tbDesignLine")==2,"custom spacing restored");
-                        Check(Value(dialog,"tbExtraLineThickness")==3.3m && Value(dialog,"tbDesignLineThickness")==1.2m,"custom thickness restored rather than reset to defaults");
+                        Check(Value(dialog,"tbExtraLine")==5.2m && Value(dialog,"tbDesignLine")==.2m,"custom spacing restored");
+                        Check(Value(dialog,"tbExtraLineThickness")==.33m && Value(dialog,"tbDesignLineThickness")==.12m,"custom thickness restored rather than reset to defaults");
                     }
                 }
                 var invalid=create();var parameters=Get(invalid,"Parameters");Set(parameters,"ExtraLineThicknessMm",(decimal?)0m);

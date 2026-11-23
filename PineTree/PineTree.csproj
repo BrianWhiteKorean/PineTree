@@ -67,15 +67,53 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\AddressResult.cs" />
+    <Compile Include="Classes\AddressSearchService.cs" />
     <Compile Include="Classes\OrderPreviewSnapshot.cs" />
     <Compile Include="Classes\OrderDesignPadState.cs" />
     <Compile Include="Classes\AppScreen.cs" />
     <Compile Include="Classes\OrderSourceDocument.cs" />
+    <Compile Include="Dialogs\DialogAddressSearch.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogAddressSearch.Designer.cs">
+      <DependentUpon>DialogAddressSearch.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderSaved.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogOrderSaved.Designer.cs">
+      <DependentUpon>DialogOrderSaved.cs</DependentUpon>
+    </Compile>
     <Compile Include="Dialogs\DialogDesignModeExit1.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Dialogs\DialogDesignModeExit1.Designer.cs">
       <DependentUpon>DialogDesignModeExit1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogWorkOrder.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogWorkOrder.Designer.cs">
+      <DependentUpon>DialogWorkOrder.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg타공_사방타공.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg타공_사방타공.Designer.cs">
+      <DependentUpon>Dlg타공_사방타공.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg타공_커스텀타공_좌우.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg타공_커스텀타공_좌우.Designer.cs">
+      <DependentUpon>Dlg타공_커스텀타공_좌우.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg타공_커스텀타공_상단하단.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\Dlg타공_커스텀타공_상단하단.Designer.cs">
+      <DependentUpon>Dlg타공_커스텀타공_상단하단.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControlsOrder\OrderSourcePreview.cs" />
     <Compile Include="UserControlsOrder\UcOrderSourcePreview.cs">
@@ -121,11 +159,32 @@
     <Compile Include="Dialogs\DialogOrderList.Designer.cs">
       <DependentUpon>DialogOrderList.cs</DependentUpon>
     </Compile>
+    <Compile Include="UserControlsOrder\UcOrder라텍스_그룹A.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder라텍스_그룹A.Designer.cs">
+      <DependentUpon>UcOrder라텍스_그룹A.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder라텍스_그룹A.PostProcesses.cs">
+      <DependentUpon>UcOrder라텍스_그룹A.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder수성_그룹B.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder수성_그룹B.Designer.cs">
+      <DependentUpon>UcOrder수성_그룹B.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControlsOrder\UcOrder수성_그룹B.PostProcesses.cs">
+      <DependentUpon>UcOrder수성_그룹B.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="UserControls\UcOrderDesignPad.Linking.cs">
       <DependentUpon>UcOrderDesignPad.cs</DependentUpon>
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Classes\WorkOrderDocumentService.cs" />
+    <Compile Include="Classes\DeliveryWorkOrderService.cs" />
     <Compile Include="Classes\WorkOrderPreviewService.cs" />
     <Compile Include="Classes\BannerOrderEditorState.cs" />
     <Compile Include="Classes\OrderServerFile.cs" />
@@ -151,15 +210,7 @@
     </Compile>
     <Compile Include="UserControlsOrder\PostProcessDialogBinding.cs" />
     <Compile Include="UserControlsOrder\IOrderItemEditor.cs" />
-    <Compile Include="UserControlsOrder\UcOrder페트.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="UserControlsOrder\UcOrder페트.Designer.cs">
-      <DependentUpon>UcOrder페트.cs</DependentUpon>
-    </Compile>
-    <Compile Include="UserControlsOrder\UcOrder페트.PostProcesses.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="UserControlsOrder\OrderItemEditorFactory.cs" />
     <Compile Include="UserControlsOrder\UcOrder수성_그룹A.PostProcesses.cs">
       <DependentUpon>UcOrder수성_그룹A.cs</DependentUpon>
       <SubType>UserControl</SubType>
@@ -348,11 +399,11 @@
     <Compile Include="UserControlsOrder\Dialog후가공기본.Designer.cs">
       <DependentUpon>Dialog후가공기본.cs</DependentUpon>
     </Compile>
-    <Compile Include="UserControlsOrder\Dlg현수막_재단선.cs">
+    <Compile Include="UserControlsOrder\Dlg후가공공통_재단선.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UserControlsOrder\Dlg현수막_재단선.Designer.cs">
-      <DependentUpon>Dlg현수막_재단선.cs</DependentUpon>
+    <Compile Include="UserControlsOrder\Dlg후가공공통_재단선.Designer.cs">
+      <DependentUpon>Dlg후가공공통_재단선.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControlsOrder\UcOrder가격정보.cs">
       <SubType>UserControl</SubType>
@@ -447,6 +498,9 @@
     <Compile Include="UserControls\UcTopBar.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <EmbeddedResource Include="Dialogs\DialogAddressSearch.resx">
+      <DependentUpon>DialogAddressSearch.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogCommonCode.resx">
       <DependentUpon>DialogCommonCode.cs</DependentUpon>
     </EmbeddedResource>
@@ -456,6 +510,9 @@
     <EmbeddedResource Include="Dialogs\DialogPrint.resx">
       <DependentUpon>DialogPrint.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogWorkOrder.resx">
+      <DependentUpon>DialogWorkOrder.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\LoginDlg.resx">
       <DependentUpon>LoginDlg.cs</DependentUpon>
     </EmbeddedResource>
@@ -464,6 +521,21 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogOrderOld.resx">
       <DependentUpon>DialogOrderOld.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dlg타공_사방타공.resx">
+      <DependentUpon>Dlg타공_사방타공.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dlg타공_커스텀타공_좌우.resx">
+      <DependentUpon>Dlg타공_커스텀타공_좌우.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\Dlg타공_커스텀타공_상단하단.resx">
+      <DependentUpon>Dlg타공_커스텀타공_상단하단.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\UcOrder라텍스_그룹A.resx">
+      <DependentUpon>UcOrder라텍스_그룹A.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControlsOrder\UcOrder수성_그룹B.resx">
+      <DependentUpon>UcOrder수성_그룹B.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\UcOrderDesignPad.resx">
       <DependentUpon>UcOrderDesignPad.cs</DependentUpon>
@@ -557,14 +629,11 @@
     <EmbeddedResource Include="UserControlsOrder\Dialog후가공기본.resx">
       <DependentUpon>Dialog후가공기본.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\Dlg현수막_재단선.resx">
-      <DependentUpon>Dlg현수막_재단선.cs</DependentUpon>
+    <EmbeddedResource Include="UserControlsOrder\Dlg후가공공통_재단선.resx">
+      <DependentUpon>Dlg후가공공통_재단선.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControlsOrder\UcOrder가격정보.resx">
       <DependentUpon>UcOrder가격정보.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="UserControlsOrder\UcOrder페트.resx">
-      <DependentUpon>UcOrder페트.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\UcProcessRule.resx">
       <DependentUpon>UcProcessRule.cs</DependentUpon>
@@ -624,6 +693,13 @@
   <ItemGroup>
     <Content Include="FodyWeavers.xml" />
     <Content Include="PineTree1.ico" />
+    <None Include="Resources\Delete_16.png" />
+    <EmbeddedResource Include="Resources\Logo_Left.png">
+      <LogicalName>PineTree.Resources.Logo_Left.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Logo_Right.png">
+      <LogicalName>PineTree.Resources.Logo_Right.png</LogicalName>
+    </EmbeddedResource>
     <Content Include="개발메모.txt" />
     <None Include="Resources\규칙삭제.png" />
     <None Include="Resources\규칙추가.png" />

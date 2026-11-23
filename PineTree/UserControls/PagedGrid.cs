@@ -19,6 +19,7 @@ namespace PineTree.UserControls
         public string Key { get; private set; }
         public string HeaderText { get; private set; }
         public int Width { get; private set; }
+        public int MinimumFillWidth { get; set; } = 80;
         public ContentAlignment Alignment { get; private set; }
     }
 
@@ -509,7 +510,7 @@ namespace PineTree.UserControls
                 textSize = graphics.MeasureString(text, badgeFont);
             }
 
-            int badgeWidth = Math.Max(62, (int)Math.Ceiling(textSize.Width) + 20);
+            int badgeWidth = Math.Min(bounds.Width, Math.Max(62, (int)Math.Ceiling(textSize.Width) + 20));
             Rectangle badgeBounds = new Rectangle(bounds.Left, bounds.Top + 10, badgeWidth, 20);
 
             using (SolidBrush brush = new SolidBrush(GetBadgeColor(text)))
@@ -621,8 +622,8 @@ namespace PineTree.UserControls
                 return column.Width;
             }
 
-            int available = Math.Max(80, Width - (HorizontalPadding * 2) - fixedWidth);
-            return Math.Max(80, available / elasticCount);
+            int available = Width - (HorizontalPadding * 2) - fixedWidth;
+            return Math.Max(column.MinimumFillWidth, available / elasticCount);
         }
 
         private PagedGridCellClickEventArgs GetCellClick(Point location)

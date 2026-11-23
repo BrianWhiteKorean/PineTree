@@ -33,7 +33,7 @@
 
 ## 실행 및 배포
 
-PDF 처리 코드는 `PineTree.PdfEngine` 프로젝트에서 관리합니다. `pdf_worker.py`와 `runtime`은 빌드 시 ZIP 리소스로 DLL에 내장되며, PineTree의 Costura가 DLL을 EXE에 포함합니다. 사용자에게 별도 PdfWorker 폴더를 배포하지 않습니다.
+PDF 처리 코드는 `PineTree.PdfEngine` 프로젝트에서 관리합니다. `pdf_worker.py`와 `runtime` ZIP은 별도 DLL 리소스로 들어가고, PineTree의 Costura가 엔진 DLL을 애플리케이션 어셈블리에 포함합니다. 호스트는 `pdf_worker.py`와 Python·Ghostscript 런타임을 별도 해시 경로에 설치합니다.
 
 PDF 기능을 처음 사용할 때 사용자 캐시 폴더에 자동으로 풀어 실행합니다. 패키지 해시, 파일별 무결성 검사, 동시 준비 잠금, 캐시 복구와 설정은 상위 `../README.md`를 참고합니다.
 
@@ -48,7 +48,7 @@ python build_runtime.py <Python3.12 설치 폴더> <ghostscript.nativeassets.10.
 Ghostscript 네이티브 패키지 다운로드 위치:
 https://api.nuget.org/v3-flatcontainer/ghostscript.nativeassets/10.8.0/ghostscript.nativeassets.10.8.0.nupkg
 
-선택 설정은 PineTree.exe.config의 appSettings에 `PdfPythonPath`, `PdfGhostscriptDllPath`, `PdfEngineCacheDirectory`로 지정할 수 있습니다. 기본값은 자동으로 준비한 캐시 경로입니다.
+선택 설정은 호스트 설정의 appSettings에 `PdfPythonPath`, `PdfGhostscriptDllPath`, `PdfEngineCacheDirectory`로 지정할 수 있습니다. 호스트는 EPS 처리 시 공유 런타임의 Ghostscript DLL 절대 경로 또는 재정의 경로를 요청에 전달합니다. 프로젝트 폴더에서 Worker를 직접 실행할 때는 스크립트 옆 `runtime/ghostscript` 경로를 기본으로 사용합니다.
 
 ## 라이선스
 

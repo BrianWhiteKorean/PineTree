@@ -65,7 +65,7 @@ namespace PineTree.UserControlsOrder
                 for(int i=0;i<_postProcesses.Count;i++) {
                     var item = _postProcesses[i]; item.SeqNo = i+1; int row = i + FGrid1.Rows.Fixed;
                     FGrid1[row, "SeqNo"] = item.SeqNo; FGrid1[row,"ProcessName"] = item.ProcessName;
-                    FGrid1[row,"Summary"] = item.Summary(FinishedWidthMm(),FinishedHeightMm()); FGrid1[row,"Delete"] = "삭제";
+                    FGrid1[row,"Summary"] = item.SummaryForImage(FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm); FGrid1[row,"Delete"] = "삭제";
                     FGrid1.Rows[row].UserData = item;
                 }
                 if (_postProcesses.Count > 0) FGrid1.Row = Math.Max(FGrid1.Rows.Fixed, Math.Min(selected,FGrid1.Rows.Count-1));
@@ -75,15 +75,16 @@ namespace PineTree.UserControlsOrder
         }
         private Form CreatePostProcessDialog(OrderPostProcessSetting setting)
         {
+            decimal sourceScaleDivisor = ReadZoomRate();
             switch(setting.ProcessCode) {
-                case "HOLE": return new Dlg후가공공통_타공마크(setting,FinishedWidthMm(),FinishedHeightMm());
-                case "WOOD": return new Dlg현수막_좌우각목(setting, PostProcessImageScale());
-                case "WOOD_TB": return new Dlg현수막_상하각목(setting, PostProcessImageScale());
-                case "POLE_SEW": return new Dlg현수막_봉미싱(setting);
-                case "HEM_SEW": return new Dlg현수막_사방시접미싱(setting);
-                case "BAND_SEW": return new Dlg현수막_밴드미싱(setting);
-                case "ROPE_SEW": return new Dlg현수막_사방줄미싱(setting);
-                case "CUT": return new Dlg현수막_재단선(setting);
+                case "HOLE": return new Dlg후가공공통_타공마크(setting, FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm, sourceScaleDivisor);
+                case "WOOD": return new Dlg현수막_좌우각목(setting, sourceScaleDivisor);
+                case "WOOD_TB": return new Dlg현수막_상하각목(setting, sourceScaleDivisor);
+                case "POLE_SEW": return new Dlg현수막_봉미싱(setting, sourceScaleDivisor);
+                case "HEM_SEW": return new Dlg현수막_사방시접미싱(setting, sourceScaleDivisor);
+                case "BAND_SEW": return new Dlg현수막_밴드미싱(setting, sourceScaleDivisor);
+                case "ROPE_SEW": return new Dlg현수막_사방줄미싱(setting, sourceScaleDivisor);
+                case "CUT": return new Dlg후가공공통_재단선(setting, 0m, sourceScaleDivisor);
                 default: throw new ArgumentException("지원하지 않는 후가공입니다.");
             }
         }
@@ -93,16 +94,17 @@ namespace PineTree.UserControlsOrder
             string code = OrderPostProcessSetting.CodeForName(cbWork.SelectedOption.Text);
             int existing = _postProcesses.FindIndex(x => x.ProcessCode == code);
             if((code == "CUT" || code == "HOLE" || code == "WOOD" || code == "WOOD_TB") && existing >= 0) { EditPostProcess(existing); return; }
-            using(var dialog = CreatePostProcessDialog(OrderPostProcessSetting.Create(code))) {
+            var setting = code == "HOLE" ? Dlg후가공공통_타공마크.CreateEmptySetting() : OrderPostProcessSetting.Create(code);
+            using(var dialog = CreatePostProcessDialog(setting)) {
                 if(dialog.ShowDialog(this) != DialogResult.OK) return;
                 CommitPostProcess(-1, ((IPostProcessDialog)dialog).Setting);
             }
         }
         private decimal PostProcessImageScale()
         {
-            if (cbZoomType.SelectedOption == inputOption13 && _sourceWidthMm > 0 && WidthMm > 0)
+            if (cbZoomType.SelectedIndex < 0 && _sourceWidthMm > 0 && WidthMm > 0)
                 return WidthMm / _sourceWidthMm;
-            return cbZoomType.SelectedOption == inputOption7 ? ReadZoomRate() : 1m;
+            return ReadZoomRate();
         }
         private void EditPostProcess(int index)
         {
@@ -152,6 +154,7 @@ namespace PineTree.UserControlsOrder
                 var p = item.Parameters;
                 if(item.ProcessCode == "CUT") {
                     settings.MakeCutline = !_sourceHasCutline;
+                    settings.CutlineColorMode = p.ColorMode;
                     settings.LineWidthMm = (double)p.LineWidthMm; settings.SpotColorName = p.SpotColorName;
                     settings.CutInsetsFromPage = p.CutInsetTopMm.HasValue || p.CutInsetBottomMm.HasValue || p.CutInsetLeftMm.HasValue || p.CutInsetRightMm.HasValue;
                     settings.CutInsetTopMm = (double)(p.CutInsetTopMm ?? 0m);
@@ -160,9 +163,11 @@ namespace PineTree.UserControlsOrder
                     settings.CutInsetRightMm = (double)(p.CutInsetRightMm ?? 0m);
                 }
                 else if(item.ProcessCode == "HOLE") {
-                    item.GetMarkCount(FinishedWidthMm(),FinishedHeightMm());
+                    item.GetMarkCountForImage(FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm);
                     settings.MakeHole = true; settings.HoleType = p.TypeCode; settings.HoleMarkKind = p.HoleMarkKind;
                     settings.MarkLeftRightMm = (double)p.MarkLeftRightMm; settings.MarkTopBottomMm = (double)p.MarkTopBottomMm;
+                    settings.HoleEdges = p.HoleEdges;
+                    settings.HolePlacements = p.HolePlacements;
                     settings.HoleSpacingMm = (double)p.HoleSpacingMm;
                     settings.HoleBackgroundColor = p.HoleBackgroundColor ?? "#FFFFFF";
                     settings.HoleMarkerColor = p.HoleMarkerColor ?? "#000000";

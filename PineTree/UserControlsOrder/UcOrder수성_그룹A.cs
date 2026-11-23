@@ -17,6 +17,9 @@ using System.Windows.Forms;
 
 namespace PineTree.UserControlsOrder
 {
+    /// <summary>
+    /// 현수막에 사용
+    /// </summary>
     public partial class UcOrder수성_그룹A : UserControl, IOrderSourceEditor
     {
         private readonly CancellationTokenSource _documentLifetime = new CancellationTokenSource();
@@ -143,13 +146,13 @@ namespace PineTree.UserControlsOrder
                 {
                     decimal sourceWidth = _sourceWidthMm;
                     _sourceWidthMm = _sourceHeightMm; _sourceHeightMm = sourceWidth;
-                    if (cbZoomType.SelectedOption == inputOption13)
+                    if (cbZoomType.SelectedIndex < 0)
                     {
                         decimal width = WidthMm;
                         SetRestoredNumber(tbTargetWidth, HeightMm); SetRestoredNumber(tbTargetHeight, width);
                     }
                 }
-                if (cbZoomType.SelectedOption != inputOption13) ApplyZoomDimensions();
+                ApplyZoomDimensions();
             }
             finally { _updatingInputs = false; }
             SourceTransformEdited();
@@ -257,8 +260,7 @@ namespace PineTree.UserControlsOrder
                 ApplyWorkingInputs(state);
                 _sourceWidthMm = state.SourceWidthMm; _sourceHeightMm = state.SourceHeightMm;
                 _sourceHasCutline = state.SourceHasCutline;
-                if ((cbZoomType.SelectedOption != inputOption13) && (_sourceWidthMm > 0 || _sourceHeightMm > 0))
-                    ApplyZoomDimensions();
+                if (_sourceWidthMm > 0 || _sourceHeightMm > 0) ApplyZoomDimensions();
                 _sourcePath = _sourceFileReferencePath = state.SourceFilePath;
                 _sourceServerFile = state.SourceServerFile == null ? null : state.SourceServerFile.Copy();
                 _sourceFileInfoSnapshot = state.SourceFileInfo;
@@ -279,6 +281,7 @@ namespace PineTree.UserControlsOrder
 
         private void InitializePdfInputs()
         {
+            cbZoomType.DropDownStyle = InputComboBoxStyle.DropDownList;
             cbZoomType.SelectedOption = inputOption6;
             cbZoomType.SelectedIndexChanged += ZoomInputChanged;
 
@@ -316,6 +319,8 @@ namespace PineTree.UserControlsOrder
 
         private PdfGenerationSettings ReadPdfGenerationSettings()
         {
+            if (cbZoomType.SelectedIndex < 0)
+                throw new InvalidOperationException("원본 이미지 비율에서 1:1 또는 1/10을 선택해주세요.");
             OrderPostProcessSetting.ValidateList(_postProcesses);
             var settings = new PdfGenerationSettings
             {
@@ -323,6 +328,7 @@ namespace PineTree.UserControlsOrder
                 SourceRotationDegreesClockwise = _sourceRotationDegreesClockwise, SourceFlipHorizontal = _sourceFlipHorizontal,
                 RoundSourceDimensionsBeforeScale = true,
                 SourceSizingMode = CaptureZoomType(), SourceScale = (double)ReadZoomRate(),
+                OutputRipScale = (double)ReadZoomRate(),
                 ExpandImage = true,
                 TargetWidthMm = PdfNumber(tbTargetWidth, 0), TargetHeightMm = PdfNumber(tbTargetHeight, 0),
                 FitMode = "CONTAIN",
@@ -346,7 +352,6 @@ namespace PineTree.UserControlsOrder
                 {
                     SetRestoredNumber(tbTargetWidth, RoundDimension(WidthMm));
                     SetRestoredNumber(tbTargetHeight, RoundDimension(HeightMm));
-                    ApplyFixedSizeHeight();
                 }
                 finally { _updatingInputs = false; }
             }
@@ -367,26 +372,16 @@ namespace PineTree.UserControlsOrder
 
         private void ApplyZoomDimensions()
         {
-            if (cbZoomType.SelectedOption == inputOption13)
-            {
-                ApplyFixedSizeHeight();
-                return;
-            }
-            decimal rate = cbZoomType.SelectedOption == inputOption7 ? ReadZoomRate() : 1m;
+            if (cbZoomType.SelectedIndex < 0) return;
+            decimal rate = ReadZoomRate();
             SetRestoredNumber(tbTargetWidth, RoundDimension(RoundDimension(_sourceWidthMm) * rate));
             SetRestoredNumber(tbTargetHeight, RoundDimension(RoundDimension(_sourceHeightMm) * rate));
         }
 
-        private void ApplyFixedSizeHeight()
-        {
-            if (cbZoomType.SelectedOption != inputOption13 || _sourceWidthMm <= 0 || _sourceHeightMm <= 0) return;
-            SetRestoredNumber(tbTargetHeight, RoundDimension(WidthMm * _sourceHeightMm / _sourceWidthMm));
-        }
-
         private string CaptureZoomType()
         {
-            if (cbZoomType.SelectedOption == inputOption13) return "FIXED_SIZE";
-            decimal rate = cbZoomType.SelectedOption == inputOption7 ? ReadZoomRate() : 1m;
+            if (cbZoomType.SelectedIndex < 0) return "FIXED_SIZE";
+            decimal rate = ReadZoomRate();
             // Preserve existing/manual target sizes rather than silently resizing them on reload.
             if (WidthMm != RoundDimension(RoundDimension(_sourceWidthMm) * rate) || HeightMm != RoundDimension(RoundDimension(_sourceHeightMm) * rate)) return null;
             return cbZoomType.SelectedOption == inputOption7 ? "SCALE" : "ORIGINAL";
@@ -401,9 +396,6 @@ namespace PineTree.UserControlsOrder
             finally { _updatingInputs = false; }
             UpdateDocumentState();
             RaiseOrderValuesChanged();
-            if (sender == cbZoomType && cbZoomType.SelectedOption == inputOption13)
-                MessageBox.Show(this, "폭을 지정하면 원본 비율에 맞춰 길이가 자동으로 입력됩니다.", "확대비율",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void UpdateDocumentState()
@@ -421,10 +413,12 @@ namespace PineTree.UserControlsOrder
             bool pageReady = !_inspecting;
             foreach (var input in new[] { tbEdgeTop, tbEdgeBottom, tbEdgeLeft, tbEdgeRight })
                 input.Enabled = !busy && pageReady;
-            tbTargetWidth.Enabled = tbTargetHeight.Enabled = !busy && pageReady && cbZoomType.SelectedOption == inputOption13;
+            tbTargetWidth.Enabled = tbTargetHeight.Enabled = false;
             cbWork.Enabled = btnAdd.Enabled = FGrid1.Enabled = !busy && pageReady;
             cbZoomType.Enabled = !busy && !_inspecting && _sourceWidthMm > 0 && _sourceHeightMm > 0;
-            tbTargetHeight.ReadOnly = cbZoomType.SelectedOption == inputOption13;
+            cbZoomType.ToolTipText = cbZoomType.SelectedIndex < 0
+                ? "이 주문에 저장된 기존 치수입니다. PDF를 다시 만들려면 원본 이미지 비율을 선택해주세요."
+                : "미리보기에 놓은 원본 파일의 축척을 선택합니다. 1:1은 RIP 1배, 1/10은 RIP 10배로 출력합니다.";
             RefreshPostProcessGrid();
             inputNumericBox3.Value = WidthMm * HeightMm / 1000000m;
             if (_sourceDetails == null && _sourceWidthMm == 0 && _sourceHeightMm == 0)
@@ -438,9 +432,12 @@ namespace PineTree.UserControlsOrder
                 if (width <= 0 || height <= 0 || outputWidth > 14400 || outputHeight > 14400)
                     throw new ArgumentException("완성 가로·세로는 양수이며 이미지 확장을 포함한 출력 크기는 14,400mm 이하여야 합니다.");
                 var hole = _postProcesses.Find(item => item.ProcessCode == "HOLE");
-                int markCount = hole == null ? 0 : hole.GetMarkCount((decimal)finishedWidth, (decimal)finishedHeight);
+                int markCount = hole == null ? 0 : hole.GetMarkCountForImage((decimal)finishedWidth, (decimal)finishedHeight, WidthMm, HeightMm);
                 _pdfSummary = string.Format("원본 {0:0.###} × {1:0.###} mm · 완성/재단 {2:0.###} × {3:0.###} mm · 최종 출력(이미지 확장 포함) {4:0.###} × {5:0.###} mm · 타공 {6}개 · 선택 대지 기준",
                     _sourceWidthMm, _sourceHeightMm, finishedWidth, finishedHeight, outputWidth, outputHeight, markCount);
+                decimal ripScale = ReadZoomRate();
+                if (ripScale > 1m)
+                    _pdfSummary += $" · 전달 PDF {(decimal)outputWidth / ripScale:0.###} × {(decimal)outputHeight / ripScale:0.###} mm · RIP {ripScale:0.###}배";
             }
             catch (ArgumentException ex) { _pdfSummary = ex.Message; }
             if (_artboardCount > 0) _pdfSummary += " · 대지 " + (_workingPage + 1) + " / " + _artboardCount;
@@ -470,13 +467,6 @@ namespace PineTree.UserControlsOrder
             {
                 SetOrientedSourceDimensions(source);
                 ApplyZoomDimensions();
-                // A newly dropped source starts with its own size in manual-size mode too.
-                if (cbZoomType.SelectedOption == inputOption13 && (WidthMm <= 0 || HeightMm <= 0))
-                {
-                    SetRestoredNumber(tbTargetWidth, RoundDimension(_sourceWidthMm));
-                    SetRestoredNumber(tbTargetHeight, RoundDimension(_sourceHeightMm));
-                    ApplyFixedSizeHeight();
-                }
                 // Quantity is edited in the parent order-price footer.
                 _sourceHasCutline = source.HasCutline;
                 if (source.HasCutline)
@@ -526,11 +516,7 @@ namespace PineTree.UserControlsOrder
             {
                 _sourceRotationDegreesClockwise = state.SourceRotationDegreesClockwise; _sourceFlipHorizontal = state.SourceFlipHorizontal;
                 _sourceWidthMm = state.SourceWidthMm; _sourceHeightMm = state.SourceHeightMm; _sourceHasCutline = state.SourceHasCutline;
-                // Older custom scales remain editable through their saved width.
-                bool fixedSize = state.ZoomType == "FIXED_SIZE" ||
-                    (state.ZoomType == "SCALE" && state.ZoomRate != 10m) ||
-                    (state.ZoomType == null && state.WidthMm > 0);
-                cbZoomType.SelectedOption = fixedSize ? inputOption13 : state.ZoomType == "SCALE" ? inputOption7 : inputOption6;
+                cbZoomType.SelectedIndex = state.GetZoomSelectionIndex();
                 SetRestoredNumber(tbTargetWidth, state.WidthMm); SetRestoredNumber(tbTargetHeight, state.HeightMm);
                 _orderQuantity = Math.Max(0m, state.Quantity);
                 SetRestoredNumber(tbEdgeTop, state.EdgeTopMm); SetRestoredNumber(tbEdgeBottom, state.EdgeBottomMm);
@@ -554,7 +540,7 @@ namespace PineTree.UserControlsOrder
                 SetOrientedSourceDimensions(metadata);
                 _sourceHasCutline = metadata.HasCutline;
                 _updatingInputs = true;
-                try { if (cbZoomType.SelectedOption != inputOption13) ApplyZoomDimensions(); }
+                try { ApplyZoomDimensions(); }
                 finally { _updatingInputs = false; }
             }
             else ApplySourceMeasurements(metadata);
@@ -634,6 +620,7 @@ namespace PineTree.UserControlsOrder
                         _sourceServerFile = sourceFile;
                         if (_sourceDocument != null) _sourceDocument.ServerFile = sourceFile;
                         _outputServerFile = await UploadOrderFileAsync(result.OutputPath);
+                        _outputServerFile.RipScale = (decimal)result.OutputRipScale;
                     }
                     catch (Exception ex)
                     {

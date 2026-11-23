@@ -50,11 +50,11 @@ class SettingsTests(unittest.TestCase):
                 snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
                 self.assertEqual(snapshot['settings']['HoleBackgroundColor'], '#00FF00')
                 with pdfium.PdfDocument(path) as doc:
-                    page = doc[0]; bitmap = page.render(scale=4)
+                    page = doc[0]; bitmap = page.render(scale=10)
                     image = bitmap.to_pil().convert('RGB')
-                    x, y = round(20*worker.MM*4), round(80*worker.MM*4)
+                    x, y = round(20*worker.MM*10), round(80*worker.MM*10)
                     center = image.getpixel((x, y))
-                    halo = image.getpixel((x+5, y if kind == 'DOT' else y+5))
+                    halo = image.getpixel((x+25, y) if kind == 'DOT' else (x+12, y+12))
                     self.assertGreater(center[2], 120); self.assertGreater(center[2]-center[0], 70)
                     self.assertGreater(halo[1], 120); self.assertGreater(halo[1]-halo[2], 60)
                     image.close(); bitmap.close(); page.close()
@@ -82,6 +82,25 @@ class SettingsTests(unittest.TestCase):
                 self.assertAlmostEqual(stroke, .25, places=7)
                 s['CutInsetLeftMm'] = width+6
                 with self.assertRaises(ValueError): self.generate(s)
+
+    def test_black_cutline_uses_process_black_at_both_delivery_scales(self):
+        for rip_scale in (1, 10):
+            with self.subTest(rip_scale=rip_scale):
+                settings = self.settings()
+                settings.update(MakeCutline=True, CutlineColorMode='BLACK', SpotColorName='IgnoredCut',
+                                OutputRipScale=rip_scale, LineWidthMm=.25,
+                                CutInsetsFromPage=True, CutInsetLeftMm=7)
+                _, reader, _ = self.generate(settings)
+                page = reader.pages[0]
+                self.assertFalse(worker.has_thru(page['/Resources'], spot_name='IgnoredCut'))
+                self.assertFalse(worker.has_thru(page['/Resources']))
+                self.assertAlmostEqual(float(page.trimbox.left)/worker.MM, 7/rip_scale, places=5)
+                ops = ContentStream(page.get_contents(), reader).operations
+                stroke_index = max(index for index, (_, op) in enumerate(ops) if op == b'S')
+                self.assertEqual(ops[stroke_index-3], ([0, 0, 0, 1], b'K'))
+                width = float(ops[stroke_index-2][0][0])/worker.MM
+                factor = next(float(args[0]) for args, op in ops if op == b'cm') if rip_scale == 10 else 1
+                self.assertAlmostEqual(width*factor, .25/rip_scale, places=7)
 
     def test_whole_image_expansion(self):
         # A central stripe must scale with the complete design, rather than
@@ -211,8 +230,223 @@ class SettingsTests(unittest.TestCase):
                 else:self.assertEqual(pixel(12,10),(255,0,0))
                 doc.close()
 
+    def test_selected_edges_with_independent_insets(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', HoleSpacingMm=40,
+                        EdgeLeftMm=2, EdgeBottomMm=3)
+        edges = dict(LeftEnabled=True, RightEnabled=False, TopEnabled=True, BottomEnabled=False,
+                     LeftMm=10, RightMm=15, TopMm=25, BottomMm=20)
+        settings['HoleEdges'] = edges
+        expected = [(12, 23), (12, 78), (87, 78)]
+        for mode, positions in (('FOUR_CORNERS', expected),
+                                ('CUSTOM_SPACING', expected + [(49.5, 78), (12, 50.5)])):
+            with self.subTest(mode=mode):
+                settings['HoleType'] = mode
+                result, reader, _ = self.generate(settings)
+                snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+                self.assertEqual(worker.mark_positions(snapshot['settings']), positions)
+                self.assertEqual(result['MarkCount'], len(positions))
+        edges.update(LeftEnabled=False, TopEnabled=False)
+        result, _, _ = self.generate(settings)
+        self.assertEqual(result['MarkCount'], 0)
+
+    def test_hole_placement_rows_are_combined_and_empty_list_clears_marks(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', OutputRipScale=10)
+        settings['HolePlacements'] = [
+            dict(TypeCode='FOUR_CORNERS', Edges=dict(LeftMm=10, RightMm=15, TopMm=20, BottomMm=25)),
+            dict(TypeCode='CUSTOM_SPACING', SpacingMm=40,
+                 Edges=dict(LeftMm=15, RightMm=10, TopMm=15, BottomMm=15,
+                            LeftEnabled=False, RightEnabled=False, BottomEnabled=False)),
+        ]
+        result, reader, _ = self.generate(settings)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        self.assertEqual(worker.mark_positions(snapshot['settings']),
+                         [(10, 25), (10, 80), (85, 25), (85, 80), (15, 85), (90, 85), (52.5, 85)])
+        self.assertEqual(result['MarkCount'], 7)
+        self.assertEqual(result['OutputRipScale'], 10)
+        settings['HolePlacements'] = []
+        self.assertEqual(self.generate(settings)[0]['MarkCount'], 0)
+
+    def test_custom_runs_use_top_left_coordinates_with_rip_scaling(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', OutputRipScale=10,
+                        EdgeLeftMm=2, EdgeBottomMm=3)
+        settings['HolePlacements'] = [dict(
+            TypeCode='CUSTOM_SPACING',
+            TopRun=dict(Mode='UNIFORM', Count=3, StartLeftMm=0, StartTopMm=10,
+                        EndLeftMm=80, EndTopMm=20),
+            BottomRun=dict(Mode='FIXED', Count=2, StartLeftMm=15, StartTopMm=80, SpacingMm=20),
+        )]
+        result, reader, _ = self.generate(settings)
+        self.assertEqual(result['MarkCount'], 5)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        expected = [(2, 93), (42, 88), (82, 83), (17, 23), (37, 23)]
+        self.assertEqual(worker.mark_positions(snapshot['settings']), expected)
+
+        ops = ContentStream(reader.pages[0].get_contents(), reader).operations
+        scale = float(next(args for args, op in ops if op == b'cm')[0])
+        self.assertAlmostEqual(scale, .1)
+        positions = [tuple(float(v)*scale/worker.MM for v in args)
+                     for args, op in ops if op == b'm']
+        self.assertEqual(len(positions), 10)
+        for (x, y), (left, bottom) in zip(positions[::2], expected):
+            self.assertAlmostEqual(x, left/10, places=6)
+            self.assertAlmostEqual(y, bottom/10, places=6)
+
+    def test_custom_run_validates_endpoints_and_count(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT')
+        row = dict(TypeCode='CUSTOM_SPACING')
+        settings['HolePlacements'] = [row]
+        for run in (
+            dict(Mode='UNIFORM', Count=2, StartLeftMm=5, StartTopMm=10, EndLeftMm=5, EndTopMm=10),
+            dict(Mode='FIXED', Count=3, StartLeftMm=105, StartTopMm=90, SpacingMm=15),
+            dict(Mode='FIXED', Count=1, StartLeftMm=10, StartTopMm=90, SpacingMm=0),
+        ):
+            row['BottomRun'] = run
+            with self.subTest(run=run), self.assertRaises(ValueError):
+                self.generate(settings)
+        row['BottomRun'] = dict(Mode='UNIFORM', Count=1, StartLeftMm=5, StartTopMm=90, EndLeftMm=5, EndTopMm=90)
+        self.assertEqual(self.generate(settings)[0]['MarkCount'], 1)
+        row['BottomRun']['EndLeftMm'] = 15
+        self.assertEqual(worker.mark_positions(worker.generation_settings(settings)), [(10, 10)])
+
+    def test_right_inset_and_fixed_truncation_use_image_bounds(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', TargetWidthMm=94, MakeWood=True, WoodExtraMm=10)
+        settings['HolePlacements'] = [dict(
+            TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+            TopRun=dict(Mode='UNIFORM', Count=10, StartLeftMm=2, StartTopMm=2,
+                        EndRightMm=2, EndTopMm=2),
+            BottomRun=dict(Mode='FIXED', Count=10, StartLeftMm=80, StartTopMm=90, SpacingMm=10),
+        )]
+        result, reader, _ = self.generate(settings)
+        self.assertEqual(result['MarkCount'], 12)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        self.assertEqual(worker.mark_positions(snapshot['settings']),
+                         [(12 + step*10, 98) for step in range(10)] + [(90, 10), (100, 10)])
+
+        settings['HolePlacements'][0]['BottomRun']['SpacingMm'] = 14
+        result, reader, _ = self.generate(settings)
+        self.assertEqual(result['MarkCount'], 12)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        self.assertEqual(worker.mark_positions(snapshot['settings'])[-1], (104, 10))
+
+    def test_bottom_runs_measure_vertical_coordinates_from_image_bottom(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', EdgeBottomMm=3,
+                        MakeWoodTopBottom=True, WoodTopBottomExtraMm=5)
+        placement = dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+                         BottomRun=dict(Mode='UNIFORM', Count=3, StartLeftMm=2, StartBottomMm=2,
+                                        EndRightMm=2, EndBottomMm=6))
+        settings['HolePlacements'] = [placement]
+        result, reader, _ = self.generate(settings)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        self.assertEqual(result['MarkCount'], 3)
+        self.assertEqual(worker.mark_positions(snapshot['settings']), [(2, 10), (50, 12), (98, 14)])
+
+        placement['BottomRun'] = dict(Mode='FIXED', Count=10, StartLeftMm=90, StartBottomMm=2, SpacingMm=5)
+        result, reader, _ = self.generate(settings)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        self.assertEqual(result['MarkCount'], 3)
+        self.assertEqual(worker.mark_positions(snapshot['settings']), [(90, 10), (95, 10), (100, 10)])
+
+    def test_side_runs_use_right_insets_and_fixed_spacing_stops_at_image_bottom(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', OutputRipScale=10, EdgeLeftMm=3, EdgeBottomMm=5)
+        placement = dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+                         LeftRun=dict(Mode='UNIFORM', Count=3, StartLeftMm=2, StartTopMm=2,
+                                      EndLeftMm=4, EndBottomMm=6),
+                         RightRun=dict(Mode='FIXED', Count=10, StartRightMm=3, StartTopMm=80, SpacingMm=10))
+        settings['HolePlacements'] = [placement]
+        result, reader, _ = self.generate(settings)
+        snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+        positions = [(5, 103), (6, 57), (7, 11), (100, 25), (100, 15), (100, 5)]
+        self.assertEqual(result['MarkCount'], len(positions))
+        self.assertEqual(worker.mark_positions(snapshot['settings']), positions)
+        ops = ContentStream(reader.pages[0].get_contents(), reader).operations
+        scale = float(next(args for args, op in ops if op == b'cm')[0])
+        centers = [tuple(float(v)*scale/worker.MM for v in args) for args, op in ops if op == b'm']
+        self.assertEqual(len(centers), len(positions)*2)
+        for actual, expected in zip(centers[::2], positions):
+            for coordinate, units in zip(actual, expected):
+                self.assertAlmostEqual(coordinate, units/10, places=6)
+
+        placement['RightRun'] = dict(Mode='UNIFORM', Count=3, StartRightMm=3, StartTopMm=2,
+                                     EndRightMm=5, EndBottomMm=2)
+        self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-3:],
+                         [(100, 103), (99, 55), (98, 7)])
+
+    def test_uniform_runs_skip_preexisting_perpendicular_endpoints_in_row_order(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT')
+        horizontal = dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+                          TopRun=dict(Mode='UNIFORM', Count=2, StartLeftMm=2, StartTopMm=2, EndRightMm=2, EndTopMm=2),
+                          BottomRun=dict(Mode='UNIFORM', Count=2, StartLeftMm=2, StartBottomMm=2, EndRightMm=2, EndBottomMm=2))
+        vertical = dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+                        LeftRun=dict(Mode='UNIFORM', Count=2, StartLeftMm=2, StartTopMm=2, EndLeftMm=2, EndBottomMm=2),
+                        RightRun=dict(Mode='UNIFORM', Count=2, StartRightMm=2, StartTopMm=2, EndRightMm=2, EndBottomMm=2))
+        for rows, endpoints, inside in (
+            ([horizontal, vertical], [(2, 98), (98, 98), (2, 2), (98, 2)], [(2, 66), (2, 34), (98, 66), (98, 34)]),
+            ([vertical, horizontal], [(2, 98), (2, 2), (98, 98), (98, 2)], [(34, 98), (66, 98), (34, 2), (66, 2)]),
+        ):
+            with self.subTest(first=rows[0]):
+                settings['HolePlacements'] = rows
+                result, reader, _ = self.generate(settings)
+                snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
+                self.assertEqual(result['MarkCount'], 8)
+                self.assertEqual(worker.mark_positions(snapshot['settings']), endpoints + inside)
+
+        settings['HolePlacements'] = [horizontal, vertical]
+        vertical['LeftRun']['Count'] = 1
+        vertical['RightRun']['EndRightMm'] = 4
+        self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-3:],
+                         [(2, 50), (97, 50), (96, 2)])
+        vertical['RightRun']['StartRightMm'] = 4
+        self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-2:],
+                         [(96, 98), (96, 2)])
+        vertical['RightRun'] = dict(Mode='FIXED', Count=2, StartRightMm=2, StartTopMm=2, SpacingMm=20)
+        self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-2:],
+                         [(98, 98), (98, 78)])
+
+    def test_dot_diameters_follow_delivery_pdf_scale(self):
+        for scale, rip_scale in ((1, 1), (10, 10), (10, 1)):
+            with self.subTest(scale=scale, rip_scale=rip_scale):
+                writer = PdfWriter()
+                size = 100*worker.MM/scale
+                page = writer.add_blank_page(width=size, height=size)
+                stream = DecodedStreamObject()
+                stream.set_data(f'1 0 0 rg 0 0 {size} {size} re f'.encode('ascii'))
+                page[NameObject('/Contents')] = writer._add_object(stream)
+                writer.write(self.source)
+                settings = self.settings()
+                settings.update(MakeHole=True, HoleMarkKind='DOT', OutputRipScale=rip_scale,
+                                MakeCutline=True, EdgeLeftMm=2, EdgeRightMm=2)
+                result, reader, _ = self.generate(settings)
+                self.assertAlmostEqual(result['Scale'], scale, places=5)
+                self.assertEqual(result['OutputRipScale'], rip_scale)
+                page = reader.pages[0]
+                self.assertAlmostEqual(float(page.mediabox.width)/worker.MM, 104/rip_scale, places=5)
+                self.assertAlmostEqual(float(page.trimbox.left)/worker.MM, 2/rip_scale, places=5)
+                self.assertAlmostEqual(float(page.trimbox.width)/worker.MM, 100/rip_scale, places=5)
+                self.assertAlmostEqual(result['OutputWidthMm'], 104/rip_scale, places=5)
+                ops = ContentStream(page.get_contents(), reader).operations
+                delivery_factor = 1
+                if rip_scale != 1:
+                    transform = next(args for args, op in ops if op == b'cm')
+                    delivery_factor = float(transform[0])
+                    self.assertAlmostEqual(delivery_factor, 1/rip_scale)
+                    self.assertAlmostEqual(float(transform[3]), delivery_factor)
+                widths = [float(args[0])/worker.MM for args, op in ops if op == b'w']
+                self.assertEqual(len(widths), 9)
+                for halo, center in zip(widths[:8:2], widths[1:8:2]):
+                    self.assertAlmostEqual(halo*delivery_factor, 2/rip_scale, places=6)
+                    self.assertAlmostEqual(center*delivery_factor, 1.6/rip_scale, places=6)
+                self.assertAlmostEqual(widths[-1]*delivery_factor, .18/rip_scale, places=6)
+
     def test_invalid_input_rejected_before_output_write(self):
-        for change in [dict(TargetWidthMm=0),dict(EdgeLeftMm=-1),dict(TargetWidthMm=float('nan')),
+        for change in [dict(TargetWidthMm=0),dict(EdgeLeftMm=-1),dict(TargetWidthMm=float('nan')),dict(OutputRipScale=.1),
                        dict(MakeHole=True,HoleMarkKind='UNKNOWN'),dict(FitMode='STRETCH'),dict(MakeHole=True,MarkLeftRightMm=60),
                        dict(MakeHole=True,HoleType='CUSTOM_SPACING',HoleSpacingMm=.0001)]:
             s=self.settings();s.update(change)
