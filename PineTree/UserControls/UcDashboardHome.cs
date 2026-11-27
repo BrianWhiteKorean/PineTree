@@ -33,6 +33,8 @@ namespace PineTree.UserControls
         private bool _cuttingWaitingCardSelected = false;
         private bool _completionWaitingCardSelected = false;
 
+        internal event EventHandler ProductionStatusChanged;
+
         public UcDashboardHome()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
@@ -49,7 +51,7 @@ namespace PineTree.UserControls
 
         public void RefreshOrders()
         {
-            LoadSelectedDateOrders();
+            LoadSelectedDateOrders(_todayOrderGrid.PageIndex);
         }
 
         public void SetSelectedDate(DateTime date)
@@ -425,7 +427,7 @@ namespace PineTree.UserControls
             if (result == DialogResult.OK) LoadSelectedDateOrders();
         }
 
-        private void TodayOrderGrid_CellClicked(object sender, PagedGridCellClickEventArgs e)
+        private async void TodayOrderGrid_CellClicked(object sender, PagedGridCellClickEventArgs e)
         {
             if (e == null || e.Row == null)
             {
@@ -433,11 +435,6 @@ namespace PineTree.UserControls
             }
 
             _todayOrderGrid.SelectedRowIndex = e.RowIndex;
-
-            if (e.ColumnKey != "Manage" || !e.Row.ContainsKey("Manage") || e.Row["Manage"].CellType != PagedGridCellType.Link)
-            {
-                return;
-            }
 
             PagedGridCell orderIdCell;
             if (!e.Row.TryGetValue("OrderId", out orderIdCell))
@@ -451,7 +448,18 @@ namespace PineTree.UserControls
                 return;
             }
 
-            ShowEditOrderDialog(orderId);
+            if (e.ColumnKey == OrderProductionStatusCell.ColumnKey)
+            {
+                if (await OrderProductionStatusCell.FeedAsync(this, orderId, e.Row[e.ColumnKey]))
+                {
+                    RefreshOrders();
+                    ProductionStatusChanged?.Invoke(this, EventArgs.Empty);
+                }
+            }
+            else if (e.ColumnKey == "Manage" && e.Row["Manage"].CellType == PagedGridCellType.Link)
+            {
+                ShowEditOrderDialog(orderId);
+            }
         }
 
         private PagedGrid CreateTodayOrderGrid()
@@ -468,16 +476,16 @@ namespace PineTree.UserControls
             grid.Columns.Add(new PagedGridColumn("Item", "품목", 210, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Size", "규격", 165, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Quantity", "수량", 100, ContentAlignment.MiddleLeft));
-            // The title uses the 50 px recovered from each of the seven existing columns.
-            grid.Columns.Add(new PagedGridColumn("OrderTitle", "주문명", 350, ContentAlignment.MiddleLeft));
-            grid.Columns.Add(new PagedGridColumn("Status", "진행상태", 120, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("OrderTitle", "주문명", 230, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn("ConsigneeName", "주문자", 120, ContentAlignment.MiddleLeft));
+            grid.Columns.Add(new PagedGridColumn(OrderProductionStatusCell.ColumnKey, "진행상태", 120, ContentAlignment.MiddleLeft));
             grid.Columns.Add(new PagedGridColumn("Manage", "관리", 0, ContentAlignment.MiddleLeft) { MinimumFillWidth = 30 });
 
             grid.SetRows(new Dictionary<string, PagedGridCell>[0]);
             return grid;
         }
 
-        private void LoadSelectedDateOrders()
+        private void LoadSelectedDateOrders(int pageIndex = 1)
         {
             try
             {
@@ -487,8 +495,8 @@ namespace PineTree.UserControls
 
                 if (_todayOrderGrid != null)
                 {
-                    _todayOrderGrid.PageIndex = 1;
                     _todayOrderGrid.TotalCount = _todayOrders.Rows.Count;
+                    _todayOrderGrid.PageIndex = pageIndex;
                     _todayOrderGrid.TotalText = CreateTotalText(CountOrders(_todayOrders));
                     BindTodayOrderPage();
                 }
@@ -557,7 +565,8 @@ namespace PineTree.UserControls
                         CreateSizeText(row),
                         CreateQuantityText(row),
                         firstItem ? ToText(row["StoredOrderTitle"]) : string.Empty,
-                        CreateStatusText(ToText(row["ProductionStatus"])));
+                        firstItem ? ToText(row["ConsigneeName"]) : string.Empty,
+                        ToText(row["ProductionStatus"]));
                     if (!firstItem) {
                         displayRow["OrderNo"] = new PagedGridCell(string.Empty);
                         displayRow["Manage"] = new PagedGridCell(string.Empty);
@@ -569,7 +578,8 @@ namespace PineTree.UserControls
             _todayOrderGrid.SetRows(rows);
         }
 
-        private static Dictionary<string, PagedGridCell> CreateOrderRow(string orderId, string orderNo, string customer, string item, string size, string quantity, string orderTitle, string status)
+        private static Dictionary<string, PagedGridCell> CreateOrderRow(string orderId, string orderNo, string customer,
+            string item, string size, string quantity, string orderTitle, string consigneeName, string status)
         {
             return new Dictionary<string, PagedGridCell>
             {
@@ -580,7 +590,8 @@ namespace PineTree.UserControls
                 { "Size", new PagedGridCell(size) },
                 { "Quantity", new PagedGridCell(quantity) },
                 { "OrderTitle", new PagedGridCell(orderTitle) },
-                { "Status", new PagedGridCell(status) { CellType = PagedGridCellType.Badge } },
+                { "ConsigneeName", new PagedGridCell(consigneeName) },
+                { OrderProductionStatusCell.ColumnKey, OrderProductionStatusCell.Create(status) },
                 { "Manage", new PagedGridCell("상세 >") { CellType = PagedGridCellType.Link } }
             };
         }
@@ -620,24 +631,6 @@ namespace PineTree.UserControls
             }
 
             return string.Format("{0:#,##0.##}{1}", qty, unitName);
-        }
-
-        private static string CreateStatusText(string status)
-        {
-            string normalized = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().Replace(" ", string.Empty);
-            switch (normalized)
-            {
-                case "출력중":
-                    return "출력 중";
-                case "포장대기":
-                    return "포장 대기";
-                case "포장완료":
-                    return "포장 완료";
-                case "신규":
-                    return "미작업";
-                default:
-                    return string.IsNullOrWhiteSpace(status) ? "미작업" : status.Trim();
-            }
         }
 
         private static string ToText(object value)

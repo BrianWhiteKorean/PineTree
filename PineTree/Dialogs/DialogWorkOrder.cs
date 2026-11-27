@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PineTree.Classes;
@@ -74,6 +76,80 @@ namespace PineTree.Dialogs
             _delivery.SelectedIndex = _delivery.Items.IndexOf(DeliveryWorkOrder.DeliveryKind(order.Delivery));
             if (order.CoverImage != null) SetImage(pictureBox1, new Bitmap(order.CoverImage));
             RefreshFileName();
+        }
+
+        internal static async Task ShowSavedOrderAsync(Control owner, long orderId)
+        {
+            var saved = await Task.Run(() =>
+            {
+                DataRow header = OrderRepository.GetOrderForEdit(orderId);
+                if (header == null) throw new InvalidOperationException("주문을 찾을 수 없습니다.");
+                DataTable items = OrderRepository.GetOrderItemsForEdit(orderId);
+                DataRow firstItem = items.Rows.Count > 0 ? items.Rows[0] : null;
+                var design = OrderDesignPadState.FromJson(OrderDesignPadStateRepository.Get(orderId));
+                var editor = design?.Editor ?? BannerOrderEditorState.FromJson(Convert.ToString(firstItem?["EditorStateJson"]));
+                decimal width = editor?.WidthMm ?? (header.Field<decimal?>("WidthMm") ?? 0m);
+                decimal height = editor?.HeightMm ?? (header.Field<decimal?>("HeightMm") ?? 0m);
+                decimal quantity = editor?.Quantity ?? (header.Field<decimal?>("Qty") ?? 0m);
+                string paper = design?.CategoryName;
+                if (string.IsNullOrWhiteSpace(paper) || paper == "[선택]")
+                    paper = design?.ProductName ?? Convert.ToString(header["ItemName"]);
+
+                var order = new DeliveryWorkOrder
+                {
+                    OrderNo = Convert.ToString(header["OrderNo"]),
+                    WrittenAt = header.Field<DateTime?>("OrderDate"),
+                    DueAt = header.Field<DateTime?>("RequestedDueAt").GetValueOrDefault(),
+                    Customer = Convert.ToString(header["CustName"]),
+                    Delivery = Convert.ToString(header["DeliveryType"]),
+                    Equipment = design?.EquipmentName,
+                    Paper = paper,
+                    Size = width > 0 && height > 0 ? FormattableString.Invariant($"{width:0.####}x{height:0.####}") : "",
+                    Quantity = quantity > 0 ? $"{quantity.ToString("0.####", CultureInfo.InvariantCulture)}장" : "",
+                    Finishing = editor == null ? "" : string.Join(", ", editor.GetPostProcesses().Select(process =>
+                        process.ProcessCode == "WOOD" && process.Parameters.TypeCode == "TOP_BOTTOM" ? "상하각목" : process.ProcessName)),
+                    Materials = string.Join(", ", items.AsEnumerable().Skip(design == null ? 1 : 0).Select(row =>
+                        $"{(string.IsNullOrWhiteSpace(Convert.ToString(row["CustomName"])) ? row["ItemName"] : row["CustomName"])} {row["Qty"]:0.####}{row["UnitName"]}".Trim())),
+                    Remarks = Convert.ToString(header["OrderDescription"])
+                };
+                return new { Order = order, CoverPage = editor?.WorkingArtboardIndex ?? 0 };
+            });
+
+            Bitmap cover = null;
+            try
+            {
+                var snapshot = await Task.Run(() => OrderPreviewSnapshotRepository.Get(orderId));
+                var page = snapshot?.Pages.ElementAtOrDefault(saved.CoverPage) ?? snapshot?.Pages.FirstOrDefault();
+                if (page != null)
+                {
+                    string path = await OrderFileStorageService.DownloadAsync(page.ImageFile, CancellationToken.None);
+                    try
+                    {
+                        using (Image image = Image.FromFile(path))
+                            cover = new Bitmap(image);
+                    }
+                    finally
+                    {
+                        File.Delete(path);
+                        Directory.Delete(Path.GetDirectoryName(path));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!owner.IsDisposed)
+                    MessageBox.Show(owner, "작업지시서 이미지를 불러오지 못했습니다.\r\n"
+                        + OrderFileStorageService.GetTransferFailureMessage(ex), "작업지시서",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            using (cover)
+            {
+                if (owner.IsDisposed) return;
+                saved.Order.CoverImage = cover;
+                using (var dialog = new DialogWorkOrder(saved.Order, null))
+                    dialog.ShowDialog(owner);
+            }
         }
 
         private void ConfigureImageSlot(PictureBox box)
@@ -147,7 +223,7 @@ namespace PineTree.Dialogs
 
         private void RefreshFileName()
         {
-            tbFileName.Text = Path.GetFileNameWithoutExtension(ReadFields().FileName);
+            tbFileName.Text = Path.GetFileNameWithoutExtension(ReadFields().GetFileName());
         }
 
         private DeliveryWorkOrder ReadFields()
@@ -231,24 +307,27 @@ namespace PineTree.Dialogs
             DeliveryWorkOrder order = ReadFields();
             if (!ValidateFields(order)) return;
 
+            bool asPdf = chkPDF.Checked;
             string destination = null;
             if (!preview)
             {
+                string fileName = order.GetFileName(asPdf);
+                string extension = Path.GetExtension(fileName);
                 using (var picker = new SaveFileDialog
                 {
                     Title = "작업지시서 저장",
-                    Filter = "Excel 통합 문서 (*.xlsx)|*.xlsx",
-                    DefaultExt = "xlsx",
+                    Filter = asPdf ? "PDF 문서 (*.pdf)|*.pdf" : "Excel 통합 문서 (*.xlsx)|*.xlsx",
+                    DefaultExt = extension.TrimStart('.'),
                     AddExtension = true,
                     OverwritePrompt = true,
-                    FileName = order.FileName
+                    FileName = fileName
                 })
                 {
                     if (picker.ShowDialog(this) != DialogResult.OK) return;
                     destination = picker.FileName;
-                    if (!string.Equals(Path.GetExtension(destination), ".xlsx", StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(Path.GetExtension(destination), extension, StringComparison.OrdinalIgnoreCase))
                     {
-                        InvalidField("Excel 파일 확장자는 .xlsx로 지정해주세요.", null);
+                        InvalidField("파일 확장자는 " + extension + "로 지정해주세요.", null);
                         return;
                     }
                 }
@@ -264,7 +343,7 @@ namespace PineTree.Dialogs
                 await ResolveOrderNumberAsync(order, preview);
                 if (!preview && string.IsNullOrWhiteSpace(order.OrderNo)) return;
 
-                string path = await DeliveryWorkOrderService.GenerateAsync(order, destination);
+                string path = await DeliveryWorkOrderService.GenerateAsync(order, destination, asPdf);
                 if (preview)
                 {
                     try

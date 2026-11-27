@@ -13,11 +13,16 @@ namespace PineTree.UserControls
     public partial class UcOrderInfo : UserControl, INavigationView
     {
         private const string AllChannelsText = "[전체]";
+        private const string CheckColumn = "Checked";
+        private const string WorkSheetColumn = "WorkSheet";
         private readonly NavigationController _navigationController;
+        private readonly HashSet<long> _checkedOrderIds = new HashSet<long>();
         private DataTable _orders;
         private int _loadVersion;
         private bool _isLoaded;
-        private long? _selectedOrderId;
+        private bool _deleting;
+        private bool _retryingFileCleanup;
+        private bool _openingWorkOrder;
 
         protected override CreateParams CreateParams
         {
@@ -46,18 +51,27 @@ namespace PineTree.UserControls
             tbCustCode.KeyDown += SearchTextBox_KeyDown;
             btnAdd.Click += btnAdd_Click;
             btnEdit.Click += btnEdit_Click;
+            btnDelete.Click += btnDelete_Click;
+            btnClearSelection.Click += btnClearSelection_Click;
             InitializeOrderGrid();
 
             InitializeDefaultSearchCondition();
         }
 
         public event EventHandler<NavigationRequestedEventArgs> NavigationRequested;
+        internal event EventHandler ProductionStatusChanged;
+
+        internal void RefreshOrders()
+        {
+            if (_isLoaded) LoadOrders(orderGrid.PageIndex);
+        }
 
         private void UcOrderInfo_Load(object sender, EventArgs e)
         {
             _isLoaded = true;
             RefreshOrderChannels();
             LoadOrders();
+            RetryFileCleanup();
         }
 
         private void UcOrderInfo_VisibleChanged(object sender, EventArgs e)
@@ -65,6 +79,7 @@ namespace PineTree.UserControls
             if (_isLoaded && Visible && IsHandleCreated)
             {
                 RefreshOrderChannels();
+                RetryFileCleanup();
             }
         }
 
@@ -127,38 +142,152 @@ namespace PineTree.UserControls
 
         private void btnEdit_Click(object sender, EventArgs e)
         {
-            OpenEditDialog();
+            if (_checkedOrderIds.Count != 1)
+            {
+                string message = _checkedOrderIds.Count == 0
+                    ? "수정할 주문을 선택해주세요."
+                    : "수정할 주문은 한 건만 선택해주세요.";
+                MessageBox.Show(this, message, "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            OpenEditDialog(_checkedOrderIds.Single());
         }
+
+        private async void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (_deleting) return;
+            long[] orderIds = _checkedOrderIds.ToArray();
+            if (orderIds.Length == 0)
+            {
+                MessageBox.Show(this, "삭제할 대상을 선택해주세요", "주문 삭제", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (MessageBox.Show(this, $"체크한 주문 {orderIds.Length}건과 해당 서버 파일을 정말 삭제하시겠습니까?\r\n"
+                + "다른 주문에서 사용하는 파일은 보존됩니다.", "주문 삭제", MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                return;
+
+            int pageIndex = orderGrid.PageIndex;
+            _deleting = true;
+            btnDelete.Enabled = btnEdit.Enabled = btnAdd.Enabled = btnSelect.Enabled = btnClearSelection.Enabled = orderGrid.Enabled = false;
+            ++_loadVersion;
+            try
+            {
+                await Task.Run(() => OrderRepository.DeleteOrders(orderIds));
+                if (IsDisposed) return;
+                _checkedOrderIds.ExceptWith(orderIds);
+                if (_orders != null)
+                {
+                    var deletedIds = new HashSet<long>(orderIds);
+                    foreach (DataRow row in _orders.Rows.Cast<DataRow>().Where(row => deletedIds.Contains(GetOrderId(row))).ToArray())
+                        _orders.Rows.Remove(row);
+                    BindOrders(_orders, pageIndex);
+                }
+                LoadOrders(pageIndex);
+                await Task.Run(() => OrderRepository.CleanUpDeletedOrderFiles());
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed)
+                    MessageBox.Show(this, ex.Message, "주문 삭제", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                _deleting = false;
+                if (!IsDisposed)
+                    btnDelete.Enabled = btnEdit.Enabled = btnAdd.Enabled = btnSelect.Enabled = btnClearSelection.Enabled = orderGrid.Enabled = true;
+            }
+        }
+
+        private async void RetryFileCleanup()
+        {
+            if (_deleting || _retryingFileCleanup) return;
+            _retryingFileCleanup = true;
+            try
+            {
+                await Task.Run(() => OrderRepository.CleanUpDeletedOrderFiles());
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed && Visible)
+                    MessageBox.Show(this, ex.Message, "주문 파일 삭제", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                _retryingFileCleanup = false;
+            }
+        }
+
+        private void OrderGrid_HeaderClicked(object sender, PagedGridCellClickEventArgs e)
+        {
+            if (e.ColumnKey != CheckColumn || _orders == null) return;
+            var orderIds = _orders.AsEnumerable().Skip(CurrentPageStartIndex).Take(orderGrid.PageSize)
+                .Select(GetOrderId).Distinct().ToArray();
+            if (orderIds.All(_checkedOrderIds.Contains))
+                _checkedOrderIds.ExceptWith(orderIds);
+            else
+                _checkedOrderIds.UnionWith(orderIds);
+            BindOrderPage();
+        }
+
+        private void btnClearSelection_Click(object sender, EventArgs e)
+        {
+            _checkedOrderIds.Clear();
+            BindOrderPage();
+        }
+
+        private int CurrentPageStartIndex => (orderGrid.PageIndex - 1) * orderGrid.PageSize;
 
         private void OrderGrid_CellDoubleClicked(object sender, PagedGridCellClickEventArgs e)
         {
-            if (e.ColumnKey == "WorkSheet")
-            {
-                return;
-            }
-
-            SelectOrder(e);
-            OpenEditDialog();
+            if (e.ColumnKey != WorkSheetColumn && e.ColumnKey != CheckColumn && e.ColumnKey != OrderProductionStatusCell.ColumnKey)
+                OpenEditDialog(long.Parse(e.Row["OrderId"].Text));
         }
 
-        private void OrderGrid_CellClicked(object sender, PagedGridCellClickEventArgs e)
+        private async void OrderGrid_CellClicked(object sender, PagedGridCellClickEventArgs e)
         {
-            SelectOrder(e);
-            if (e.ColumnKey != "WorkSheet" || _orders == null || e.Row == null
-                || !e.Row.ContainsKey("WorkSheet") || e.Row["WorkSheet"].CellType != PagedGridCellType.Button)
+            orderGrid.SelectedRowIndex = e.RowIndex;
+            long orderId = long.Parse(e.Row["OrderId"].Text);
+            if (e.ColumnKey == OrderProductionStatusCell.ColumnKey)
             {
+                if (await OrderProductionStatusCell.FeedAsync(this, orderId, e.Row[e.ColumnKey]))
+                {
+                    RefreshOrders();
+                    ProductionStatusChanged?.Invoke(this, EventArgs.Empty);
+                }
                 return;
             }
 
-            int index = (orderGrid.PageIndex - 1) * orderGrid.PageSize + e.RowIndex;
-            if (index < 0 || index >= _orders.Rows.Count)
+            if (e.ColumnKey == CheckColumn && e.Row[CheckColumn].CellType == PagedGridCellType.CheckBox)
             {
+                if (e.Row[CheckColumn].Checked)
+                    _checkedOrderIds.Add(orderId);
+                else
+                    _checkedOrderIds.Remove(orderId);
+                UpdateGridCount();
                 return;
             }
 
-            using (DialogPrint dialog = new DialogPrint(_orders.Rows[index]))
+            if (e.ColumnKey != WorkSheetColumn || e.Row[WorkSheetColumn].CellType != PagedGridCellType.Button
+                || _openingWorkOrder)
+                return;
+
+            _openingWorkOrder = true;
+            try
             {
-                dialog.ShowDialog(this);
+                await DialogWorkOrder.ShowSavedOrderAsync(this, orderId);
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed)
+                    MessageBox.Show(this, "작업지시서를 열 수 없습니다.\r\n" + ex.Message,
+                        "작업지시서", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                _openingWorkOrder = false;
             }
         }
 
@@ -167,7 +296,7 @@ namespace PineTree.UserControls
             NavigationRequested?.Invoke(this, e);
         }
 
-        private async void LoadOrders()
+        private async void LoadOrders(int pageIndex = 1)
         {
             try
             {
@@ -195,7 +324,7 @@ namespace PineTree.UserControls
                     return;
                 }
 
-                BindOrders(orders);
+                BindOrders(orders, pageIndex);
             }
             catch (Exception ex)
             {
@@ -203,25 +332,22 @@ namespace PineTree.UserControls
             }
         }
 
-        //
-
-
-
-
         private void InitializeOrderGrid()
         {
             orderGrid.RowGroupKey = "OrderId";
             orderGrid.PageSize = Math.Max(1, (orderGrid.Height - 36 - 52) / 41);
+            orderGrid.Columns.Add(new PagedGridColumn(CheckColumn, "선택", 56, ContentAlignment.MiddleCenter));
             orderGrid.Columns.Add(new PagedGridColumn("OrderNo", "주문번호", 210, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Customer", "거래처명", 240, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Item", "품목", 260, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Size", "규격", 215, ContentAlignment.MiddleLeft));
             orderGrid.Columns.Add(new PagedGridColumn("Quantity", "수량/회배", 150, ContentAlignment.MiddleLeft));
-            orderGrid.Columns.Add(new PagedGridColumn("Status", "진행상태", 0, ContentAlignment.MiddleLeft));
-            orderGrid.Columns.Add(new PagedGridColumn("WorkSheet", "작업서", 100, ContentAlignment.MiddleCenter));
+            orderGrid.Columns.Add(new PagedGridColumn("ConsigneeName", "주문자", 120, ContentAlignment.MiddleLeft));
+            orderGrid.Columns.Add(new PagedGridColumn(OrderProductionStatusCell.ColumnKey, "진행상태", 0, ContentAlignment.MiddleLeft));
+            orderGrid.Columns.Add(new PagedGridColumn(WorkSheetColumn, "작업서", 100, ContentAlignment.MiddleCenter));
             orderGrid.PageChanged += delegate { BindOrderPage(); };
+            orderGrid.HeaderClicked += OrderGrid_HeaderClicked;
             orderGrid.CellClicked += OrderGrid_CellClicked;
-            orderGrid.SelectionChanged += OrderGrid_SelectionChanged;
             orderGrid.CellDoubleClicked += OrderGrid_CellDoubleClicked;
             orderGrid.KeyDown += OrderGrid_KeyDown;
             orderGrid.Resize += delegate
@@ -240,17 +366,29 @@ namespace PineTree.UserControls
             }
 
             e.SuppressKeyPress = true;
-            OpenEditDialog();
+            int index = CurrentPageStartIndex + orderGrid.SelectedRowIndex;
+            OpenEditDialog(GetOrderId(_orders.Rows[index]));
         }
 
-        private void BindOrders(DataTable orders)
+        private void BindOrders(DataTable orders, int pageIndex)
         {
             _orders = orders;
             orderGrid.TotalCount = orders.Rows.Count;
-            orderGrid.PageIndex = 1;
-            int orderCount = orders.AsEnumerable().Select(row => row["OrderId"]).Distinct().Count();
-            orderGrid.TotalText = string.Format("전체 {0:#,##0}건 / 품목 {1:#,##0}개", orderCount, orders.Rows.Count);
+            orderGrid.PageIndex = pageIndex;
             BindOrderPage();
+        }
+
+        private void UpdateGridCount()
+        {
+            var orderIds = new HashSet<long>(_orders.AsEnumerable().Select(GetOrderId));
+            int hiddenCount = _checkedOrderIds.Count(id => !orderIds.Contains(id));
+            string text = $"전체 {orderIds.Count:N0}건 / 품목 {_orders.Rows.Count:N0}개 / 선택 {_checkedOrderIds.Count:N0}건";
+            orderGrid.TotalText = hiddenCount > 0 ? $"{text} (조회 밖 {hiddenCount:N0}건)" : text;
+        }
+
+        private static long GetOrderId(DataRow row)
+        {
+            return Convert.ToInt64(row["OrderId"]);
         }
 
         private static string GetOrderItemDisplayName(DataRow row, bool firstItem)
@@ -263,59 +401,36 @@ namespace PineTree.UserControls
 
         private void BindOrderPage()
         {
-            _selectedOrderId = null;
             List<Dictionary<string, PagedGridCell>> rows = new List<Dictionary<string, PagedGridCell>>();
             if (_orders != null)
             {
-                int startIndex = (orderGrid.PageIndex - 1) * orderGrid.PageSize;
+                UpdateGridCount();
+                int startIndex = CurrentPageStartIndex;
                 int endIndex = Math.Min(startIndex + orderGrid.PageSize, _orders.Rows.Count);
                 for (int index = startIndex; index < endIndex; index++)
                 {
                     DataRow order = _orders.Rows[index];
+                    long orderId = GetOrderId(order);
                     bool firstItem = index == 0 || !Equals(order["OrderId"], _orders.Rows[index - 1]["OrderId"]);
+                    bool firstOnPage = firstItem || index == startIndex;
                     Dictionary<string, PagedGridCell> row = new Dictionary<string, PagedGridCell>
                     {
-                        { "OrderId", new PagedGridCell(Convert.ToString(order["OrderId"])) },
-                        { "OrderNo", new PagedGridCell(firstItem ? Convert.ToString(order["OrderNo"]) : string.Empty) },
+                        { CheckColumn, firstOnPage ? new PagedGridCell(string.Empty)
+                            { CellType = PagedGridCellType.CheckBox, Checked = _checkedOrderIds.Contains(orderId) } : new PagedGridCell(string.Empty) },
+                        { "OrderId", new PagedGridCell(orderId.ToString()) },
+                        { "OrderNo", new PagedGridCell(firstOnPage ? Convert.ToString(order["OrderNo"]) : string.Empty) },
                         { "Customer", new PagedGridCell(Convert.ToString(order["CustName"])) },
                         { "Item", new PagedGridCell(GetOrderItemDisplayName(order, firstItem)) },
                         { "Size", new PagedGridCell(CreateSizeText(order)) },
                         { "Quantity", new PagedGridCell(CreateQuantityText(order)) },
-                        { "Status", new PagedGridCell(CreateStatusText(Convert.ToString(order["ProductionStatus"]))) { CellType = PagedGridCellType.Badge } },
-                        { "WorkSheet", firstItem ? new PagedGridCell("보기") { CellType = PagedGridCellType.Button } : new PagedGridCell(string.Empty) }
+                        { "ConsigneeName", new PagedGridCell(firstOnPage ? Convert.ToString(order["ConsigneeName"]) : string.Empty) },
+                        { OrderProductionStatusCell.ColumnKey, OrderProductionStatusCell.Create(Convert.ToString(order["ProductionStatus"])) },
+                        { WorkSheetColumn, firstOnPage ? new PagedGridCell("보기") { CellType = PagedGridCellType.Button } : new PagedGridCell(string.Empty) }
                     };
                     rows.Add(row);
                 }
             }
             orderGrid.SetRows(rows);
-        }
-
-        private void SelectOrder(PagedGridCellClickEventArgs e)
-        {
-            PagedGridCell orderIdCell;
-            long orderId;
-            if (e != null && e.Row != null && e.Row.TryGetValue("OrderId", out orderIdCell) && long.TryParse(orderIdCell.Text, out orderId) && orderId > 0)
-            {
-                _selectedOrderId = orderId;
-                orderGrid.SelectedRowIndex = e.RowIndex;
-            }
-        }
-
-        private void OrderGrid_SelectionChanged(object sender, EventArgs e)
-        {
-            _selectedOrderId = null;
-            int selectedIndex = orderGrid.SelectedRowIndex;
-            if (_orders == null || selectedIndex < 0)
-            {
-                return;
-            }
-
-            int index = (orderGrid.PageIndex - 1) * orderGrid.PageSize + selectedIndex;
-            long orderId;
-            if (index < _orders.Rows.Count && long.TryParse(Convert.ToString(_orders.Rows[index]["OrderId"]), out orderId))
-            {
-                _selectedOrderId = orderId;
-            }
         }
 
         private void InitializeDefaultSearchCondition()
@@ -341,21 +456,20 @@ namespace PineTree.UserControls
             return null;
         }
 
-        private void OpenEditDialog()
+        private void OpenEditDialog(long orderId)
         {
-            long orderId;
-            if (!TryGetCurrentOrderId(out orderId))
+            try
             {
-                MessageBox.Show("수정할 주문을 선택해주세요.", "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            using (DialogOrder dialog = new DialogOrder(orderId))
-            {
-                if (dialog.ShowDialog(this) == DialogResult.OK)
+                using (var dialog = new DialogOrderDesignPad(orderId))
                 {
-                    LoadOrders();
+                    if (dialog.ShowDialog(this) == DialogResult.OK)
+                        LoadOrders();
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "수정할 주문을 열 수 없습니다.\r\n" + ex.Message,
+                    "주문정보", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -396,24 +510,6 @@ namespace PineTree.UserControls
             return string.Format("{0:#,##0.##}{1}", qty, unitName);
         }
 
-        private static string CreateStatusText(string status)
-        {
-            string normalized = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().Replace(" ", string.Empty);
-            switch (normalized)
-            {
-                case "출력중":
-                    return "출력 중";
-                case "포장대기":
-                    return "포장 대기";
-                case "포장완료":
-                    return "포장 완료";
-                case "신규":
-                    return "미작업";
-                default:
-                    return string.IsNullOrWhiteSpace(status) ? "미작업" : status.Trim();
-            }
-        }
-
         private static string ToText(object value)
         {
             return value == null || value == DBNull.Value ? string.Empty : value.ToString();
@@ -430,10 +526,5 @@ namespace PineTree.UserControls
             return decimal.TryParse(value.ToString(), out result) ? result : 0m;
         }
 
-        private bool TryGetCurrentOrderId(out long orderId)
-        {
-            orderId = _selectedOrderId.GetValueOrDefault();
-            return _selectedOrderId.HasValue && orderId > 0;
-        }
     }
 }

@@ -32,6 +32,8 @@ namespace PineTree.UserControlsOrder
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Dlg타공_커스텀타공_좌우));
             this.c1SplitContainer1 = new C1.Win.C1SplitContainer.C1SplitContainer();
             this.c1SplitterPanel1 = new C1.Win.C1SplitContainer.C1SplitterPanel();
+            this.label2 = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
             this.btnCancel = new C1.Win.C1Input.C1Button();
             this.btnOK = new C1.Win.C1Input.C1Button();
             this.c1InputPanel1 = new C1.Win.C1InputPanel.C1InputPanel();
@@ -60,6 +62,12 @@ namespace PineTree.UserControlsOrder
             this.tbLeftPos5 = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbLeftPos6 = new C1.Win.C1InputPanel.InputNumericBox();
             this.inputLabel25 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputLabel29 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputLabel30 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputLabel31 = new C1.Win.C1InputPanel.InputLabel();
+            this.tbLeftPos7 = new C1.Win.C1InputPanel.InputNumericBox();
+            this.tbLeftPos8 = new C1.Win.C1InputPanel.InputNumericBox();
+            this.inputLabel32 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel17 = new C1.Win.C1InputPanel.InputLabel();
             this.tbLeftGap = new C1.Win.C1InputPanel.InputNumericBox();
             this.inputGroupHeader2 = new C1.Win.C1InputPanel.InputGroupHeader();
@@ -87,10 +95,14 @@ namespace PineTree.UserControlsOrder
             this.tbRightPos5 = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbRightPos6 = new C1.Win.C1InputPanel.InputNumericBox();
             this.inputLabel28 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputLabel33 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputLabel34 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputLabel35 = new C1.Win.C1InputPanel.InputLabel();
+            this.tbRightPos7 = new C1.Win.C1InputPanel.InputNumericBox();
+            this.tbRightPos8 = new C1.Win.C1InputPanel.InputNumericBox();
+            this.inputLabel36 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel18 = new C1.Win.C1InputPanel.InputLabel();
             this.tbRightGap = new C1.Win.C1InputPanel.InputNumericBox();
-            this.label1 = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -111,7 +123,7 @@ namespace PineTree.UserControlsOrder
             this.c1SplitContainer1.Location = new System.Drawing.Point(0, 0);
             this.c1SplitContainer1.Name = "c1SplitContainer1";
             this.c1SplitContainer1.Panels.Add(this.c1SplitterPanel1);
-            this.c1SplitContainer1.Size = new System.Drawing.Size(372, 692);
+            this.c1SplitContainer1.Size = new System.Drawing.Size(372, 809);
             this.c1SplitContainer1.SplitterColor = System.Drawing.Color.FromArgb(((int)(((byte)(82)))), ((int)(((byte)(82)))), ((int)(((byte)(82)))));
             this.c1SplitContainer1.TabIndex = 0;
             this.c1SplitContainer1.ToolTipGradient = C1.Win.C1SplitContainer.ToolTipGradient.Vista;
@@ -124,16 +136,38 @@ namespace PineTree.UserControlsOrder
             this.c1SplitterPanel1.Controls.Add(this.btnCancel);
             this.c1SplitterPanel1.Controls.Add(this.btnOK);
             this.c1SplitterPanel1.Controls.Add(this.c1InputPanel1);
-            this.c1SplitterPanel1.Height = 692;
+            this.c1SplitterPanel1.Height = 809;
             this.c1SplitterPanel1.Location = new System.Drawing.Point(0, 0);
             this.c1SplitterPanel1.Name = "c1SplitterPanel1";
-            this.c1SplitterPanel1.Size = new System.Drawing.Size(372, 692);
+            this.c1SplitterPanel1.Size = new System.Drawing.Size(372, 809);
             this.c1SplitterPanel1.TabIndex = 0;
+            // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.label2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
+            this.label2.Location = new System.Drawing.Point(187, 404);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(177, 12);
+            this.label2.TabIndex = 2;
+            this.label2.Text = "수치는 1:1 기준으로 입력하세요";
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.label1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
+            this.label1.Location = new System.Drawing.Point(187, 37);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(177, 12);
+            this.label1.TabIndex = 2;
+            this.label1.Text = "수치는 1:1 기준으로 입력하세요";
             // 
             // btnCancel
             // 
             this.btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnCancel.Location = new System.Drawing.Point(267, 658);
+            this.btnCancel.Location = new System.Drawing.Point(267, 775);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(75, 23);
             this.btnCancel.TabIndex = 1;
@@ -143,7 +177,7 @@ namespace PineTree.UserControlsOrder
             // btnOK
             // 
             this.btnOK.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnOK.Location = new System.Drawing.Point(186, 658);
+            this.btnOK.Location = new System.Drawing.Point(186, 775);
             this.btnOK.Name = "btnOK";
             this.btnOK.Size = new System.Drawing.Size(75, 23);
             this.btnOK.TabIndex = 1;
@@ -180,6 +214,12 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.tbLeftPos5);
             this.c1InputPanel1.Items.Add(this.tbLeftPos6);
             this.c1InputPanel1.Items.Add(this.inputLabel25);
+            this.c1InputPanel1.Items.Add(this.inputLabel29);
+            this.c1InputPanel1.Items.Add(this.inputLabel30);
+            this.c1InputPanel1.Items.Add(this.inputLabel31);
+            this.c1InputPanel1.Items.Add(this.tbLeftPos7);
+            this.c1InputPanel1.Items.Add(this.tbLeftPos8);
+            this.c1InputPanel1.Items.Add(this.inputLabel32);
             this.c1InputPanel1.Items.Add(this.inputLabel17);
             this.c1InputPanel1.Items.Add(this.tbLeftGap);
             this.c1InputPanel1.Items.Add(this.inputGroupHeader2);
@@ -207,11 +247,17 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.tbRightPos5);
             this.c1InputPanel1.Items.Add(this.tbRightPos6);
             this.c1InputPanel1.Items.Add(this.inputLabel28);
+            this.c1InputPanel1.Items.Add(this.inputLabel33);
+            this.c1InputPanel1.Items.Add(this.inputLabel34);
+            this.c1InputPanel1.Items.Add(this.inputLabel35);
+            this.c1InputPanel1.Items.Add(this.tbRightPos7);
+            this.c1InputPanel1.Items.Add(this.tbRightPos8);
+            this.c1InputPanel1.Items.Add(this.inputLabel36);
             this.c1InputPanel1.Items.Add(this.inputLabel18);
             this.c1InputPanel1.Items.Add(this.tbRightGap);
             this.c1InputPanel1.Location = new System.Drawing.Point(0, 0);
             this.c1InputPanel1.Name = "c1InputPanel1";
-            this.c1InputPanel1.Size = new System.Drawing.Size(372, 641);
+            this.c1InputPanel1.Size = new System.Drawing.Size(372, 745);
             this.c1InputPanel1.TabIndex = 0;
             // 
             // inputGroupHeader1
@@ -355,7 +401,7 @@ namespace PineTree.UserControlsOrder
             // 
             this.rbLeftFixGap.Name = "rbLeftFixGap";
             this.rbLeftFixGap.Padding = new System.Windows.Forms.Padding(35, 15, 0, 0);
-            this.rbLeftFixGap.Text = "고정간격 (시작위치부터 고정간격으로 타공합니다)";
+            this.rbLeftFixGap.Text = "고정간격 (입력 간격을 기준으로 균등 배치)";
             // 
             // inputLabel6
             // 
@@ -408,6 +454,57 @@ namespace PineTree.UserControlsOrder
             this.inputLabel25.Padding = new System.Windows.Forms.Padding(0, 0, 0, 2);
             this.inputLabel25.Text = "┌";
             // 
+            // inputLabel29
+            // 
+            this.inputLabel29.Name = "inputLabel29";
+            this.inputLabel29.Padding = new System.Windows.Forms.Padding(120, 3, 0, 0);
+            this.inputLabel29.Text = "좌(Left)";
+            // 
+            // inputLabel30
+            // 
+            this.inputLabel30.Break = C1.Win.C1InputPanel.BreakType.Row;
+            this.inputLabel30.Name = "inputLabel30";
+            this.inputLabel30.Padding = new System.Windows.Forms.Padding(20, 3, 0, 0);
+            this.inputLabel30.Text = "하(Bottom)";
+            // 
+            // inputLabel31
+            // 
+            this.inputLabel31.Name = "inputLabel31";
+            this.inputLabel31.Padding = new System.Windows.Forms.Padding(78, 5, 0, 0);
+            this.inputLabel31.Text = "끝위치";
+            // 
+            // tbLeftPos7
+            // 
+            this.tbLeftPos7.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.tbLeftPos7.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbLeftPos7.Name = "tbLeftPos7";
+            this.tbLeftPos7.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
+            this.tbLeftPos7.Width = 60;
+            // 
+            // tbLeftPos8
+            // 
+            this.tbLeftPos8.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.tbLeftPos8.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbLeftPos8.Name = "tbLeftPos8";
+            this.tbLeftPos8.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
+            this.tbLeftPos8.Width = 60;
+            // 
+            // inputLabel32
+            // 
+            this.inputLabel32.Break = C1.Win.C1InputPanel.BreakType.Row;
+            this.inputLabel32.Font = new System.Drawing.Font("굴림", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.inputLabel32.Name = "inputLabel32";
+            this.inputLabel32.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel32.Text = "└";
+            // 
             // inputLabel17
             // 
             this.inputLabel17.Name = "inputLabel17";
@@ -423,6 +520,7 @@ namespace PineTree.UserControlsOrder
             0,
             0});
             this.tbLeftGap.Name = "tbLeftGap";
+            this.tbLeftGap.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
             this.tbLeftGap.Width = 60;
             // 
             // inputGroupHeader2
@@ -568,7 +666,7 @@ namespace PineTree.UserControlsOrder
             // 
             this.rbRightFixGap.Name = "rbRightFixGap";
             this.rbRightFixGap.Padding = new System.Windows.Forms.Padding(35, 15, 0, 0);
-            this.rbRightFixGap.Text = "고정간격 (시작위치부터 고정간격으로 타공합니다)";
+            this.rbRightFixGap.Text = "고정간격 (입력 간격을 기준으로 균등 배치)";
             // 
             // inputLabel14
             // 
@@ -621,6 +719,55 @@ namespace PineTree.UserControlsOrder
             this.inputLabel28.Padding = new System.Windows.Forms.Padding(0, 0, 0, 2);
             this.inputLabel28.Text = " ┐";
             // 
+            // inputLabel33
+            // 
+            this.inputLabel33.Name = "inputLabel33";
+            this.inputLabel33.Padding = new System.Windows.Forms.Padding(120, 3, 0, 0);
+            this.inputLabel33.Text = "우(Right)";
+            // 
+            // inputLabel34
+            // 
+            this.inputLabel34.Break = C1.Win.C1InputPanel.BreakType.Row;
+            this.inputLabel34.Name = "inputLabel34";
+            this.inputLabel34.Padding = new System.Windows.Forms.Padding(20, 3, 0, 0);
+            this.inputLabel34.Text = "하(Bottom)";
+            // 
+            // inputLabel35
+            // 
+            this.inputLabel35.Name = "inputLabel35";
+            this.inputLabel35.Padding = new System.Windows.Forms.Padding(78, 5, 0, 0);
+            this.inputLabel35.Text = "끝위치";
+            // 
+            // tbRightPos7
+            // 
+            this.tbRightPos7.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.tbRightPos7.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbRightPos7.Name = "tbRightPos7";
+            this.tbRightPos7.Width = 60;
+            // 
+            // tbRightPos8
+            // 
+            this.tbRightPos8.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.tbRightPos8.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbRightPos8.Name = "tbRightPos8";
+            this.tbRightPos8.Width = 60;
+            // 
+            // inputLabel36
+            // 
+            this.inputLabel36.Break = C1.Win.C1InputPanel.BreakType.Row;
+            this.inputLabel36.Font = new System.Drawing.Font("굴림", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.inputLabel36.Name = "inputLabel36";
+            this.inputLabel36.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.inputLabel36.Text = " ┘";
+            // 
             // inputLabel18
             // 
             this.inputLabel18.Name = "inputLabel18";
@@ -638,33 +785,11 @@ namespace PineTree.UserControlsOrder
             this.tbRightGap.Name = "tbRightGap";
             this.tbRightGap.Width = 60;
             // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.label1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
-            this.label1.Location = new System.Drawing.Point(187, 37);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(177, 12);
-            this.label1.TabIndex = 2;
-            this.label1.Text = "수치는 1:1 기준으로 입력하세요";
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.label2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(128)))));
-            this.label2.Location = new System.Drawing.Point(184, 360);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(177, 12);
-            this.label2.TabIndex = 2;
-            this.label2.Text = "수치는 1:1 기준으로 입력하세요";
-            // 
             // Dlg타공_커스텀타공_좌우
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(372, 692);
+            this.ClientSize = new System.Drawing.Size(372, 809);
             this.Controls.Add(this.c1SplitContainer1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -746,5 +871,17 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputLabel inputLabel28;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
+        private C1.Win.C1InputPanel.InputLabel inputLabel29;
+        private C1.Win.C1InputPanel.InputLabel inputLabel30;
+        private C1.Win.C1InputPanel.InputLabel inputLabel31;
+        private C1.Win.C1InputPanel.InputNumericBox tbLeftPos7;
+        private C1.Win.C1InputPanel.InputNumericBox tbLeftPos8;
+        private C1.Win.C1InputPanel.InputLabel inputLabel32;
+        private C1.Win.C1InputPanel.InputLabel inputLabel33;
+        private C1.Win.C1InputPanel.InputLabel inputLabel34;
+        private C1.Win.C1InputPanel.InputLabel inputLabel35;
+        private C1.Win.C1InputPanel.InputNumericBox tbRightPos7;
+        private C1.Win.C1InputPanel.InputNumericBox tbRightPos8;
+        private C1.Win.C1InputPanel.InputLabel inputLabel36;
     }
 }

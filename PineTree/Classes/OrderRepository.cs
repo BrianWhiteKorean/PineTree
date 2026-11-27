@@ -20,6 +20,7 @@ namespace PineTree.Classes
         public string OrderTitle { get; set; }
         public string OrderDescription { get; set; }
         public string DeliveryAddress { get; set; }
+        public OrderShippingDetails ShippingDetails { get; set; }
         public string ProductionStatus { get; set; }
         public string SourceChannel { get; set; }
         public long PriceItemSeqNo { get; set; }
@@ -101,6 +102,11 @@ SELECT
     c.CustName,
     oi.OrderTitle,
     oi.OrderTitle AS StoredOrderTitle,
+    CASE WHEN JSON_VALID(oi.ShippingDetailsJSON) THEN
+        CASE WHEN JSON_TYPE(JSON_EXTRACT(oi.ShippingDetailsJSON, '$.ConsigneeName')) = 'STRING' THEN
+            JSON_UNQUOTE(JSON_EXTRACT(oi.ShippingDetailsJSON, '$.ConsigneeName'))
+        END
+    END AS ConsigneeName,
     oi.ProductionStatus,
     oi.RequestedDueAt,
     oi.SourceChannel,
@@ -186,6 +192,24 @@ ORDER BY oi.ReceivedAt DESC, oi.OrderId DESC, item.LineNo, item.OrderItemId";
             return result;
         }
 
+        internal static bool TryStartProduction(long orderId, OrderProductionStatus status)
+        {
+            if (status != OrderProductionStatus.Printing && status != OrderProductionStatus.PostProcess)
+                throw new ArgumentOutOfRangeException(nameof(status));
+
+            return DB.Execute(@"
+UPDATE OrderInfo
+SET ProductionStatus = @Status
+WHERE OrderId = @OrderId
+    AND (ProductionStatus IS NULL OR REPLACE(TRIM(ProductionStatus), ' ', '') IN ('', @NewStatus, '미작업'))",
+                new[]
+                {
+                    new ParamValuePair("@OrderId", orderId),
+                    new ParamValuePair("@Status", OrderProductionStatusHelper.ToDbText(status)),
+                    new ParamValuePair("@NewStatus", OrderProductionStatusHelper.ToDbText(OrderProductionStatus.New))
+                }) == 1;
+        }
+
         public static Dictionary<OrderProductionStatus, int> GetStatusCountsByOrderDate(DateTime orderDate)
         {
             string sql = @"
@@ -240,6 +264,7 @@ SELECT
     oi.OrderTitle,
     oi.OrderDescription,
     oi.DeliveryAddress,
+    oi.ShippingDetailsJSON,
     oi.ProductionStatus,
     oi.SourceChannel,
     item.OrderItemId,
@@ -282,6 +307,12 @@ LEFT JOIN OrderFiles outputFile
     AND outputFile.IsActive = 1
 WHERE oi.OrderId = @OrderId
 LIMIT 1";
+
+        internal static DataTable GetShippers()
+        {
+            return DB.MySqlQueryRead(
+                "SELECT ShipperName, Address1, Address2, Zipcode, Phone FROM ShipperInfo ORDER BY SeqNo", null);
+        }
 
         public static DataRow GetOrderForEdit(long orderId)
         {
@@ -356,6 +387,7 @@ ORDER BY item.LineNo, item.OrderItemId";
             using (MySqlConnection conn = DB.CreateConnection())
             {
                 conn.Open();
+                using (AcquireOrderWriteLock(conn))
                 using (MySqlTransaction transaction = conn.BeginTransaction())
                 {
                     try
@@ -412,6 +444,7 @@ ORDER BY item.LineNo, item.OrderItemId";
             using (MySqlConnection conn = DB.CreateConnection())
             {
                 conn.Open();
+                using (AcquireOrderWriteLock(conn))
                 using (MySqlTransaction transaction = conn.BeginTransaction())
                 {
                     try
@@ -471,6 +504,7 @@ SET
     OrderTitle = @OrderTitle,
     OrderDescription = @OrderDescription,
     DeliveryAddress = CASE WHEN @DeliveryAddress IS NULL THEN DeliveryAddress ELSE NULLIF(@DeliveryAddress, '') END,
+    ShippingDetailsJSON = COALESCE(@ShippingDetailsJSON, ShippingDetailsJSON),
     ProductionStatus = @ProductionStatus,
     SourceChannel = @SourceChannel
 WHERE OrderId = @OrderId";
@@ -487,6 +521,7 @@ WHERE OrderId = @OrderId";
                     new ParamValuePair("@OrderTitle", EmptyToNull(order.OrderTitle)),
                     new ParamValuePair("@OrderDescription", EmptyToNull(order.OrderDescription)),
                     new ParamValuePair("@DeliveryAddress", order.DeliveryAddress),
+                    new ParamValuePair("@ShippingDetailsJSON", order.ShippingDetails?.ToJson()),
                     new ParamValuePair("@ProductionStatus", order.ProductionStatus),
                     new ParamValuePair("@SourceChannel", EmptyToNull(order.SourceChannel))
                 });
@@ -513,6 +548,7 @@ INSERT INTO OrderInfo
     OrderTitle,
     OrderDescription,
     DeliveryAddress,
+    ShippingDetailsJSON,
     ProductionStatus,
     SourceChannel
 )
@@ -532,6 +568,7 @@ VALUES
     @OrderTitle,
     @OrderDescription,
     NULLIF(@DeliveryAddress, ''),
+    @ShippingDetailsJSON,
     @ProductionStatus,
     @SourceChannel
 );
@@ -552,6 +589,7 @@ SELECT LAST_INSERT_ID();";
                 new ParamValuePair("@OrderTitle", EmptyToNull(order.OrderTitle)),
                 new ParamValuePair("@OrderDescription", EmptyToNull(order.OrderDescription)),
                 new ParamValuePair("@DeliveryAddress", order.DeliveryAddress),
+                new ParamValuePair("@ShippingDetailsJSON", order.ShippingDetails?.ToJson()),
                 new ParamValuePair("@ProductionStatus", order.ProductionStatus),
                 new ParamValuePair("@SourceChannel", EmptyToNull(order.SourceChannel))
             });
@@ -995,6 +1033,7 @@ AND OrderItemId NOT IN (" + ids + ")", new[]
 
         private static void AddParameters(MySqlCommand cmd, ParamValuePair[] parameters)
         {
+            if (parameters == null) return;
             foreach (ParamValuePair parameter in parameters)
             {
                 cmd.Parameters.AddWithValue(parameter.ParameterName, parameter.Value ?? DBNull.Value);

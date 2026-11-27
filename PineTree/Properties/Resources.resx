@@ -187,6 +187,9 @@
   <data name="메인_Selected" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\메인_Selected.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="미작업" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\미작업.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="상품관리_Normal" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\상품관리_Normal.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
@@ -204,6 +207,9 @@
   </data>
   <data name="완료대기_Selected" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\완료대기_Selected.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="접수" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\접수.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="정산관리_Normal" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\정산관리_Normal.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
@@ -238,11 +244,20 @@
   <data name="출력물관리_Selected" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\출력물관리_Selected.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="출력중" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\출력중.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="컷팅대기_Normal" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\컷팅대기_Normal.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="컷팅대기_Selected" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\컷팅대기_Selected.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="포장대기" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\포장대기.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="포장완료" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\포장완료.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="현재주문_Normal" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\현재주문_Normal.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
@@ -255,5 +270,8 @@
   </data>
   <data name="환경설정_Selected" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\환경설정_Selected.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="후가공" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\후가공.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
 </root>

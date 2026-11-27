@@ -38,7 +38,7 @@ ORDER BY oi.ReceivedAt DESC, oi.OrderId DESC", new[] {
                 object max = Scalar(conn, null, "SELECT MAX(OrderGroupSequence) FROM OrderInfo WHERE OrderGroupId = @Root",
                     new[] { new ParamValuePair("@Root", rootId) });
                 root.Table.Columns.Add("NextOrderNo");
-                root["NextOrderNo"] = baseNo + "_" + (Math.Max(1, max == DBNull.Value || max == null ? 1 : Convert.ToInt32(max)) + 1);
+                root["NextOrderNo"] = baseNo + "_" + GetNextLinkedSequence(root, max);
                 return root;
             }
         }
@@ -102,12 +102,19 @@ LEFT JOIN Customers c ON c.CustCode = oi.CustCode WHERE oi.OrderId = @Id" + (for
             object last = Scalar(conn, transaction, @"SELECT OrderGroupSequence FROM OrderInfo
 WHERE OrderGroupId = @Root ORDER BY OrderGroupSequence DESC LIMIT 1 FOR UPDATE",
                 new[] { new ParamValuePair("@Root", rootId) });
-            int next = checked(Math.Max(1, last == null || last == DBNull.Value ? 1 : Convert.ToInt32(last)) + 1);
+            int next = GetNextLinkedSequence(root, last);
             if (root["OrderGroupSequence"] == DBNull.Value)
                 Execute(conn, transaction, @"UPDATE OrderInfo SET OrderNo = @No, OrderBaseNo = @Base,
 OrderGroupSequence = 1 WHERE OrderId = @Root", new[] {
                     new ParamValuePair("@No", baseNo + "_1"), new ParamValuePair("@Base", baseNo), new ParamValuePair("@Root", rootId) });
             return new LinkedOrderNumber { RootOrderId = rootId, Sequence = next, BaseNo = baseNo };
+        }
+
+        private static int GetNextLinkedSequence(DataRow root, object last)
+        {
+            int rootSequence = root.IsNull("OrderGroupSequence") ? 1 : Convert.ToInt32(root["OrderGroupSequence"]);
+            int lastChildSequence = last == null || last == DBNull.Value ? 1 : Convert.ToInt32(last);
+            return checked(Math.Max(rootSequence, lastChildSequence) + 1);
         }
 
         private static void PreserveLinkedOrderHeader(MySqlConnection conn, MySqlTransaction transaction, OrderSaveData order)

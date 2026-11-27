@@ -39,6 +39,7 @@
             this.c1SplitterPanel1 = new C1.Win.C1SplitContainer.C1SplitterPanel();
             this.orderGrid = new PineTree.UserControls.PagedGrid();
             this.label5 = new System.Windows.Forms.Label();
+            this.btnClearSelection = new C1.Win.C1Input.C1Button();
             this.dtmFrom = new C1.Win.C1Input.C1DateEdit();
             this.labelCount = new System.Windows.Forms.Label();
             this.btnDelete = new C1.Win.C1Input.C1Button();
@@ -58,6 +59,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.btnClearSelection)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dtmFrom)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnDelete)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnEdit)).BeginInit();
@@ -95,6 +97,7 @@
             this.c1SplitterPanel1.Controls.Add(this.cbChannel);
             this.c1SplitterPanel1.Controls.Add(this.orderGrid);
             this.c1SplitterPanel1.Controls.Add(this.label5);
+            this.c1SplitterPanel1.Controls.Add(this.btnClearSelection);
             this.c1SplitterPanel1.Controls.Add(this.dtmFrom);
             this.c1SplitterPanel1.Controls.Add(this.labelCount);
             this.c1SplitterPanel1.Controls.Add(this.btnDelete);
@@ -143,6 +146,21 @@
             this.label5.Size = new System.Drawing.Size(88, 25);
             this.label5.TabIndex = 1;
             this.label5.Text = "조회결과";
+            //
+            // btnClearSelection
+            //
+            this.btnClearSelection.BackColor = System.Drawing.Color.FromArgb(48, 108, 180);
+            this.btnClearSelection.FlatAppearance.BorderSize = 0;
+            this.btnClearSelection.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnClearSelection.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.btnClearSelection.ForeColor = System.Drawing.Color.White;
+            this.btnClearSelection.Location = new System.Drawing.Point(152, 270);
+            this.btnClearSelection.Name = "btnClearSelection";
+            this.btnClearSelection.Size = new System.Drawing.Size(126, 28);
+            this.btnClearSelection.TabIndex = 11;
+            this.btnClearSelection.Text = "전체선택 해제";
+            this.btnClearSelection.UseVisualStyleBackColor = false;
+            this.btnClearSelection.VisualStyleBaseStyle = C1.Win.C1Input.VisualStyle.Office2010Black;
             // 
             // dtmFrom
             // 
@@ -378,6 +396,7 @@
             this.c1SplitContainer1.ResumeLayout(false);
             this.c1SplitterPanel1.ResumeLayout(false);
             this.c1SplitterPanel1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.btnClearSelection)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dtmFrom)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnDelete)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.btnEdit)).EndInit();
@@ -409,6 +428,7 @@
         private C1.Win.C1Input.C1Button btnSelect;
         private C1.Win.C1Input.C1DateEdit dtmTo;
         private System.Windows.Forms.Label label5;
+        private C1.Win.C1Input.C1Button btnClearSelection;
         private System.Windows.Forms.Label labelCount;
         private C1.Win.C1Input.C1DateEdit dtmFrom;
         private System.Windows.Forms.Label label3;

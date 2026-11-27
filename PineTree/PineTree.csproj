@@ -71,6 +71,7 @@
     <Compile Include="Classes\AddressSearchService.cs" />
     <Compile Include="Classes\OrderPreviewSnapshot.cs" />
     <Compile Include="Classes\OrderDesignPadState.cs" />
+    <Compile Include="Classes\OrderShippingDetails.cs" />
     <Compile Include="Classes\AppScreen.cs" />
     <Compile Include="Classes\OrderSourceDocument.cs" />
     <Compile Include="Dialogs\DialogAddressSearch.cs">
@@ -78,6 +79,24 @@
     </Compile>
     <Compile Include="Dialogs\DialogAddressSearch.Designer.cs">
       <DependentUpon>DialogAddressSearch.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogConsignee.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogConsignee.Designer.cs">
+      <DependentUpon>DialogConsignee.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogBase2.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogBase2.Designer.cs">
+      <DependentUpon>DialogBase2.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Dialogs\DialogFeeding.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialogs\DialogFeeding.Designer.cs">
+      <DependentUpon>DialogFeeding.cs</DependentUpon>
     </Compile>
     <Compile Include="Dialogs\DialogOrderSaved.cs">
       <SubType>Form</SubType>
@@ -189,6 +208,7 @@
     <Compile Include="Classes\BannerOrderEditorState.cs" />
     <Compile Include="Classes\OrderServerFile.cs" />
     <Compile Include="Classes\OrderFileStorageService.cs" />
+    <Compile Include="Classes\OrderRepository.Deletion.cs" />
     <Compile Include="Classes\OrderPostProcessSetting.cs" />
     <Compile Include="UserControlsOrder\Dlg페트_AL족자.cs">
       <SubType>Form</SubType>
@@ -462,6 +482,7 @@
     <Compile Include="UserControls\RoundedPanel.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="UserControls\OrderProductionStatusCell.cs" />
     <Compile Include="UserControls\PagedGrid.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -504,8 +525,17 @@
     <EmbeddedResource Include="Dialogs\DialogCommonCode.resx">
       <DependentUpon>DialogCommonCode.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogConsignee.resx">
+      <DependentUpon>DialogConsignee.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogDesignModeExit1.resx">
       <DependentUpon>DialogDesignModeExit1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogBase2.resx">
+      <DependentUpon>DialogBase2.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialogs\DialogFeeding.resx">
+      <DependentUpon>DialogFeeding.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Dialogs\DialogPrint.resx">
       <DependentUpon>DialogPrint.cs</DependentUpon>
@@ -700,6 +730,12 @@
     <EmbeddedResource Include="Resources\Logo_Right.png">
       <LogicalName>PineTree.Resources.Logo_Right.png</LogicalName>
     </EmbeddedResource>
+    <None Include="Resources\미작업.png" />
+    <None Include="Resources\접수.png" />
+    <None Include="Resources\출력중.png" />
+    <None Include="Resources\포장대기.png" />
+    <None Include="Resources\포장완료.png" />
+    <None Include="Resources\후가공.png" />
     <Content Include="개발메모.txt" />
     <None Include="Resources\규칙삭제.png" />
     <None Include="Resources\규칙추가.png" />

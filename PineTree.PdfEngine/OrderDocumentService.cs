@@ -99,6 +99,7 @@ namespace PineTree.PdfEngine
     public sealed class HoleMarkRun
     {
         public string Mode { get; set; }
+        // Only uniform runs use a manually entered point count.
         public int Count { get; set; }
         public double StartLeftMm { get; set; }
         public double? StartRightMm { get; set; }
@@ -114,12 +115,12 @@ namespace PineTree.PdfEngine
 
         public int GetMarkCount(double width = 0, double height = 0, bool vertical = false)
         {
-            if (Count < 1 || Count > 2000) throw new ArgumentException("타공 개수는 1~2,000개로 입력해주세요.");
             double startX = StartRightMm ?? StartLeftMm;
             double startY = StartBottomMm ?? StartTopMm;
             ValidatePosition(startX, startY, width, height);
             if (Mode == "UNIFORM")
             {
+                if (Count < 1 || Count > 2000) throw new ArgumentException("타공 개수는 1~2,000개로 입력해주세요.");
                 double endY = EndBottomMm ?? EndTopMm;
                 double endX = EndRightMm ?? EndLeftMm;
                 ValidatePosition(endX, endY, width, height);
@@ -138,14 +139,15 @@ namespace PineTree.PdfEngine
                 if (double.IsNaN(SpacingMm) || double.IsInfinity(SpacingMm) || SpacingMm <= 0)
                     throw new ArgumentException("고정간격은 0mm보다 커야 합니다.");
                 double limit = vertical ? height : width;
-                if (limit <= 0) return Count;
+                if (limit <= 0) return 0;
                 double start = vertical
                     ? (StartBottomMm.HasValue ? height - startY : startY)
                     : (StartRightMm.HasValue ? width - startX : startX);
-                int actualCount = 1;
-                while (actualCount < Count && start + actualCount * SpacingMm <= limit + RoundingToleranceMm)
-                    actualCount++;
-                return actualCount;
+                double span = Math.Max(0, limit - 2 * start);
+                double intervals = Math.Floor(span / SpacingMm + RoundingToleranceMm);
+                if (intervals >= 2000)
+                    throw new ArgumentException("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.");
+                return (int)intervals + 1;
             }
             throw new ArgumentException("타공 간격 방식을 선택해주세요.");
         }
@@ -233,6 +235,7 @@ namespace PineTree.PdfEngine
         public double TargetWidthMm { get; set; } = 600;
         public double TargetHeightMm { get; set; } = 1800;
         public string FitMode { get; set; } = "CONTAIN";
+        // Add white canvas margins around the finished area without scaling the artwork.
         public bool ExpandImage { get; set; }
         public int SourceRotationDegreesClockwise { get; set; }
         public bool SourceFlipHorizontal { get; set; }
@@ -344,10 +347,9 @@ namespace PineTree.PdfEngine
             if (MakeWoodTopBottom && (WoodTopBottomExtraLineThicknessMm <= 0 || WoodTopBottomExtraLineThicknessMm > 100000
                 || WoodTopBottomDesignLineThicknessMm <= 0 || WoodTopBottomDesignLineThicknessMm > 100000))
                 throw new ArgumentException("상하각목 선두께는 0 초과 100,000mm 이하로 입력해주세요.");
-            if (MakeCutline && (CutInsetTopMm < 0 || CutInsetBottomMm < 0 || CutInsetLeftMm < 0 || CutInsetRightMm < 0
-                || CutInsetLeftMm + CutInsetRightMm >= FinishedWidthMm() + (CutInsetsFromPage ? EdgeLeftMm + EdgeRightMm : 0)
-                || CutInsetTopMm + CutInsetBottomMm >= FinishedHeightMm() + (CutInsetsFromPage ? EdgeTopMm + EdgeBottomMm : 0)))
-                throw new ArgumentException("재단 여백은 0 이상이며 좌우·상하 여백의 합은 출력 폭·길이보다 작아야 합니다.");
+            if (MakeCutline && (Math.Abs(CutInsetLeftMm) + Math.Abs(CutInsetRightMm) >= FinishedWidthMm() + (CutInsetsFromPage ? EdgeLeftMm + EdgeRightMm : 0)
+                || Math.Abs(CutInsetTopMm) + Math.Abs(CutInsetBottomMm) >= FinishedHeightMm() + (CutInsetsFromPage ? EdgeTopMm + EdgeBottomMm : 0)))
+                throw new ArgumentException("재단 여백을 적용한 가로·세로 길이는 0보다 커야 합니다.");
             if (MakeCutline && (LineWidthMm <= 0 || LineWidthMm > 10))
                 throw new ArgumentException("재단선 두께는 0 초과 10mm 이하로 입력해주세요.");
             if (MakeCutline && CutlineColorMode != "SPOT" && CutlineColorMode != "BLACK")

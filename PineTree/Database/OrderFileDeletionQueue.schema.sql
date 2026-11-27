@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS OrderFileDeletionQueue (
+    FileId VARCHAR(72) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    PRIMARY KEY (FileId)
+) ENGINE=InnoDB;

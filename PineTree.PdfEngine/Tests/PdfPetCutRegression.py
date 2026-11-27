@@ -57,7 +57,7 @@ class PetCutTests(unittest.TestCase):
             self.assertAlmostEqual(float(page.mediabox.width)/worker.MM,7240,places=4)
 
     def test_invalid_margins(self):
-        for changes in (dict(CutInsetTopMm=-1),dict(CutInsetLeftMm=float('nan')),
+        for changes in (dict(CutInsetLeftMm=float('nan')),
                         dict(CutInsetLeftMm=724),dict(CutInsetTopMm=2154)):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 worker.generation_settings(self.settings(**changes))

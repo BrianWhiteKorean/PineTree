@@ -34,6 +34,7 @@ namespace PineTree.Dialogs
             c1Button1.Click += btnSave_Click;
             c1Button2.Click += btnCancel_Click;
             btnDuplCheck.Click += btnDuplCheck_Click;
+            btnAddress.Click += btnAddress_Click;
             tbCustCode.TextChanged += tbCustCode_TextChanged;
         }
 
@@ -53,6 +54,9 @@ namespace PineTree.Dialogs
             tbRepName.Text = row["RepresentativeName"].ToString();
             tbPhone.Text = row["Phone"].ToString();
             tbBusinessNum.Text = row["BusinessNum"].ToString();
+            tbAddress1.Text = Convert.ToString(row["Address1"]);
+            tbAddress2.Text = Convert.ToString(row["Address2"]);
+            tbZipCode.Text = Convert.ToString(row["ZipCode"]);
 
             m_isDuplicateChecked = true;
             m_checkedCustomerCode = tbCustCode.Text.Trim();
@@ -75,7 +79,10 @@ namespace PineTree.Dialogs
                         tbCustName.Text,
                         tbRepName.Text,
                         tbPhone.Text,
-                        tbBusinessNum.Text);
+                        tbBusinessNum.Text,
+                        tbAddress1.Text,
+                        tbAddress2.Text,
+                        tbZipCode.Text);
                 }
                 else
                 {
@@ -86,7 +93,10 @@ namespace PineTree.Dialogs
                         tbCustName.Text,
                         tbRepName.Text,
                         tbPhone.Text,
-                        tbBusinessNum.Text);
+                        tbBusinessNum.Text,
+                        tbAddress1.Text,
+                        tbAddress2.Text,
+                        tbZipCode.Text);
                 }
 
                 DialogResult = DialogResult.OK;
@@ -100,6 +110,19 @@ namespace PineTree.Dialogs
         private void btnCancel_Click(object sender, EventArgs e)
         {
             DialogResult = DialogResult.Cancel;
+        }
+
+        private void btnAddress_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new DialogAddressSearch())
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+                var address = dialog.SelectedAddress;
+                tbAddress1.Text = address.RoadAddress;
+                tbAddress2.Text = address.DetailAddress;
+                tbZipCode.Text = address.ZipCode;
+            }
         }
 
         private void btnDuplCheck_Click(object sender, EventArgs e)

@@ -293,6 +293,16 @@ namespace PineTree.Properties {
         /// <summary>
         ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static System.Drawing.Bitmap 미작업 {
+            get {
+                object obj = ResourceManager.GetObject("미작업", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static System.Drawing.Bitmap 상품관리_Normal {
             get {
                 object obj = ResourceManager.GetObject("상품관리_Normal", resourceCulture);
@@ -346,6 +356,16 @@ namespace PineTree.Properties {
         internal static System.Drawing.Bitmap 완료대기_Selected {
             get {
                 object obj = ResourceManager.GetObject("완료대기_Selected", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static System.Drawing.Bitmap 접수 {
+            get {
+                object obj = ResourceManager.GetObject("접수", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -463,6 +483,16 @@ namespace PineTree.Properties {
         /// <summary>
         ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static System.Drawing.Bitmap 출력중 {
+            get {
+                object obj = ResourceManager.GetObject("출력중", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static System.Drawing.Bitmap 컷팅대기_Normal {
             get {
                 object obj = ResourceManager.GetObject("컷팅대기_Normal", resourceCulture);
@@ -476,6 +506,26 @@ namespace PineTree.Properties {
         internal static System.Drawing.Bitmap 컷팅대기_Selected {
             get {
                 object obj = ResourceManager.GetObject("컷팅대기_Selected", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static System.Drawing.Bitmap 포장대기 {
+            get {
+                object obj = ResourceManager.GetObject("포장대기", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static System.Drawing.Bitmap 포장완료 {
+            get {
+                object obj = ResourceManager.GetObject("포장완료", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -516,6 +566,16 @@ namespace PineTree.Properties {
         internal static System.Drawing.Bitmap 환경설정_Selected {
             get {
                 object obj = ResourceManager.GetObject("환경설정_Selected", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static System.Drawing.Bitmap 후가공 {
+            get {
+                object obj = ResourceManager.GetObject("후가공", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

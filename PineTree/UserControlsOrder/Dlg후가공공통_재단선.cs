@@ -23,15 +23,27 @@ namespace PineTree.UserControlsOrder
             PostProcessDialogBinding.SourceNumber(tbLineWidth, draft.Parameters.LineWidthMm, lineWidthDivisor, 10);
             tbLineWidth.ToolTipText = "선택한 원본 축척에서의 재단선 두께(mm).";
             var inset = draft.Parameters.FromSource ? 0m : defaultInsetMm;
-            PostProcessDialogBinding.SourceNumber(tbTop, draft.Parameters.CutInsetTopMm ?? inset, sourceScaleDivisor);
-            PostProcessDialogBinding.SourceNumber(tbBottom, draft.Parameters.CutInsetBottomMm ?? inset, sourceScaleDivisor);
-            PostProcessDialogBinding.SourceNumber(tbLeft, draft.Parameters.CutInsetLeftMm ?? inset, sourceScaleDivisor);
-            PostProcessDialogBinding.SourceNumber(tbRight, draft.Parameters.CutInsetRightMm ?? inset, sourceScaleDivisor);
-            foreach (var input in new[] { tbTop, tbBottom, tbLeft, tbRight }) {
-                input.ToolTipText = "선택한 원본 축척에서 페이지 가장자리부터 재단선까지의 거리(mm).";
+            var sides = new[] { tbTop, tbBottom, tbLeft, tbRight };
+            var insets = new[] { draft.Parameters.CutInsetTopMm, draft.Parameters.CutInsetBottomMm,
+                draft.Parameters.CutInsetLeftMm, draft.Parameters.CutInsetRightMm };
+            const decimal minimumInsetMm = -100000m;
+            for (int i = 0; i < sides.Length; i++)
+            {
+                var input = sides[i];
+                PostProcessDialogBinding.SourceNumber(input, insets[i] ?? inset, sourceScaleDivisor, minimum: minimumInsetMm);
+                input.ToolTipText = "원본 축척 기준 mm. 음수는 이미지 경계에서 입력한 거리만큼 안쪽으로 재단선을 이동합니다.";
                 input.Enabled = !draft.Parameters.FromSource;
             }
-            cbCutType.ToolTipText = "입력한 사방 여백에 맞춰 사각 재단선을 생성합니다. 이미지와 페이지 크기는 유지됩니다.";
+            PostProcessDialogBinding.SourceNumber(tbAll, 0m, sourceScaleDivisor, minimum: minimumInsetMm);
+            tbAll.ToolTipText = "모두 체크 시 입력값을 사방 여백에 적용합니다. 적용 후 각 방향을 따로 수정할 수 있습니다.";
+            chkAll.Enabled = tbAll.Enabled = !draft.Parameters.FromSource;
+            System.EventHandler applyAll = delegate {
+                if (!chkAll.Enabled || !chkAll.Checked || tbAll.ValueIsNull) return;
+                foreach (var side in sides) side.Value = tbAll.Value;
+            };
+            chkAll.CheckedChanged += applyAll;
+            tbAll.ValueChanged += applyAll;
+            cbCutType.ToolTipText = "입력한 사방 여백에 맞춰 사각 재단선을 생성합니다.";
             tbColorName.ToolTipText = "커팅용 별색 채널 이름. 고객사 샘플: thru";
             tbColorName.Text = draft.Parameters.SpotColorName;
             tbLineWidth.Enabled = cbSpot.Enabled = !draft.Parameters.FromSource;

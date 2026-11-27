@@ -134,7 +134,7 @@ internal static class PostProcessRegression
             Check(Field(editor,"_sourceDetails")!=null,"customer AI inspection");
             Check((decimal)Get(editor,"WidthMm")==60 && (decimal)Get(editor,"HeightMm")==180,"customer AI original is 1:10");
             Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));
-            Check((decimal)Get(editor,"WidthMm")==600 && (decimal)Get(editor,"HeightMm")==1800,"customer scale gives final trim size");
+            Check((decimal)Get(editor,"WidthMm")==60 && (decimal)Get(editor,"HeightMm")==180,"customer scale leaves order dimensions unchanged");
             var cut=Create("CUT");var hole=Create("HOLE");
             Call(editor,"CommitPostProcess",-1,cut);Call(editor,"CommitPostProcess",-1,hole);
             using(var dialog=(Form)Call(editor,"CreatePostProcessDialog",hole)) {
@@ -153,7 +153,7 @@ internal static class PostProcessRegression
             var state=Capture(editor);
             using(var restored=(UserControl)Activator.CreateInstance(editorType)) {
                 Restore(restored,state);
-                Check((decimal)Get(restored,"WidthMm")==600 && ((IList)Field(restored,"_postProcesses")).Count==2,"customer size and finishing restore");
+                Check((decimal)Get(restored,"WidthMm")==60 && ((IList)Field(restored,"_postProcesses")).Count==2,"customer size and finishing restore");
             }
             host.Controls.Remove(editor);
         }

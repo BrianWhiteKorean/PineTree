@@ -65,7 +65,7 @@ namespace PineTree.UserControlsOrder
                 for(int i=0;i<_postProcesses.Count;i++) {
                     var item = _postProcesses[i]; item.SeqNo = i+1; int row = i + FGrid1.Rows.Fixed;
                     FGrid1[row, "SeqNo"] = item.SeqNo; FGrid1[row,"ProcessName"] = item.ProcessName;
-                    FGrid1[row,"Summary"] = item.SummaryForImage(FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm); FGrid1[row,"Delete"] = "삭제";
+                    FGrid1[row,"Summary"] = item.SummaryForImage(FinishedWidthMm(), FinishedHeightMm(), PdfImageWidthMm, PdfImageHeightMm); FGrid1[row,"Delete"] = "삭제";
                     FGrid1.Rows[row].UserData = item;
                 }
                 if (_postProcesses.Count > 0) FGrid1.Row = Math.Max(FGrid1.Rows.Fixed, Math.Min(selected,FGrid1.Rows.Count-1));
@@ -77,7 +77,7 @@ namespace PineTree.UserControlsOrder
         {
             decimal sourceScaleDivisor = ReadZoomRate();
             switch(setting.ProcessCode) {
-                case "HOLE": return new Dlg후가공공통_타공마크(setting, FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm, sourceScaleDivisor);
+                case "HOLE": return new Dlg후가공공통_타공마크(setting, FinishedWidthMm(), FinishedHeightMm(), PdfImageWidthMm, PdfImageHeightMm, sourceScaleDivisor);
                 case "WOOD": return new Dlg현수막_좌우각목(setting, sourceScaleDivisor);
                 case "WOOD_TB": return new Dlg현수막_상하각목(setting, sourceScaleDivisor);
                 case "POLE_SEW": return new Dlg현수막_봉미싱(setting, sourceScaleDivisor);
@@ -132,7 +132,7 @@ namespace PineTree.UserControlsOrder
         private decimal FinishedWidthMm()
         {
             var wood = _postProcesses.Find(item => item.ProcessCode == "WOOD");
-            decimal result = WidthMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
+            decimal result = PdfImageWidthMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
             foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "ROPE_SEW"))
                 result += item.Parameters.RopeMargin(item.Parameters.RopeLeftMm) + item.Parameters.RopeMargin(item.Parameters.RopeRightMm);
             foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "HEM_SEW")) result += 2 * item.Parameters.HemMarginMm();
@@ -141,7 +141,7 @@ namespace PineTree.UserControlsOrder
         private decimal FinishedHeightMm()
         {
             var wood = _postProcesses.Find(item => item.ProcessCode == "WOOD_TB");
-            decimal result = HeightMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
+            decimal result = PdfImageHeightMm + (wood == null ? 0 : 2 * (wood.Parameters.ExtraLineMm ?? wood.Parameters.DimensionMm));
             foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "ROPE_SEW"))
                 result += item.Parameters.RopeMargin(item.Parameters.RopeTopMm) + item.Parameters.RopeMargin(item.Parameters.RopeBottomMm);
             foreach (var item in _postProcesses.FindAll(x => x.ProcessCode == "HEM_SEW")) result += 2 * item.Parameters.HemMarginMm();
@@ -163,7 +163,7 @@ namespace PineTree.UserControlsOrder
                     settings.CutInsetRightMm = (double)(p.CutInsetRightMm ?? 0m);
                 }
                 else if(item.ProcessCode == "HOLE") {
-                    item.GetMarkCountForImage(FinishedWidthMm(), FinishedHeightMm(), WidthMm, HeightMm);
+                    item.GetMarkCountForImage(FinishedWidthMm(), FinishedHeightMm(), PdfImageWidthMm, PdfImageHeightMm);
                     settings.MakeHole = true; settings.HoleType = p.TypeCode; settings.HoleMarkKind = p.HoleMarkKind;
                     settings.MarkLeftRightMm = (double)p.MarkLeftRightMm; settings.MarkTopBottomMm = (double)p.MarkTopBottomMm;
                     settings.HoleEdges = p.HoleEdges;

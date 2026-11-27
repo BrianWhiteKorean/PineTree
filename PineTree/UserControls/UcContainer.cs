@@ -91,6 +91,11 @@ namespace PineTree.UserControls
                     navigationView.NavigationRequested += NavigationView_NavigationRequested;
                 }
 
+                if (control is UcDashboardHome dashboard)
+                    dashboard.ProductionStatusChanged += Screen_ProductionStatusChanged;
+                else if (control is UcOrderInfo orderInfo)
+                    orderInfo.ProductionStatusChanged += Screen_ProductionStatusChanged;
+
                 control.Visible = false;
                 _contentPanel.Controls.Add(control);
             }
@@ -116,6 +121,16 @@ namespace PineTree.UserControls
         private void NavigationView_NavigationRequested(object sender, NavigationRequestedEventArgs e)
         {
             NavigateTo(e.Screen);
+        }
+
+        private void Screen_ProductionStatusChanged(object sender, EventArgs e)
+        {
+            foreach (Control control in _contentPanel.Controls)
+            {
+                if (ReferenceEquals(control, sender)) continue;
+                if (control is UcDashboardHome dashboard) dashboard.RefreshOrders();
+                else if (control is UcOrderInfo orderInfo) orderInfo.RefreshOrders();
+            }
         }
 
         private void TopBar_SelectedDateChanged(object sender, EventArgs e)

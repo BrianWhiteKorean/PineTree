@@ -43,7 +43,7 @@ class SourceTransformRegression {
    Call(restored,"RestoreEditorState",state);await(Task)Call(Get(restored,"SourceDocument"),"EnsureLoadedAsync");Orient(restored,270,true,40,80);
   }
   Set(Field(editor,"cbZoomType"),"SelectedOption",Field(editor,"inputOption7"));
-  Orient(editor,270,true,400,800);Click(pad,"btn90CW");Orient(editor,180,true,800,400);
+  Orient(editor,270,true,40,80);Click(pad,"btn90CW");Orient(editor,180,true,80,40);
   var petType=app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹B");using(var pet=(Control)Activator.CreateInstance(petType)){
    Call(pet,"RestoreEditorState",state);await(Task)Call(Get(pet,"SourceDocument"),"EnsureLoadedAsync");Orient(pet,270,true,40,80);Call(pet,"RotateSource",90);Orient(pet,180,true,80,40);
   }

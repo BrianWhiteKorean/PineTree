@@ -354,7 +354,7 @@ namespace PineTree.UserControlsOrder
             // 
             this.rbTopFixGap.Name = "rbTopFixGap";
             this.rbTopFixGap.Padding = new System.Windows.Forms.Padding(35, 15, 0, 0);
-            this.rbTopFixGap.Text = "고정간격 (시작위치부터 고정간격으로 타공합니다)";
+            this.rbTopFixGap.Text = "고정간격 (입력 간격을 기준으로 균등 배치)";
             // 
             // inputLabel6
             // 
@@ -566,7 +566,7 @@ namespace PineTree.UserControlsOrder
             // 
             this.rbBottomFixGap.Name = "rbBottomFixGap";
             this.rbBottomFixGap.Padding = new System.Windows.Forms.Padding(35, 15, 0, 0);
-            this.rbBottomFixGap.Text = "고정간격 (시작위치부터 고정간격으로 타공합니다)";
+            this.rbBottomFixGap.Text = "고정간격 (입력 간격을 기준으로 균등 배치)";
             // 
             // inputLabel14
             // 

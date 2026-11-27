@@ -20,6 +20,7 @@ namespace PineTree.Dialogs
         private bool m_isSaving;
         private bool m_isLoadingOrderItems;
         private string m_sSelectedCustCode;
+        private OrderShippingDetails m_shippingDetails;
         private string m_productionStatus = OrderProductionStatusHelper.ToDbText(OrderProductionStatus.New);
         private DataTable m_orderItems;
         private string m_orderEditorCategory;
@@ -109,7 +110,8 @@ namespace PineTree.Dialogs
                 inputGroupHeader1.Text = "주문 등록";
                 tbOrderNo.Text = "저장 시 자동 할당됩니다";
                 tbOrderName.Text = string.Empty;
-                tbCustName.Text = tbCustCode.Text = tbRemark.Text = tbSpec.Text = tbAddress.Text = tbZipCode.Text = string.Empty;
+                tbCustName.Text = tbCustCode.Text = tbRemark.Text = tbSpec.Text = string.Empty;
+                ApplyShippingDetails(null);
                 tbDeliveryFee.Value = 0;
                 dtmOrder.Value = dtmDelivery.Value = DateTime.Today;
                 cbChannel.SelectedIndex = cbChannel.Items.Count > 0 ? 0 : -1;
@@ -788,19 +790,21 @@ namespace PineTree.Dialogs
             ShowCustomerListDialog(custName);
         }
 
-        private void btnAddress_Click(object sender, EventArgs e)
+        private void btnConsignee_Click(object sender, EventArgs e)
         {
-            using (var dialog = new DialogAddressSearch())
+            using (var dialog = new DialogConsignee(m_shippingDetails))
             {
-                if (dialog.ShowDialog(this) != DialogResult.OK)
-                {
-                    return;
-                }
-
-                var address = dialog.SelectedAddress;
-                tbAddress.Text = address.RoadAddress;
-                tbZipCode.Text = address.ZipCode;
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                    ApplyShippingDetails(dialog.ShippingDetails);
             }
+        }
+
+        private void ApplyShippingDetails(OrderShippingDetails details)
+        {
+            m_shippingDetails = details;
+            tbConsignee.Text = details?.ConsigneeName ?? string.Empty;
+            tbZipCode.Text = details?.ConsigneeZipCode ?? string.Empty;
+            tbAddress.Text = details?.DeliveryAddress ?? string.Empty;
         }
 
         private void btnCustList_Click(object sender, EventArgs e)
@@ -1242,6 +1246,7 @@ namespace PineTree.Dialogs
                 SpecText = tbSpec.Text,
                 OrderDescription = tbRemark.Text,
                 DeliveryAddress = tbAddress.Text.Trim(),
+                ShippingDetails = m_shippingDetails,
                 ProductionStatus = m_productionStatus,
                 SourceChannel = "직접입력",
                 CreatedBy = Environment.UserName,
@@ -1343,8 +1348,7 @@ namespace PineTree.Dialogs
             tbDeliveryFee.Value = GetDecimal(row["DeliveryFee"]);
             m_productionStatus = row["ProductionStatus"].ToString();
             tbRemark.Text = row["OrderDescription"].ToString();
-            tbAddress.Text = row.Table.Columns.Contains("DeliveryAddress") ? Convert.ToString(row["DeliveryAddress"]) : string.Empty;
-            tbZipCode.Text = string.Empty;
+            ApplyShippingDetails(OrderShippingDetails.FromOrder(row));
 
             DateTime? dueAt = GetDateValue(row["RequestedDueAt"]);
             if (dueAt.HasValue)

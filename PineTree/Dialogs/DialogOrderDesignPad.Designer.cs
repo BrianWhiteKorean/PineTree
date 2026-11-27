@@ -46,7 +46,8 @@
             this.cbDeliveryType = new C1.Win.C1InputPanel.InputComboBox();
             this.inputLabel21 = new C1.Win.C1InputPanel.InputLabel();
             this.tbDeliveryFee = new C1.Win.C1InputPanel.InputNumericBox();
-            this.btnAddress = new C1.Win.C1InputPanel.InputButton();
+            this.btnConsignee = new C1.Win.C1InputPanel.InputButton();
+            this.tbConsignee = new C1.Win.C1InputPanel.InputTextBox();
             this.tbZipCode = new C1.Win.C1InputPanel.InputTextBox();
             this.tbAddress = new C1.Win.C1InputPanel.InputTextBox();
             this.inputLabel14 = new C1.Win.C1InputPanel.InputLabel();
@@ -108,8 +109,6 @@
             this.c1InputPanel2 = new C1.Win.C1InputPanel.C1InputPanel();
             this.inputGroupHeader2 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.panel4 = new System.Windows.Forms.Panel();
-            this.c1InputPanel6 = new C1.Win.C1InputPanel.C1InputPanel();
-            this.inputGroupHeader8 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.c1InputPanel4 = new C1.Win.C1InputPanel.C1InputPanel();
             this.inputGroupHeader4 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
@@ -120,12 +119,14 @@
             this.cbItem = new C1.Win.C1InputPanel.InputComboBox();
             this.inputGroupHeader7 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.tbSpec = new C1.Win.C1InputPanel.InputTextBox();
-            this.btnOrderHist = new C1.Win.C1InputPanel.InputButton();
-            this.btnCustList = new C1.Win.C1InputPanel.InputButton();
-            this.rbEquipment1 = new C1.Win.C1InputPanel.InputRadioButton();
-            this.rbEquipment2 = new C1.Win.C1InputPanel.InputRadioButton();
             this.inputGroupHeader6 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.tbOrderName = new C1.Win.C1InputPanel.InputTextBox();
+            this.c1InputPanel6 = new C1.Win.C1InputPanel.C1InputPanel();
+            this.inputGroupHeader8 = new C1.Win.C1InputPanel.InputGroupHeader();
+            this.rbEquipment1 = new C1.Win.C1InputPanel.InputRadioButton();
+            this.rbEquipment2 = new C1.Win.C1InputPanel.InputRadioButton();
+            this.btnOrderHist = new C1.Win.C1InputPanel.InputButton();
+            this.btnCustList = new C1.Win.C1InputPanel.InputButton();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
@@ -163,8 +164,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.btnAdd)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel2)).BeginInit();
             this.panel4.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel6)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel4)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel6)).BeginInit();
             this.SuspendLayout();
             // 
             // c1InputPanel1
@@ -189,7 +190,8 @@
             this.c1InputPanel1.Items.Add(this.cbDeliveryType);
             this.c1InputPanel1.Items.Add(this.inputLabel21);
             this.c1InputPanel1.Items.Add(this.tbDeliveryFee);
-            this.c1InputPanel1.Items.Add(this.btnAddress);
+            this.c1InputPanel1.Items.Add(this.btnConsignee);
+            this.c1InputPanel1.Items.Add(this.tbConsignee);
             this.c1InputPanel1.Items.Add(this.tbZipCode);
             this.c1InputPanel1.Items.Add(this.tbAddress);
             this.c1InputPanel1.Items.Add(this.inputLabel14);
@@ -197,7 +199,7 @@
             this.c1InputPanel1.Location = new System.Drawing.Point(0, 0);
             this.c1InputPanel1.Name = "c1InputPanel1";
             this.c1InputPanel1.Padding = new System.Windows.Forms.Padding(2, 2, 0, 2);
-            this.c1InputPanel1.Size = new System.Drawing.Size(418, 264);
+            this.c1InputPanel1.Size = new System.Drawing.Size(418, 242);
             this.c1InputPanel1.TabIndex = 0;
             this.c1InputPanel1.VisualStyle = C1.Win.C1InputPanel.VisualStyle.Office2010Black;
             // 
@@ -332,26 +334,35 @@
             this.tbDeliveryFee.Name = "tbDeliveryFee";
             this.tbDeliveryFee.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             // 
-            // btnAddress
+            // btnConsignee
             // 
-            this.btnAddress.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.btnAddress.Name = "btnAddress";
-            this.btnAddress.Padding = new System.Windows.Forms.Padding(5, 3, 0, 0);
-            this.btnAddress.Text = "배송주소";
-            this.btnAddress.Click += new System.EventHandler(this.btnAddress_Click);
+            this.btnConsignee.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.btnConsignee.Name = "btnConsignee";
+            this.btnConsignee.Padding = new System.Windows.Forms.Padding(5, 3, 0, 0);
+            this.btnConsignee.Text = "주문자 및 배송 정보";
+            this.btnConsignee.Click += new System.EventHandler(this.btnConsignee_Click);
+            // 
+            // tbConsignee
+            // 
+            this.tbConsignee.Name = "tbConsignee";
+            this.tbConsignee.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
+            this.tbConsignee.ReadOnly = true;
+            this.tbConsignee.Width = 85;
             // 
             // tbZipCode
             // 
+            this.tbZipCode.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbZipCode.Name = "tbZipCode";
-            this.tbZipCode.Padding = new System.Windows.Forms.Padding(2, 3, 0, 0);
+            this.tbZipCode.Padding = new System.Windows.Forms.Padding(72, 3, 0, 0);
             this.tbZipCode.ReadOnly = true;
-            this.tbZipCode.Width = 142;
+            this.tbZipCode.Width = 140;
             // 
             // tbAddress
             // 
             this.tbAddress.Name = "tbAddress";
-            this.tbAddress.Padding = new System.Windows.Forms.Padding(73, 3, 0, 0);
-            this.tbAddress.Width = 387;
+            this.tbAddress.Padding = new System.Windows.Forms.Padding(3, 3, 0, 0);
+            this.tbAddress.ReadOnly = true;
+            this.tbAddress.Width = 245;
             // 
             // inputLabel14
             // 
@@ -365,7 +376,7 @@
             // tbRemark
             // 
             this.tbRemark.AcceptsReturn = true;
-            this.tbRemark.Height = 40;
+            this.tbRemark.Height = 35;
             this.tbRemark.Multiline = true;
             this.tbRemark.Name = "tbRemark";
             this.tbRemark.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
@@ -385,7 +396,7 @@
             this.c1SplitContainer1.Location = new System.Drawing.Point(0, 0);
             this.c1SplitContainer1.Name = "c1SplitContainer1";
             this.c1SplitContainer1.Panels.Add(this.c1SplitterPanel1);
-            this.c1SplitContainer1.Size = new System.Drawing.Size(1310, 793);
+            this.c1SplitContainer1.Size = new System.Drawing.Size(1310, 813);
             this.c1SplitContainer1.SplitterColor = System.Drawing.Color.FromArgb(((int)(((byte)(82)))), ((int)(((byte)(82)))), ((int)(((byte)(82)))));
             this.c1SplitContainer1.TabIndex = 1;
             this.c1SplitContainer1.ToolTipGradient = C1.Win.C1SplitContainer.ToolTipGradient.Vista;
@@ -397,10 +408,10 @@
             this.c1SplitterPanel1.Controls.Add(this.panel6);
             this.c1SplitterPanel1.Controls.Add(this.panel5);
             this.c1SplitterPanel1.Controls.Add(this.panel2);
-            this.c1SplitterPanel1.Height = 793;
+            this.c1SplitterPanel1.Height = 813;
             this.c1SplitterPanel1.Location = new System.Drawing.Point(0, 0);
             this.c1SplitterPanel1.Name = "c1SplitterPanel1";
-            this.c1SplitterPanel1.Size = new System.Drawing.Size(1310, 793);
+            this.c1SplitterPanel1.Size = new System.Drawing.Size(1310, 813);
             this.c1SplitterPanel1.TabIndex = 0;
             // 
             // panel6
@@ -408,9 +419,9 @@
             this.panel6.Controls.Add(this.panel8);
             this.panel6.Controls.Add(this.panel7);
             this.panel6.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel6.Location = new System.Drawing.Point(0, 264);
+            this.panel6.Location = new System.Drawing.Point(0, 242);
             this.panel6.Name = "panel6";
-            this.panel6.Size = new System.Drawing.Size(1310, 474);
+            this.panel6.Size = new System.Drawing.Size(1310, 516);
             this.panel6.TabIndex = 11;
             // 
             // panel8
@@ -420,7 +431,7 @@
             this.panel8.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel8.Location = new System.Drawing.Point(418, 0);
             this.panel8.Name = "panel8";
-            this.panel8.Size = new System.Drawing.Size(892, 474);
+            this.panel8.Size = new System.Drawing.Size(892, 516);
             this.panel8.TabIndex = 2;
             // 
             // panelPreview
@@ -432,7 +443,7 @@
             this.panelPreview.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelPreview.Location = new System.Drawing.Point(0, 25);
             this.panelPreview.Name = "panelPreview";
-            this.panelPreview.Size = new System.Drawing.Size(892, 449);
+            this.panelPreview.Size = new System.Drawing.Size(892, 491);
             this.panelPreview.TabIndex = 1;
             // 
             // pictureBox1
@@ -441,7 +452,7 @@
             this.pictureBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBox1.Location = new System.Drawing.Point(0, 117);
             this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(890, 330);
+            this.pictureBox1.Size = new System.Drawing.Size(890, 372);
             this.pictureBox1.TabIndex = 4;
             this.pictureBox1.TabStop = false;
             // 
@@ -576,7 +587,7 @@
             this.panel7.Dock = System.Windows.Forms.DockStyle.Left;
             this.panel7.Location = new System.Drawing.Point(0, 0);
             this.panel7.Name = "panel7";
-            this.panel7.Size = new System.Drawing.Size(418, 474);
+            this.panel7.Size = new System.Drawing.Size(418, 516);
             this.panel7.TabIndex = 2;
             // 
             // panelEdit
@@ -586,7 +597,7 @@
             this.panelEdit.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelEdit.Location = new System.Drawing.Point(0, 25);
             this.panelEdit.Name = "panelEdit";
-            this.panelEdit.Size = new System.Drawing.Size(418, 449);
+            this.panelEdit.Size = new System.Drawing.Size(418, 491);
             this.panelEdit.TabIndex = 1;
             // 
             // c1InputPanel3
@@ -636,7 +647,7 @@
             this.panel5.Controls.Add(this.btnCancel);
             this.panel5.Controls.Add(this.btnSave);
             this.panel5.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel5.Location = new System.Drawing.Point(0, 738);
+            this.panel5.Location = new System.Drawing.Point(0, 758);
             this.panel5.Name = "panel5";
             this.panel5.Size = new System.Drawing.Size(1310, 55);
             this.panel5.TabIndex = 10;
@@ -967,7 +978,7 @@
             this.panel2.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel2.Location = new System.Drawing.Point(0, 0);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(1310, 264);
+            this.panel2.Size = new System.Drawing.Size(1310, 242);
             this.panel2.TabIndex = 8;
             // 
             // panel3
@@ -979,7 +990,7 @@
             this.panel3.Location = new System.Drawing.Point(899, 0);
             this.panel3.Margin = new System.Windows.Forms.Padding(0);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(411, 264);
+            this.panel3.Size = new System.Drawing.Size(411, 242);
             this.panel3.TabIndex = 1;
             // 
             // FGrid1
@@ -991,7 +1002,7 @@
             this.FGrid1.Location = new System.Drawing.Point(0, 62);
             this.FGrid1.Name = "FGrid1";
             this.FGrid1.Rows.DefaultSize = 20;
-            this.FGrid1.Size = new System.Drawing.Size(411, 202);
+            this.FGrid1.Size = new System.Drawing.Size(411, 180);
             this.FGrid1.TabIndex = 7;
             this.FGrid1.VisualStyle = C1.Win.C1FlexGrid.VisualStyle.Office2010Silver;
             // 
@@ -1052,29 +1063,8 @@
             this.panel4.Dock = System.Windows.Forms.DockStyle.Left;
             this.panel4.Location = new System.Drawing.Point(418, 0);
             this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(481, 264);
+            this.panel4.Size = new System.Drawing.Size(481, 242);
             this.panel4.TabIndex = 2;
-            // 
-            // c1InputPanel6
-            // 
-            this.c1InputPanel6.AutoSizeElement = C1.Framework.AutoSizeElement.Both;
-            this.c1InputPanel6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(235)))), ((int)(((byte)(239)))), ((int)(((byte)(245)))));
-            this.c1InputPanel6.Dock = System.Windows.Forms.DockStyle.Left;
-            this.c1InputPanel6.Font = new System.Drawing.Font("맑은 고딕", 9F);
-            this.c1InputPanel6.Items.Add(this.inputGroupHeader8);
-            this.c1InputPanel6.Items.Add(this.rbEquipment1);
-            this.c1InputPanel6.Items.Add(this.rbEquipment2);
-            this.c1InputPanel6.Location = new System.Drawing.Point(0, 0);
-            this.c1InputPanel6.Name = "c1InputPanel6";
-            this.c1InputPanel6.Size = new System.Drawing.Size(131, 264);
-            this.c1InputPanel6.TabIndex = 1;
-            // 
-            // inputGroupHeader8
-            // 
-            this.inputGroupHeader8.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(115)))), ((int)(((byte)(159)))));
-            this.inputGroupHeader8.ForeColor = System.Drawing.Color.White;
-            this.inputGroupHeader8.Name = "inputGroupHeader8";
-            this.inputGroupHeader8.Text = "장비";
             // 
             // c1InputPanel4
             // 
@@ -1097,7 +1087,7 @@
             this.c1InputPanel4.Items.Add(this.tbOrderName);
             this.c1InputPanel4.Location = new System.Drawing.Point(131, 0);
             this.c1InputPanel4.Name = "c1InputPanel4";
-            this.c1InputPanel4.Size = new System.Drawing.Size(350, 264);
+            this.c1InputPanel4.Size = new System.Drawing.Size(350, 242);
             this.c1InputPanel4.TabIndex = 0;
             // 
             // inputGroupHeader4
@@ -1167,20 +1157,42 @@
             this.tbSpec.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
             this.tbSpec.Width = 330;
             // 
-            // btnOrderHist
+            // inputGroupHeader6
             // 
-            this.btnOrderHist.Image = ((System.Drawing.Image)(resources.GetObject("btnOrderHist.Image")));
-            this.btnOrderHist.Name = "btnOrderHist";
-            this.btnOrderHist.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.btnOrderHist.Text = "과거주문";
+            this.inputGroupHeader6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(213)))), ((int)(((byte)(247)))), ((int)(((byte)(253)))));
+            this.inputGroupHeader6.Name = "inputGroupHeader6";
+            this.inputGroupHeader6.Text = "주문명";
             // 
-            // btnCustList
+            // tbOrderName
             // 
-            this.btnCustList.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.btnCustList.Image = ((System.Drawing.Image)(resources.GetObject("btnCustList.Image")));
-            this.btnCustList.Name = "btnCustList";
-            this.btnCustList.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.btnCustList.Text = "검색";
+            this.tbOrderName.AcceptsReturn = true;
+            this.tbOrderName.Height = 47;
+            this.tbOrderName.Multiline = true;
+            this.tbOrderName.Name = "tbOrderName";
+            this.tbOrderName.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
+            this.tbOrderName.Width = 330;
+            // 
+            // c1InputPanel6
+            // 
+            this.c1InputPanel6.AutoSizeElement = C1.Framework.AutoSizeElement.Both;
+            this.c1InputPanel6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(235)))), ((int)(((byte)(239)))), ((int)(((byte)(245)))));
+            this.c1InputPanel6.BorderThickness = 1;
+            this.c1InputPanel6.Dock = System.Windows.Forms.DockStyle.Left;
+            this.c1InputPanel6.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            this.c1InputPanel6.Items.Add(this.inputGroupHeader8);
+            this.c1InputPanel6.Items.Add(this.rbEquipment1);
+            this.c1InputPanel6.Items.Add(this.rbEquipment2);
+            this.c1InputPanel6.Location = new System.Drawing.Point(0, 0);
+            this.c1InputPanel6.Name = "c1InputPanel6";
+            this.c1InputPanel6.Size = new System.Drawing.Size(131, 242);
+            this.c1InputPanel6.TabIndex = 1;
+            // 
+            // inputGroupHeader8
+            // 
+            this.inputGroupHeader8.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(115)))), ((int)(((byte)(159)))));
+            this.inputGroupHeader8.ForeColor = System.Drawing.Color.White;
+            this.inputGroupHeader8.Name = "inputGroupHeader8";
+            this.inputGroupHeader8.Text = "장비";
             // 
             // rbEquipment1
             // 
@@ -1199,26 +1211,26 @@
             this.rbEquipment2.Padding = new System.Windows.Forms.Padding(2, 10, 2, 2);
             this.rbEquipment2.Text = "라텍스";
             // 
-            // inputGroupHeader6
+            // btnOrderHist
             // 
-            this.inputGroupHeader6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(213)))), ((int)(((byte)(247)))), ((int)(((byte)(253)))));
-            this.inputGroupHeader6.Name = "inputGroupHeader6";
-            this.inputGroupHeader6.Text = "주문명";
+            this.btnOrderHist.Image = ((System.Drawing.Image)(resources.GetObject("btnOrderHist.Image")));
+            this.btnOrderHist.Name = "btnOrderHist";
+            this.btnOrderHist.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.btnOrderHist.Text = "과거주문";
             // 
-            // tbOrderName
+            // btnCustList
             // 
-            this.tbOrderName.AcceptsReturn = true;
-            this.tbOrderName.Height = 55;
-            this.tbOrderName.Multiline = true;
-            this.tbOrderName.Name = "tbOrderName";
-            this.tbOrderName.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
-            this.tbOrderName.Width = 330;
+            this.btnCustList.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.btnCustList.Image = ((System.Drawing.Image)(resources.GetObject("btnCustList.Image")));
+            this.btnCustList.Name = "btnCustList";
+            this.btnCustList.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.btnCustList.Text = "검색";
             // 
             // DialogOrderDesignPad
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1310, 793);
+            this.ClientSize = new System.Drawing.Size(1310, 813);
             this.Controls.Add(this.c1SplitContainer1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MinimizeBox = false;
@@ -1265,8 +1277,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.btnAdd)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel2)).EndInit();
             this.panel4.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel6)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel4)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel6)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1362,7 +1374,7 @@
         private C1.Win.C1Input.C1Button btnFlip;
         private C1.Win.C1Input.C1Button btn90CCW;
         private C1.Win.C1InputPanel.InputTextBox tbZipCode;
-        private C1.Win.C1InputPanel.InputButton btnAddress;
+        private C1.Win.C1InputPanel.InputButton btnConsignee;
         private C1.Win.C1InputPanel.InputTextBox tbAddress;
         private C1.Win.C1InputPanel.C1InputPanel c1InputPanel6;
         private C1.Win.C1InputPanel.InputGroupHeader inputGroupHeader8;
@@ -1370,5 +1382,6 @@
         private C1.Win.C1InputPanel.InputRadioButton rbEquipment2;
         private C1.Win.C1InputPanel.InputGroupHeader inputGroupHeader6;
         private C1.Win.C1InputPanel.InputTextBox tbOrderName;
+        private C1.Win.C1InputPanel.InputTextBox tbConsignee;
     }
 }

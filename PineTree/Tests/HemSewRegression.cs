@@ -11,7 +11,7 @@ internal static class HemSewRegression {
  static void Set(object o,string n,object v){o.GetType().GetProperty(n).SetValue(o,v,null);}
  static object Call(object o,string n,params object[] a){return o.GetType().GetMethod(n,F|BindingFlags.Public).Invoke(o,a);}
  static void Check(bool b,string m){if(!b)throw new Exception(m);checks++;}
- static void Mode(object o,string n){o.GetType().GetField("_updatingInputs",F).SetValue(o,true);Set(Field(o,"cbZoomType"),"SelectedOption",Field(o,n));o.GetType().GetField("_updatingInputs",F).SetValue(o,false);Call(o,"ApplyZoomDimensions");Call(o,"UpdateDocumentState");}
+ static void Mode(object o,string n){Set(Field(o,"cbZoomType"),"SelectedOption",Field(o,n));}
  [STAThread]static int Main(string[] args){try{
   Application.EnableVisualStyles();var app=Assembly.LoadFrom(Path.GetFullPath(args[0]));var st=app.GetType("PineTree.Classes.OrderPostProcessSetting",true);
   var setting=st.GetMethod("Create").Invoke(null,new object[]{"HEM_SEW"});
@@ -25,6 +25,7 @@ internal static class HemSewRegression {
   }
   using(var editor=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControlsOrder.UcOrder수성_그룹A",true))) {
    editor.GetType().GetField("_sourceWidthMm",F).SetValue(editor,180m);editor.GetType().GetField("_sourceHeightMm",F).SetValue(editor,120m);
+   Set(Field(editor,"tbTargetWidth"),"Value",180m);Set(Field(editor,"tbTargetHeight"),"Value",120m);
    Mode(editor,"inputOption7");Call(editor,"CommitPostProcess",-1,setting);
    var pdf=Call(editor,"ReadPdfGenerationSettings");var hems=(IList)Get(pdf,"HemSewPasses");
    Check(hems.Count==1 && (double)Get(hems[0],"MarginMm")==30 && (double)Get(hems[0],"LineThicknessMm")==.6,"10x uses 30mm margins and .6mm stroke");

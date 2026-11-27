@@ -24,7 +24,12 @@ if ($method === 'GET') {
     readfile($path);
     exit;
 }
-if ($method !== 'POST') { header('Allow: GET, POST'); fail(405, 'Method not allowed'); }
+if ($method === 'DELETE') {
+    if (is_file($path) && !unlink($path)) fail(500, 'Cannot delete file');
+    http_response_code(204);
+    exit;
+}
+if ($method !== 'POST') { header('Allow: GET, POST, DELETE'); fail(405, 'Method not allowed'); }
 $expectedLength = filter_var($_SERVER['CONTENT_LENGTH'] ?? '', FILTER_VALIDATE_INT);
 if ($expectedLength === false || $expectedLength <= 0 || $expectedLength > $settings['maxBytes']) fail(413, 'Invalid file size');
 // Content-addressed identifiers make identical uploads reusable without overwriting other orders.

@@ -20,15 +20,15 @@ namespace PineTree.UserControlsOrder
                 catch(ArgumentException ex) { MessageBox.Show(form, ex.Message, "후가공 설정", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
             };
         }
-        public static void Number(InputNumericBox input, decimal value, decimal maximum = 100000, int decimalPlaces = 3)
+        public static void Number(InputNumericBox input, decimal value, decimal maximum = 100000, int decimalPlaces = 3, decimal minimum = 0)
         {
-            input.Minimum = 0; input.Maximum = Math.Max(maximum, value); input.DecimalPlaces = decimalPlaces;
+            input.Minimum = minimum; input.Maximum = Math.Max(maximum, value); input.DecimalPlaces = decimalPlaces;
             input.Format = "#,##0." + new string('#', decimalPlaces); input.Value = value; input.ToolTipText = "단위: mm";
         }
         // Order settings use finished-size millimetres. Dialogs show dimensions at the source scale.
-        public static void SourceNumber(InputNumericBox input, decimal finishedMm, decimal sourceScaleDivisor, decimal maximum = 100000)
+        public static void SourceNumber(InputNumericBox input, decimal finishedMm, decimal sourceScaleDivisor, decimal maximum = 100000, decimal minimum = 0)
         {
-            Number(input, finishedMm / sourceScaleDivisor, maximum / sourceScaleDivisor, sourceScaleDivisor == 10m ? 4 : 3);
+            Number(input, finishedMm / sourceScaleDivisor, maximum / sourceScaleDivisor, sourceScaleDivisor == 10m ? 4 : 3, minimum / sourceScaleDivisor);
         }
 
         public static void UpdateSourceDefaultsOnTypeChange(InputComboBox combo, decimal sourceScaleDivisor,
@@ -63,7 +63,7 @@ namespace PineTree.UserControlsOrder
 
         public static Func<HoleMarkRun> BindHoleRun(bool vertical, bool farSide, HoleMarkRun existing, decimal sourceScaleDivisor, InputCheckBox enabled, InputLabel countLabel, InputNumericBox count,
             InputRadioButton uniform, InputRadioButton fixedGap, InputNumericBox[] uniformInputs, InputLabel[] uniformLabels,
-            InputNumericBox[] fixedInputs, InputLabel[] fixedLabels, InputLabel uniformStartY, InputLabel uniformEndY,
+            InputNumericBox[] fixedInputs, InputComponent[] fixedAdditionalControls, InputLabel uniformStartY, InputLabel uniformEndY,
             InputLabel uniformEndX, InputLabel fixedStartY, InputLabel uniformStartX, InputLabel fixedStartX)
         {
             uniform.GroupName = fixedGap.GroupName = farSide ? "Far" : "Near";
@@ -71,11 +71,11 @@ namespace PineTree.UserControlsOrder
             bool isFixed = existing?.Mode == "FIXED";
             if (isFixed) fixedGap.Checked = true;
             else uniform.Checked = true;
-            Number(count, existing?.Count ?? 4, 2000m);
+            Number(count, existing != null && !isFixed ? existing.Count : 4, 2000m);
             count.DecimalPlaces = 0;
             count.Format = "#,##0";
             count.ToolTipText = "타공점 개수";
-            foreach (var input in uniformInputs.Concat(fixedInputs))
+            foreach (var input in uniformInputs.Concat(fixedInputs).Concat(fixedAdditionalControls.OfType<InputNumericBox>()))
                 SourceNumber(input, 20m, sourceScaleDivisor);
             SourceNumber(fixedInputs[2], 0m, sourceScaleDivisor);
 
@@ -101,15 +101,16 @@ namespace PineTree.UserControlsOrder
             uniformInputs[1].ToolTipText = fixedInputs[1].ToolTipText = VerticalPositionToolTip(startFromBottom);
             uniformInputs[3].ToolTipText = VerticalPositionToolTip(endFromBottom);
             fixedInputs[2].ToolTipText = vertical
-                ? "시작점에서 아래로 이어지는 타공점 사이의 거리(mm)"
-                : "시작점에서 오른쪽으로 이어지는 타공점 사이의 거리(mm)";
+                ? "상·하단에 같은 여백을 적용합니다. 그 사이 길이를 입력 간격으로 나눈 몫만큼 균등 분할합니다."
+                : "좌·우에 같은 여백을 적용합니다. 그 사이 길이를 입력 간격으로 나눈 몫만큼 균등 분할합니다.";
 
             var uniformControls = uniformInputs.Concat<InputComponent>(uniformLabels).Concat(new[] { uniformEndY, uniformEndX }).ToArray();
-            var fixedControls = fixedInputs.Concat<InputComponent>(fixedLabels).ToArray();
+            var fixedControls = fixedInputs.Concat(fixedAdditionalControls).ToArray();
             Action refresh = () =>
             {
                 bool runEnabled = enabled.Checked;
-                countLabel.Enabled = count.Enabled = uniform.Enabled = fixedGap.Enabled = runEnabled;
+                uniform.Enabled = fixedGap.Enabled = runEnabled;
+                countLabel.Enabled = count.Enabled = runEnabled && uniform.Checked;
                 foreach (var control in uniformControls) control.Enabled = runEnabled && uniform.Checked;
                 foreach (var control in fixedControls) control.Enabled = runEnabled && fixedGap.Checked;
             };
@@ -121,15 +122,16 @@ namespace PineTree.UserControlsOrder
             return () =>
             {
                 if (!enabled.Checked) return null;
-                decimal number = Read(count);
-                if (number < 1 || number > 2000 || number != decimal.Truncate(number))
+                bool uniformSpacing = uniform.Checked;
+                decimal number = uniformSpacing ? Read(count) : 0;
+                if (uniformSpacing && (number < 1 || number > 2000 || number != decimal.Truncate(number)))
                     throw new ArgumentException("타공 개수는 1~2,000 사이의 정수로 입력해주세요.");
 
-                var inputs = uniform.Checked ? uniformInputs : fixedInputs;
+                var inputs = uniformSpacing ? uniformInputs : fixedInputs;
                 var run = new HoleMarkRun
                 {
                     Count = (int)number,
-                    Mode = uniform.Checked ? "UNIFORM" : "FIXED"
+                    Mode = uniformSpacing ? "UNIFORM" : "FIXED"
                 };
                 double startX = (double)(Read(inputs[0]) * sourceScaleDivisor);
                 if (startFromRight) run.StartRightMm = startX;
@@ -137,7 +139,7 @@ namespace PineTree.UserControlsOrder
                 double startY = (double)(Read(inputs[1]) * sourceScaleDivisor);
                 if (startFromBottom) run.StartBottomMm = startY;
                 else run.StartTopMm = startY;
-                if (uniform.Checked)
+                if (uniformSpacing)
                 {
                     double endX = (double)(Read(inputs[2]) * sourceScaleDivisor);
                     if (endFromRight) run.EndRightMm = endX;

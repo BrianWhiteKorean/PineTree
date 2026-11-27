@@ -72,6 +72,8 @@ namespace PineTree.UserControlsOrder
             this.inputOption10 = new C1.Win.C1InputPanel.InputOption();
             this.btnAdd = new C1.Win.C1InputPanel.InputButton();
             this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
+            this.tbEdgeAll = new C1.Win.C1InputPanel.InputNumericBox();
+            this.chkAll = new C1.Win.C1InputPanel.InputCheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -154,10 +156,12 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.inputLabel8);
             this.c1InputPanel1.Items.Add(this.inputLabel9);
             this.c1InputPanel1.Items.Add(this.inputLabel10);
+            this.c1InputPanel1.Items.Add(this.chkAll);
             this.c1InputPanel1.Items.Add(this.tbEdgeTop);
             this.c1InputPanel1.Items.Add(this.tbEdgeBottom);
             this.c1InputPanel1.Items.Add(this.tbEdgeLeft);
             this.c1InputPanel1.Items.Add(this.tbEdgeRight);
+            this.c1InputPanel1.Items.Add(this.tbEdgeAll);
             this.c1InputPanel1.Items.Add(this.btnPreview);
             this.c1InputPanel1.Items.Add(this.inputGroupHeader2);
             this.c1InputPanel1.Items.Add(this.cbWork);
@@ -318,7 +322,6 @@ namespace PineTree.UserControlsOrder
             // 
             // inputLabel10
             // 
-            this.inputLabel10.Break = C1.Win.C1InputPanel.BreakType.Row;
             this.inputLabel10.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
             this.inputLabel10.Name = "inputLabel10";
             this.inputLabel10.Padding = new System.Windows.Forms.Padding(37, 5, 0, 0);
@@ -345,6 +348,7 @@ namespace PineTree.UserControlsOrder
             // 
             // tbEdgeRight
             // 
+            this.tbEdgeRight.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbEdgeRight.Name = "tbEdgeRight";
             this.tbEdgeRight.Width = 60;
             // 
@@ -435,6 +439,24 @@ namespace PineTree.UserControlsOrder
             this.inputLabel4.Padding = new System.Windows.Forms.Padding(30, 5, 0, 0);
             this.inputLabel4.Text = "입력된 후가공을 수정하려면 항목을 더블클릭하세요";
             // 
+            // tbEdgeAll
+            // 
+            this.tbEdgeAll.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbEdgeAll.Name = "tbEdgeAll";
+            this.tbEdgeAll.Padding = new System.Windows.Forms.Padding(5, 0, 0, 0);
+            this.tbEdgeAll.Width = 65;
+            // 
+            // chkAll
+            // 
+            this.chkAll.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkAll.Name = "chkAll";
+            this.chkAll.Padding = new System.Windows.Forms.Padding(47, 5, 0, 0);
+            this.chkAll.Text = "모두";
+            // 
             // UcOrder라텍스_그룹A
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
@@ -495,5 +517,7 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputOption inputOption11;
         private C1.Win.C1InputPanel.InputOption inputOption12;
         private C1.Win.C1InputPanel.InputLabel inputLabel4;
+        private C1.Win.C1InputPanel.InputCheckBox chkAll;
+        private C1.Win.C1InputPanel.InputNumericBox tbEdgeAll;
     }
 }

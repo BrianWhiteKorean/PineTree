@@ -3,6 +3,7 @@ using System.Collections;
 using System.Data;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Windows.Forms;
@@ -19,6 +20,45 @@ internal static class OrderListItemsRegression
  static object Cell(object grid,int row,string name){return ((IDictionary)((IList)Field(grid,"_rows"))[row])[name];}
  static string Text(object grid,int row,string name){return (string)Get(Cell(grid,row,name),"Text");}
  static object Bare(Type type,Type baseType){var o=FormatterServices.GetUninitializedObject(type);baseType.GetConstructor(Type.EmptyTypes).Invoke(o,new object[0]);return o;}
+ static void CheckProductionStatusImages(Assembly app){
+  const BindingFlags staticInternal=BindingFlags.Static|BindingFlags.NonPublic;
+  var create=app.GetType("PineTree.UserControls.OrderProductionStatusCell",true).GetMethod("Create",staticInternal);
+  var resources=app.GetType("PineTree.Properties.Resources",true);
+  var storedValues=new[]{"신규","디자인","출력 중","포장대기","포장완료","후가공","미작업","접수",""};
+  var expectedLabels=new[]{"미작업","접수","출력중","포장대기","포장완료","후가공","미작업","접수","미작업"};
+  for(int i=0;i<storedValues.Length;i++){
+   var cell=create.Invoke(null,new object[]{storedValues[i]});
+   string label=expectedLabels[i];
+   var expectedImage=(Image)resources.GetProperty(label,staticInternal).GetValue(null,null);
+   using(var expected=new MemoryStream())
+   using(var actual=new MemoryStream()){
+    expectedImage.Save(expected,System.Drawing.Imaging.ImageFormat.Png);
+    ((Image)Get(cell,"Image")).Save(actual,System.Drawing.Imaging.ImageFormat.Png);
+    Check((string)Get(cell,"Text")==label&&expected.ToArray().SequenceEqual(actual.ToArray()),"status uses the registered image for "+label);
+   }
+   Check(Get(cell,"CellType").ToString()==(label=="미작업" ? "ImageButton" : "Image"),"only unstarted production is actionable");
+  }
+  var delivered=create.Invoke(null,new object[]{"납품완료"});
+  Check((string)Get(delivered,"Text")=="납품완료"&&Get(delivered,"CellType").ToString()=="Badge","other stored statuses remain visible");
+ }
+ static void CheckFeedingDialog(Assembly app){
+  var dialogType=app.GetType("PineTree.Dialogs.DialogFeeding",true);
+  var onClick=typeof(Control).GetMethod("OnClick",F);
+  var destinations=new[]{"btnPrintRoom","btnWorkRoom"};
+  var expectedStatuses=new[]{"Printing","PostProcess"};
+  for(int i=0;i<destinations.Length;i++){
+   using(var dialog=(Form)Activator.CreateInstance(dialogType)){
+    var confirm=(Control)Field(dialog,"btnOK");
+    var selectedStatus=dialogType.GetProperty("SelectedStatus",F);
+    Check(!confirm.Enabled&&selectedStatus.GetValue(dialog,null)==null,"no destination is preselected");
+    Check(dialog.CancelButton.DialogResult==DialogResult.Cancel,"cancel dismisses the dialog without confirmation");
+    onClick.Invoke(Field(dialog,destinations[i]),new object[]{EventArgs.Empty});
+    Check(confirm.Enabled&&selectedStatus.GetValue(dialog,null).ToString()==expectedStatuses[i],"destination selects the intended status");
+    onClick.Invoke(confirm,new object[]{EventArgs.Empty});
+    Check(dialog.DialogResult==DialogResult.OK,"confirm returns the chosen destination");
+   }
+  }
+ }
  static DataTable Items(){
   var t=new DataTable();foreach(var n in new[]{"OrderId","OrderItemId","OrderNo","CustName","CustomName","ItemName","SpecText","WidthMm","HeightMm","Qty","AreaQty","UnitName","ProductionStatus","OrderDate","OrderTitle","EditorStateJson"})t.Columns.Add(n);
   t.Rows.Add("101","11","20261105-002","거래처 A","첫 주문명","현수막","", "600","1800","1","1.08","회배","신규","2026-11-05","주문 A","");
@@ -28,7 +68,11 @@ internal static class OrderListItemsRegression
  }
  [STAThread]static int Main(string[] args){try{
   var app=Assembly.LoadFrom(Path.GetFullPath(args[0]));var data=Items();var output=Path.GetFullPath(args[1]);Directory.CreateDirectory(output);
+  CheckProductionStatusImages(app);
+  CheckFeedingDialog(app);
   data.Columns.Add("StoredOrderTitle");
+  data.Columns.Add("ConsigneeName");
+  for(int i=0;i<3;i++)data.Rows[i]["ConsigneeName"]="받는 분 A";
   var header=new DataTable();
   foreach(var name in new[]{"OrderNo","OrderDate","CustName","CustCode","OrderChannel","DeliveryType","DeliveryFee","ProductionStatus","OrderDescription","RequestedDueAt","OrderTitle"})header.Columns.Add(name);
   var order=header.Rows.Add("20261105-007","2026-11-05","거래처 A","1","온라인","택배","0","신규","비고","2026-11-06","다시 여는 주문");
@@ -57,25 +101,29 @@ internal static class OrderListItemsRegression
   using(var dash=(UserControl)Bare(app.GetType("PineTree.UserControls.UcDashboardHome",true),typeof(UserControl))){
    var grid=(Control)Call(dash,"CreateTodayOrderGrid");FieldSet(dash,"_todayOrderGrid",grid);FieldSet(dash,"_todayOrders",data);FieldSet(dash,"_selectedDate",DateTime.Today);Set(grid,"TotalText",Call(dash,"CreateTotalText",2));grid.BackColor=Color.FromArgb(30,34,59);Set(grid,"PageSize",10);Set(grid,"TotalCount",data.Rows.Count);Call(dash,"BindTodayOrderPage");
    Check(((IList)Field(grid,"_rows")).Count==4,"dashboard includes all items");
+   Check(Get(Cell(grid,0,"Status"),"CellType").ToString()=="ImageButton","dashboard exposes the unstarted status action");
    Check(Text(grid,0,"OrderNo")=="20261105-002"&&Text(grid,1,"OrderNo")==""&&Text(grid,2,"OrderNo")==""&&Text(grid,3,"OrderNo")=="20261105-001","one order number per order");
    Check(Text(grid,0,"Manage")=="상세 >"&&Text(grid,1,"Manage")==""&&Text(grid,2,"Manage")==""&&Text(grid,3,"Manage")=="상세 >","one detail link per order");
    Check(Text(grid,0,"Item")=="현수막"&&Text(grid,1,"Item")=="페트"&&Text(grid,2,"Item")=="배너","item column uses item names");
    Check(Text(grid,0,"OrderTitle")=="저장된 주문 A"&&Text(grid,1,"OrderTitle")==""&&Text(grid,3,"OrderTitle")=="수정된 주문 B","dashboard displays the title sent by each editor once per order");
+   Check(Text(grid,0,"ConsigneeName")=="받는 분 A"&&Text(grid,1,"ConsigneeName")==""&&Text(grid,3,"ConsigneeName")=="",
+    "dashboard displays the consignee once per order and leaves missing names blank");
    data.Rows[3]["StoredOrderTitle"]=DBNull.Value;
    Call(dash,"BindTodayOrderPage");
    Check(Text(grid,3,"OrderTitle")=="","missing title stays blank");
    var columns=(IList)Get(grid,"Columns");
-   var expectedKeys=new[]{"OrderNo","Customer","Item","Size","Quantity","OrderTitle","Status","Manage"};
-   var expectedWidths=new[]{160,190,210,165,100,350,120,0};
-   Check(columns.Count==expectedKeys.Length,"dashboard has eight columns");
+   var expectedKeys=new[]{"OrderNo","Customer","Item","Size","Quantity","OrderTitle","ConsigneeName","Status","Manage"};
+   var expectedWidths=new[]{160,190,210,165,100,230,120,120,0};
+   Check(columns.Count==expectedKeys.Length,"dashboard has nine columns");
    for(int i=0;i<expectedKeys.Length;i++){
     Check((string)Get(columns[i],"Key")==expectedKeys[i],"dashboard column order");
     Check((int)Get(columns[i],"Width")==expectedWidths[i],"dashboard column width");
    }
+   Check((string)Get(columns[6],"HeaderText")=="주문자","dashboard labels the consignee column");
    foreach(int gridWidth in new[]{1320,1550,1630}){
     grid.Width=gridWidth;
     int previousManageWidth=Math.Max(80,gridWidth-44-1245);
-    Check((int)Call(grid,"GetColumnWidth",columns[7])==previousManageWidth-50,"management width is 50 px smaller at each window size");
+    Check((int)Call(grid,"GetColumnWidth",columns[8])==previousManageWidth-50,"management width is 50 px smaller at each window size");
    }
    Check(Text(grid,1,"Size")=="700 x 2,000"&&Text(grid,1,"Quantity")=="2.8","each item's dimensions and area");
    Check((int)dash.GetType().GetMethod("CountOrders",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{data})==2,"dashboard count uses orders");
@@ -85,16 +133,63 @@ internal static class OrderListItemsRegression
    Set(grid,"PageSize",2);Set(grid,"PageIndex",2);Call(dash,"BindTodayOrderPage");Check(Text(grid,0,"OrderNo")==""&&Text(grid,0,"Manage")==""&&Text(grid,1,"OrderNo")=="20261105-001","page continuation keeps identifiers unique");
    FieldSet(dash,"_todayOrders",data.Clone());Set(grid,"PageIndex",1);Call(dash,"BindTodayOrderPage");Check(((IList)Field(grid,"_rows")).Count==0,"empty dashboard works");grid.Dispose();
   }
-  using(var info=(UserControl)Bare(app.GetType("PineTree.UserControls.UcOrderInfo",true),typeof(UserControl))){
-   Call(info,"InitializeComponent");Call(info,"InitializeOrderGrid");var grid=(Control)Field(info,"orderGrid");Set(grid,"PageSize",10);Call(info,"BindOrders",data);
+  using(var info=(UserControl)Activator.CreateInstance(app.GetType("PineTree.UserControls.UcOrderInfo",true))){
+   var grid=(Control)Field(info,"orderGrid");Set(grid,"PageSize",10);Call(info,"BindOrders",data,1);
    Check(((IList)Field(grid,"_rows")).Count==4,"management includes all items");
+   Check(Get(Cell(grid,0,"Status"),"CellType").ToString()=="ImageButton","management exposes the unstarted status action");
+   var columns=(IList)Get(grid,"Columns");
+   Check((string)Get(columns[5],"Key")=="Quantity"&&(string)Get(columns[6],"Key")=="ConsigneeName"&&
+    (string)Get(columns[6],"HeaderText")=="주문자"&&(string)Get(columns[7],"Key")=="Status",
+    "management shows consignee between quantity and status");
+   Check(Text(grid,0,"ConsigneeName")=="받는 분 A"&&Text(grid,1,"ConsigneeName")==""&&Text(grid,3,"ConsigneeName")=="",
+    "management displays the consignee without duplicating it on every item row");
    Check(Text(grid,0,"WorkSheet")=="보기"&&Text(grid,1,"WorkSheet")==""&&Text(grid,2,"WorkSheet")==""&&Text(grid,3,"WorkSheet")=="보기","one view button per order");
    Check(Get(Cell(grid,1,"WorkSheet"),"CellType").ToString()=="Text","hidden button does not render button frame");
    Check(((string)Get(grid,"TotalText")).Contains("2건")&&((string)Get(grid,"TotalText")).Contains("4개"),"order and item counts distinguished");
-   Set(grid,"SelectedRowIndex",1);Check((long)Field(info,"_selectedOrderId")==101,"second item selects correct order");
-   var et=app.GetType("PineTree.UserControls.PagedGridCellClickEventArgs",true);var rows=(IList)Field(grid,"_rows");var ev=Activator.CreateInstance(et,new object[]{1,"WorkSheet",rows[1]});Call(info,"OrderGrid_CellClicked",grid,ev);Check((long)Field(info,"_selectedOrderId")==101,"hidden view area cannot open print dialog");
+   var firstColumn=((IList)Get(grid,"Columns"))[0];
+   Check((string)Get(firstColumn,"HeaderText")=="선택","selection column comes first");
+   Check(Get(Cell(grid,0,"Checked"),"CellType").ToString()=="CheckBox"&&Get(Cell(grid,1,"Checked"),"CellType").ToString()=="Text",
+    "one checkbox per visible order group");
+   Call(grid,"OnMouseDown",new MouseEventArgs(MouseButtons.Left,1,50,55,0));
+   Check((bool)Get(Cell(grid,0,"Checked"),"Checked")&&((string)Get(grid,"TotalText")).Contains("선택 1건"),"checking an order updates its count");
    grid.Size=new Size(1550,320);using(var bitmap=new Bitmap(grid.Width,grid.Height)){grid.DrawToBitmap(bitmap,grid.ClientRectangle);bitmap.Save(Path.Combine(output,"management.png"));}
-   Set(grid,"PageSize",2);Set(grid,"PageIndex",2);Call(info,"BindOrderPage");Check(Text(grid,0,"WorkSheet")==""&&Text(grid,1,"WorkSheet")=="보기","view button remains unique across pages");Set(grid,"SelectedRowIndex",1);Check((long)Field(info,"_selectedOrderId")==102,"page two order selection");
+   Set(grid,"PageSize",2);Set(grid,"PageIndex",2);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Check(Text(grid,0,"WorkSheet")=="보기"&&Text(grid,1,"WorkSheet")=="보기","each order visible on the page has a view button");
+   Check(Text(grid,0,"ConsigneeName")=="받는 분 A","management shows the consignee again when the order continues on a new page");
+   Check((bool)Get(Cell(grid,0,"Checked"),"Checked")&&!(bool)Get(Cell(grid,1,"Checked"),"Checked"),"page change restores checked order IDs");
+   Call(grid,"OnMouseDown",new MouseEventArgs(MouseButtons.Left,1,50,55,0));
+   Set(grid,"PageIndex",1);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Check(!(bool)Get(Cell(grid,0,"Checked"),"Checked"),"unchecking the continuation clears the order across pages");
+   Set(grid,"PageSize",3);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Call(grid,"OnMouseDown",new MouseEventArgs(MouseButtons.Left,1,50,18,0));
+   Check((bool)Get(Cell(grid,0,"Checked"),"Checked")&&((string)Get(grid,"TotalText")).Contains("선택 1건"),"header selects the current page");
+   Set(grid,"PageIndex",2);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Check(!(bool)Get(Cell(grid,0,"Checked"),"Checked"),"header leaves an unchecked order on another page alone");
+   Call(grid,"OnMouseDown",new MouseEventArgs(MouseButtons.Left,1,50,18,0));
+   Check((bool)Get(Cell(grid,0,"Checked"),"Checked")&&((string)Get(grid,"TotalText")).Contains("선택 2건"),"header preserves a checked order on another page");
+   Call(grid,"OnMouseDown",new MouseEventArgs(MouseButtons.Left,1,50,18,0));
+   Check(!(bool)Get(Cell(grid,0,"Checked"),"Checked")&&((string)Get(grid,"TotalText")).Contains("선택 1건"),"header clears only the current page");
+   Set(grid,"PageIndex",1);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Check((bool)Get(Cell(grid,0,"Checked"),"Checked"),"another page stays checked after a header clears the current page");
+   Set(grid,"PageIndex",2);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Call(grid,"OnMouseDown",new MouseEventArgs(MouseButtons.Left,1,50,18,0));
+   var clearSelection=(Control)Field(info,"btnClearSelection");
+   Check(clearSelection.GetType().Name=="C1Button"&&clearSelection.Text=="전체선택 해제"
+    &&clearSelection.Left>=((Control)Field(info,"label5")).Right,"global clear button appears beside the result title");
+   clearSelection.GetType().GetMethod("PerformClick").Invoke(clearSelection,null);
+   Check(!(bool)Get(Cell(grid,0,"Checked"),"Checked"),"global clear button clears the current page");
+   Set(grid,"PageIndex",1);Call(grid,"OnPageChanged",EventArgs.Empty);
+   Check(!(bool)Get(Cell(grid,0,"Checked"),"Checked")&&((string)Get(grid,"TotalText")).Contains("선택 0건"),"global clear button clears other pages");
+   Set(grid,"PageSize",2);
+   var refreshed=data.Copy();
+   refreshed.Rows.RemoveAt(0);
+   Call(info,"BindOrders",refreshed,2);
+   Check((int)Get(grid,"PageIndex")==2&&Text(grid,0,"OrderId")=="102","refresh after deletion restores the requested page when it still exists");
+   refreshed.Rows.RemoveAt(2);
+   Call(info,"BindOrders",refreshed,2);
+   Check((int)Get(grid,"PageIndex")==1&&((IList)Field(grid,"_rows")).Count==2,"refresh uses the last available page when the requested page disappears");
+   Call(info,"BindOrders",refreshed.Clone(),2);
+   Check((int)Get(grid,"PageIndex")==1&&((IList)Field(grid,"_rows")).Count==0,"refresh handles deleting the final result");
   }
   Console.WriteLine("PASS "+checks+" multi-item order list checks");return 0;
  }catch(Exception e){Console.Error.WriteLine(e);return 1;}}

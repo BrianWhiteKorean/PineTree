@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -169,6 +170,33 @@ namespace PineTree.Classes
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
                 throw;
+            }
+        }
+
+        internal static void DeleteFiles(IEnumerable<string> fileIds)
+        {
+            DeleteFilesAsync(fileIds).GetAwaiter().GetResult();
+        }
+
+        private static async Task DeleteFilesAsync(IEnumerable<string> fileIds)
+        {
+            using (var ids = fileIds.GetEnumerator())
+            {
+                if (!ids.MoveNext()) return;
+                var settings = ReadSettings("BANNER", CancellationToken.None);
+                using (var client = CreateClient(settings))
+                {
+                    client.Timeout = TimeSpan.FromSeconds(20);
+                    do
+                    {
+                        var uri = new Uri(settings.Endpoint + "?id=" + Uri.EscapeDataString(ids.Current));
+                        using (var response = await client.DeleteAsync(uri).ConfigureAwait(false))
+                        {
+                            if (response.StatusCode != HttpStatusCode.NoContent)
+                                throw new IOException("서버 파일 삭제에 실패했습니다. (HTTP " + (int)response.StatusCode + ")");
+                        }
+                    } while (ids.MoveNext());
+                }
             }
         }
     }

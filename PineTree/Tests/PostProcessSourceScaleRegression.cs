@@ -100,7 +100,8 @@ internal static class PostProcessSourceScaleRegression
             {
                 editor.GetType().GetField("_sourceWidthMm", Private).SetValue(editor, 500m);
                 editor.GetType().GetField("_sourceHeightMm", Private).SetValue(editor, 300m);
-                Call(editor, "ApplyZoomDimensions");
+                Set(Field(editor, "tbTargetWidth"), "Value", 500m);
+                Set(Field(editor, "tbTargetHeight"), "Value", 300m);
                 foreach (decimal divisor in new[] { 1m, 10m })
                 {
                     var option = Field(editor, divisor == 1m ? "inputOption6" : "inputOption7");

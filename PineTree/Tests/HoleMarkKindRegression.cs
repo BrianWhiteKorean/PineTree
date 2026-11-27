@@ -31,12 +31,14 @@ class HoleMarkKindRegression {
      foreach(string side in new[]{"Top","Bottom"}){
       Check((decimal)Get(Field(child,"tb"+side+"HoleCount"),"Value")==4m,"default count is four");
       for(int pos=1;pos<=6;pos++)
-       Check((decimal)Get(Field(child,"tb"+side+"Pos"+pos),"Value")==2m,"default coordinate is two mm");
+       Check((decimal)Get(Field(child,"tb"+side+"Pos"+pos),"Value")==20m,"default coordinate is 20 mm at 1:1");
       Check((decimal)Get(Field(child,"tb"+side+"Gap"),"Value")==0m,"default fixed interval is zero");
      }
      Set(Field(child,"chkTopHole"),"Checked",true);
      Set(Field(child,"chkBottomHole"),"Checked",true);
      Set(Field(child,"rbBottomFixGap"),"Checked",true);
+     Check((bool)Get(Field(child,"tbTopHoleCount"),"Enabled") &&
+           !(bool)Get(Field(child,"tbBottomHoleCount"),"Enabled"),"only uniform spacing uses the count field");
      Check((bool)Get(Field(child,"rbTopSameGap"),"Checked"),"top and bottom radio groups are independent");
      Check((bool)Get(Field(child,"tbTopPos1"),"Enabled") && !(bool)Get(Field(child,"tbBottomPos1"),"Enabled"),"only chosen mode's coordinates are enabled");
      Check((bool)Get(Field(child,"inputLabel5"),"Enabled") && !(bool)Get(Field(child,"inputLabel17"),"Enabled"),"top uniform labels follow the selection");
@@ -111,6 +113,23 @@ class HoleMarkKindRegression {
       Check((decimal)Get(Field(child,"tbRightGap"),"Value")==600m,"edit restores vertical interval");
      }
      else{
+      foreach(string side in new[]{"Left","Right"}){
+       var endX=Field(child,"tb"+side+"Pos7");
+       var endY=Field(child,"tb"+side+"Pos8");
+       Check((decimal)Get(endX,"Value")==20m && (decimal)Get(endY,"Value")==20m,
+             "fixed endpoints default to the same 20 mm as other coordinates");
+       Check(!(bool)Get(endX,"Enabled") && !(bool)Get(endY,"Enabled"),"unchecked side disables fixed endpoints");
+       Set(Field(child,"chk"+side+"Hole"),"Checked",true);
+       Check(!(bool)Get(endX,"Enabled") && !(bool)Get(endY,"Enabled"),"uniform mode disables fixed endpoints");
+       Set(Field(child,"rb"+side+"FixGap"),"Checked",true);
+       Check((bool)Get(endX,"Enabled") && (bool)Get(endY,"Enabled"),"fixed mode enables fixed endpoints");
+       Set(Field(child,"chk"+side+"Hole"),"Checked",false);
+       Check(!(bool)Get(endX,"Enabled") && !(bool)Get(endY,"Enabled"),"unchecking side disables fixed endpoints");
+       Set(Field(child,"chk"+side+"Hole"),"Checked",true);
+       Check((bool)Get(endX,"Enabled") && (bool)Get(endY,"Enabled"),"rechecking restores fixed endpoints");
+       Set(Field(child,"rb"+side+"SameGap"),"Checked",true);
+       Check(!(bool)Get(endX,"Enabled") && !(bool)Get(endY,"Enabled"),"switching to uniform disables fixed endpoints");
+      }
       Set(Field(child,"chkLeftHole"),"Checked",true);
       Set(Field(child,"chkRightHole"),"Checked",true);
       Set(Field(child,"rbRightFixGap"),"Checked",true);
@@ -201,7 +220,7 @@ class HoleMarkKindRegression {
       if(index==0){
        AddCustomPlacement(dialog);
        string summary=(string)Cell(grid,2,2);
-       Check(Convert.ToInt32(Cell(grid,2,1))==13 && summary.Contains("상단 균등") && summary.Contains("하단 고정"),"grid displays both custom runs and actual count");
+       Check(Convert.ToInt32(Cell(grid,2,1))==13 && summary.Contains("상단 균등") && summary.Contains("하단 고정 반대쪽까지"),"grid displays both custom runs and actual count");
        EditCustomPlacement(grid,false);
        EditCustomPlacement(grid,true);
        SetSidePlacement(dialog,grid,false);
@@ -216,7 +235,7 @@ class HoleMarkKindRegression {
     Call(editor,"CommitPostProcess",index==1?-1:0,accepted);
     var pdfSettings=Call(editor,"ReadPdfGenerationSettings");
     Check((string)Get(pdfSettings,"HoleMarkKind")==kind,"kind reaches engine");
-    Check((int)pdfSettings.GetType().GetMethod("GetMarkCount").Invoke(pdfSettings,null)==(index==0?21:3),"selected count reaches engine");
+    Check((int)pdfSettings.GetType().GetMethod("GetMarkCount").Invoke(pdfSettings,null)==(index==0?21:3),"calculated count reaches engine");
     var pdfRows=(IList)Get(pdfSettings,"HolePlacements");
     Check(pdfRows.Count==(index==0?3:1) && (double)Get(Get(pdfRows[0],"Edges"),"TopMm")==25,"remaining placement reaches engine");
     var state=editor.GetType().GetMethod("CaptureEditorState").Invoke(editor,null);
@@ -239,11 +258,11 @@ class HoleMarkKindRegression {
       Check((string)Get(top,"Mode")=="UNIFORM" && (double)Get(top,"StartLeftMm")==2 &&
             (double)Get(top,"EndRightMm")==3 && (int)Get(top,"Count")==9,"edited count and right inset survive reopening");
       Check((string)Get(bottom,"Mode")=="FIXED" && (double)Get(bottom,"SpacingMm")==250 &&
-            (int)Get(bottom,"Count")==10 && (double)Get(bottom,"StartBottomMm")==2,"bottom-relative position and fixed spacing survive reopening");
+            (int)Get(bottom,"Count")==0 && (double)Get(bottom,"StartBottomMm")==2,"automatic fixed spacing and bottom-relative position survive reopening");
       var left=Get(rows[2],"LeftRun");
       var right=Get(rows[2],"RightRun");
-      Check((double)Get(left,"StartLeftMm")==2 && (double)Get(left,"EndBottomMm")==2 &&
-            (double)Get(right,"StartRightMm")==2 && (double)Get(right,"SpacingMm")==900,"side anchors and edited interval survive reopening");
+      Check((double)Get(left,"StartLeftMm")==20 && (double)Get(left,"EndBottomMm")==20 &&
+            (double)Get(right,"StartRightMm")==20 && (double)Get(right,"SpacingMm")==900,"side anchors and edited interval survive reopening");
      }
     }
     hole=accepted;

@@ -50,13 +50,15 @@ namespace PineTree.UserControlsOrder
             this.inputLabel2 = new C1.Win.C1InputPanel.InputLabel();
             this.cbSpot = new C1.Win.C1InputPanel.InputComboBox();
             this.inputOption1 = new C1.Win.C1InputPanel.InputOption();
+            this.inputOption4 = new C1.Win.C1InputPanel.InputOption();
             this.inputLabel3 = new C1.Win.C1InputPanel.InputLabel();
             this.tbColorName = new C1.Win.C1InputPanel.InputTextBox();
             this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
             this.cbCutType = new C1.Win.C1InputPanel.InputComboBox();
             this.inputOption2 = new C1.Win.C1InputPanel.InputOption();
             this.inputOption3 = new C1.Win.C1InputPanel.InputOption();
-            this.inputOption4 = new C1.Win.C1InputPanel.InputOption();
+            this.tbAll = new C1.Win.C1InputPanel.InputNumericBox();
+            this.chkAll = new C1.Win.C1InputPanel.InputCheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -126,11 +128,13 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.inputLabel6);
             this.c1InputPanel1.Items.Add(this.inputLabel7);
             this.c1InputPanel1.Items.Add(this.inputLabel8);
+            this.c1InputPanel1.Items.Add(this.chkAll);
             this.c1InputPanel1.Items.Add(this.inputLabel9);
             this.c1InputPanel1.Items.Add(this.tbTop);
             this.c1InputPanel1.Items.Add(this.tbBottom);
             this.c1InputPanel1.Items.Add(this.tbLeft);
             this.c1InputPanel1.Items.Add(this.tbRight);
+            this.c1InputPanel1.Items.Add(this.tbAll);
             this.c1InputPanel1.Items.Add(this.inputLabel2);
             this.c1InputPanel1.Items.Add(this.cbSpot);
             this.c1InputPanel1.Items.Add(this.inputLabel3);
@@ -180,7 +184,6 @@ namespace PineTree.UserControlsOrder
             // 
             // inputLabel8
             // 
-            this.inputLabel8.Break = C1.Win.C1InputPanel.BreakType.Row;
             this.inputLabel8.Name = "inputLabel8";
             this.inputLabel8.Padding = new System.Windows.Forms.Padding(40, 10, 0, 0);
             this.inputLabel8.Text = "우";
@@ -200,6 +203,11 @@ namespace PineTree.UserControlsOrder
             0,
             0,
             0});
+            this.tbTop.Minimum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            -2147483648});
             this.tbTop.Name = "tbTop";
             this.tbTop.Width = 50;
             // 
@@ -211,6 +219,11 @@ namespace PineTree.UserControlsOrder
             0,
             0,
             0});
+            this.tbBottom.Minimum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            -2147483648});
             this.tbBottom.Name = "tbBottom";
             this.tbBottom.Width = 50;
             // 
@@ -222,16 +235,27 @@ namespace PineTree.UserControlsOrder
             0,
             0,
             0});
+            this.tbLeft.Minimum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            -2147483648});
             this.tbLeft.Name = "tbLeft";
             this.tbLeft.Width = 50;
             // 
             // tbRight
             // 
+            this.tbRight.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbRight.Maximum = new decimal(new int[] {
             999,
             0,
             0,
             0});
+            this.tbRight.Minimum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            -2147483648});
             this.tbRight.Name = "tbRight";
             this.tbRight.Width = 50;
             // 
@@ -255,6 +279,11 @@ namespace PineTree.UserControlsOrder
             // 
             this.inputOption1.Name = "inputOption1";
             this.inputOption1.Text = "별색 (Spot)";
+            // 
+            // inputOption4
+            // 
+            this.inputOption4.Name = "inputOption4";
+            this.inputOption4.Text = "검정(Black)";
             // 
             // inputLabel3
             // 
@@ -296,10 +325,26 @@ namespace PineTree.UserControlsOrder
             this.inputOption3.Name = "inputOption3";
             this.inputOption3.Text = "정재단";
             // 
-            // inputOption4
+            // tbAll
             // 
-            this.inputOption4.Name = "inputOption4";
-            this.inputOption4.Text = "검정(Black)";
+            this.tbAll.Maximum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            0});
+            this.tbAll.Minimum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            -2147483648});
+            this.tbAll.Name = "tbAll";
+            this.tbAll.Width = 50;
+            // 
+            // chkAll
+            // 
+            this.chkAll.Name = "chkAll";
+            this.chkAll.Padding = new System.Windows.Forms.Padding(30, 10, 0, 0);
+            this.chkAll.Text = "모두";
             // 
             // Dlg후가공공통_재단선
             // 
@@ -352,5 +397,7 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputNumericBox tbLeft;
         private C1.Win.C1InputPanel.InputNumericBox tbRight;
         private C1.Win.C1InputPanel.InputOption inputOption4;
+        private C1.Win.C1InputPanel.InputCheckBox chkAll;
+        private C1.Win.C1InputPanel.InputNumericBox tbAll;
     }
 }

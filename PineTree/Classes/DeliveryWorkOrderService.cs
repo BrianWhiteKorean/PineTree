@@ -22,15 +22,12 @@ namespace PineTree.Classes
         public Image CoverImage;
         public Image[] ExtraImages = new Image[0];
 
-        public string FileName
+        public string GetFileName(bool asPdf = false)
         {
-            get
-            {
-                var invalid = Path.GetInvalidFileNameChars();
-                string name = string.Join("_", new[] { Paper, Size, Finishing, Quantity, Delivery }.Select(part =>
-                    string.Concat((part ?? "").Trim().Select(c => invalid.Contains(c) ? '-' : c))));
-                return name + ".xlsx";
-            }
+            var invalid = Path.GetInvalidFileNameChars();
+            string name = string.Join("_", new[] { Paper, Size, Finishing, Quantity, Delivery }.Select(part =>
+                string.Concat((part ?? "").Trim().Select(c => invalid.Contains(c) ? '-' : c))));
+            return name + (asPdf ? ".pdf" : ".xlsx");
         }
 
         public static string DeliveryKind(string value)
@@ -54,7 +51,7 @@ namespace PineTree.Classes
         private const string DefaultTemplateBaseUrl = "http://211.45.163.175/pinetreeupdate/workorder/";
         private static readonly HttpClient Client = new HttpClient { Timeout = TimeSpan.FromSeconds(25), MaxResponseContentBufferSize = 10 * 1024 * 1024 };
 
-        public static async Task<string> GenerateAsync(DeliveryWorkOrder order, string destination)
+        public static async Task<string> GenerateAsync(DeliveryWorkOrder order, string destination, bool asPdf)
         {
             string kind = DeliveryWorkOrder.DeliveryKind(order.Delivery);
             if (kind.Length == 0) throw new ArgumentException("택배, 창고, 퀵 중에서 배송방법을 선택해주세요.");
@@ -62,7 +59,7 @@ namespace PineTree.Classes
             if (destination == null) await Task.Run(CleanOldPreviews).ConfigureAwait(false);
             string directory = Path.Combine(Path.GetTempPath(), "PineTreeDeliveryWorkOrders", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
-            string output = Path.Combine(directory, order.FileName);
+            string output = Path.Combine(directory, order.GetFileName(asPdf));
             bool keepPreview = false;
             try
             {
@@ -72,7 +69,7 @@ namespace PineTree.Classes
                     DownloadAsync(kind, cover),
                     appendix == null ? Task.CompletedTask : DownloadAsync("별지", appendix)).ConfigureAwait(false);
 
-                await RunExcelAsync(() => BuildWorkbook(order, kind, cover, appendix, output)).ConfigureAwait(false);
+                await RunExcelAsync(() => BuildWorkbook(order, kind, cover, appendix, output, asPdf)).ConfigureAwait(false);
                 if (destination != null)
                 {
                     SaveLocal(output, destination, replaceExisting);
@@ -150,7 +147,7 @@ namespace PineTree.Classes
             return completion.Task;
         }
 
-        private static void BuildWorkbook(DeliveryWorkOrder order, string kind, string cover, string appendix, string output)
+        private static void BuildWorkbook(DeliveryWorkOrder order, string kind, string cover, string appendix, string output, bool asPdf)
         {
             string directory = Path.GetDirectoryName(cover);
             string left = Path.Combine(directory, "left.png");
@@ -200,7 +197,11 @@ namespace PineTree.Classes
 
                 book.Activate();
                 sheet.Activate();
-                book.SaveAs(output, FileFormat: 51);
+                if (asPdf)
+                    book.ExportAsFixedFormat(0, output, Quality: 0, IncludeDocProperties: true,
+                        IgnorePrintAreas: false, OpenAfterPublish: false);
+                else
+                    book.SaveAs(output, FileFormat: 51);
             }
             catch (COMException ex)
             {
@@ -239,7 +240,7 @@ namespace PineTree.Classes
             SetDueDate((object)sheet, parcel ? "H4" : "G3", order.DueAt);
             SetText((object)sheet, parcel ? "C5" : "B4", order.Customer);
             SetText((object)sheet, parcel ? "G5" : "F4", order.Delivery);
-            SetText((object)sheet, parcel ? "C6" : "B5", Path.GetFileNameWithoutExtension(order.FileName));
+            SetText((object)sheet, parcel ? "C6" : "B5", Path.GetFileNameWithoutExtension(order.GetFileName()));
             SetText((object)sheet, parcel ? "C8" : "B7", order.Equipment);
             SetText((object)sheet, parcel ? "G8" : "F7", order.Quantity);
             SetText((object)sheet, parcel ? "C9" : "B8", order.Paper);

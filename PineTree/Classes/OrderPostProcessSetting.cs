@@ -61,8 +61,8 @@ namespace PineTree.Classes
                 if (ProcessCode == "AL_SCROLL" && (p.ScrollTopMm < 0 || p.ScrollBottomMm < 0 || p.ScrollTopMm > 100000 || p.ScrollBottomMm > 100000))
                     throw new ArgumentException("족자및쫄대 상·하 여백은 0 이상 100,000mm 이하로 입력해주세요.");
                 foreach (decimal? inset in new[] { p.CutInsetTopMm, p.CutInsetBottomMm, p.CutInsetLeftMm, p.CutInsetRightMm })
-                    if (inset.HasValue && (inset.Value < 0 || inset.Value > 100000))
-                        throw new ArgumentException("재단 여백은 0 이상 100,000mm 이하로 입력해주세요.");
+                    if (inset.HasValue && (inset.Value < -100000 || inset.Value > 100000))
+                        throw new ArgumentException("재단 여백은 -100,000mm 이상 100,000mm 이하로 입력해주세요.");
             }
             else if (ProcessCode == "HOLE")
             {

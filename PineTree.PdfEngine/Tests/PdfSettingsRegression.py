@@ -83,6 +83,37 @@ class SettingsTests(unittest.TestCase):
                 s['CutInsetLeftMm'] = width+6
                 with self.assertRaises(ValueError): self.generate(s)
 
+    def test_negative_cut_insets_move_inside_image_without_resizing_pdf(self):
+        for rip_scale in (1, 10):
+            with self.subTest(rip_scale=rip_scale):
+                settings = self.settings()
+                settings.update(TargetWidthMm=200, TargetHeightMm=100, OutputRipScale=rip_scale,
+                                MakeCutline=True, LineWidthMm=.2, CutInsetsFromPage=True,
+                                EdgeLeftMm=4, EdgeRightMm=6, EdgeTopMm=5,
+                                CutInsetLeftMm=-2, CutInsetBottomMm=-3, CutInsetTopMm=-8, CutInsetRightMm=-2)
+                result, reader, _ = self.generate(settings)
+                page = reader.pages[0]
+                for box, expected in ((page.trimbox, (6, 3, 202, 92)),
+                                      (page.mediabox, (0, 0, 210, 105)),
+                                      (page.cropbox, (0, 0, 210, 105))):
+                    for actual, mm in zip(box, expected):
+                        self.assertAlmostEqual(float(actual)/worker.MM, mm/rip_scale, places=5)
+                self.assertAlmostEqual(result['OutputHeightMm'], 105/rip_scale, places=5)
+                self.assertAlmostEqual(result['OutputWidthMm'], 210/rip_scale, places=5)
+
+    def test_negative_cut_insets_follow_visible_image_inside_letterbox(self):
+        settings = self.settings()
+        settings.update(MakeCutline=True, CutInsetsFromPage=True,
+                        CutInsetTopMm=-3, CutInsetBottomMm=-4)
+        _, reader, _ = self.generate(settings)
+        page = reader.pages[0]
+        self.assertAlmostEqual(float(page.trimbox.bottom)/worker.MM, 29, places=5)
+        self.assertAlmostEqual(float(page.trimbox.top)/worker.MM, 72, places=5)
+        self.assertAlmostEqual(float(page.mediabox.height)/worker.MM, 100, places=5)
+        settings.update(CutInsetBottomMm=80)
+        with self.assertRaisesRegex(ValueError, '0보다'):
+            self.generate(settings)
+
     def test_black_cutline_uses_process_black_at_both_delivery_scales(self):
         for rip_scale in (1, 10):
             with self.subTest(rip_scale=rip_scale):
@@ -102,9 +133,7 @@ class SettingsTests(unittest.TestCase):
                 factor = next(float(args[0]) for args, op in ops if op == b'cm') if rip_scale == 10 else 1
                 self.assertAlmostEqual(width*factor, .25/rip_scale, places=7)
 
-    def test_whole_image_expansion(self):
-        # A central stripe must scale with the complete design, rather than
-        # retaining its old width while only the outermost pixels repeat.
+    def test_image_expansion_adds_white_canvas_margins(self):
         writer = PdfWriter()
         page = writer.add_blank_page(width=1000*worker.MM, height=800*worker.MM)
         stream = DecodedStreamObject()
@@ -112,7 +141,7 @@ class SettingsTests(unittest.TestCase):
                         f'0 0 1 rg {250*worker.MM} 0 {500*worker.MM} {800*worker.MM} re f'.encode('ascii'))
         page[NameObject('/Contents')] = writer._add_object(stream)
         writer.write(self.source)
-        for left, right, top, bottom in ((5, 5, 5, 5), (10, 30, 20, 40), (0, 0, 0, 0)):
+        for left, right, top, bottom in ((5, 5, 5, 5), (10, 30, 20, 40), (0, 10, 20, 0), (0, 0, 0, 0)):
             with self.subTest(edges=(left, right, top, bottom)):
                 s = self.settings()
                 s.update(TargetWidthMm=1000, TargetHeightMm=800, ExpandImage=True,
@@ -124,15 +153,22 @@ class SettingsTests(unittest.TestCase):
                 self.assertAlmostEqual(float(reader.pages[0].trimbox.left)/worker.MM, left)
                 operations = ContentStream(reader.pages[0].get_contents(), reader).operations
                 matrices = [list(map(float, values)) for values, op in operations if op == b'cm']
-                self.assertTrue(any(abs(m[0]-width/1000) < 1e-7 and abs(m[3]-height/800) < 1e-7 for m in matrices))
+                expected_matrix = (1, 0, 0, 1, left*worker.MM, bottom*worker.MM)
+                self.assertTrue(any(all(abs(a-b) < 1e-5 for a, b in zip(m, expected_matrix)) for m in matrices))
                 with pdfium.PdfDocument(path) as doc:
-                    bitmap = doc[0].render(scale=.25)
+                    page = doc[0]
+                    bitmap = page.render(scale=.5, fill_color=(0, 255, 0, 255))
                     image = bitmap.to_pil().convert('RGB')
-                    for x, channel in ((.01, 0), (.24, 0), (.26, 2), (.74, 2), (.76, 0), (.99, 0)):
-                        pixel = image.getpixel((int(image.width*x), image.height//2))
-                        self.assertGreater(pixel[channel], 240)
-                        self.assertLess(pixel[(channel+1)%3], 20)
-                    image.close(); bitmap.close()
+                    px_per_mm = worker.MM*.5
+                    samples = [(left+x, top+400, color) for x, color in (
+                        (10, (255, 0, 0)), (240, (255, 0, 0)), (260, (0, 0, 255)),
+                        (740, (0, 0, 255)), (760, (255, 0, 0)), (990, (255, 0, 0)))]
+                    margins = ((left, left/2, height/2), (right, width-right/2, height/2),
+                               (top, width/2, top/2), (bottom, width/2, height-bottom/2))
+                    samples.extend((x, y, (255, 255, 255)) for edge, x, y in margins if edge)
+                    for x, y, color in samples:
+                        self.assertEqual(image.getpixel((int(x*px_per_mm), int(y*px_per_mm))), color)
+                    image.close(); bitmap.close(); page.close()
 
     def test_cutline_matches_trim_box_after_corner_bleed(self):
         writer = PdfWriter()
@@ -276,12 +312,12 @@ class SettingsTests(unittest.TestCase):
             TypeCode='CUSTOM_SPACING',
             TopRun=dict(Mode='UNIFORM', Count=3, StartLeftMm=0, StartTopMm=10,
                         EndLeftMm=80, EndTopMm=20),
-            BottomRun=dict(Mode='FIXED', Count=2, StartLeftMm=15, StartTopMm=80, SpacingMm=20),
+            BottomRun=dict(Mode='FIXED', Count=2, StartLeftMm=15, StartTopMm=80, SpacingMm=30),
         )]
         result, reader, _ = self.generate(settings)
-        self.assertEqual(result['MarkCount'], 5)
+        self.assertEqual(result['MarkCount'], 6)
         snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
-        expected = [(2, 93), (42, 88), (82, 83), (17, 23), (37, 23)]
+        expected = [(2, 93), (42, 88), (82, 83), (17, 23), (52, 23), (87, 23)]
         self.assertEqual(worker.mark_positions(snapshot['settings']), expected)
 
         ops = ContentStream(reader.pages[0].get_contents(), reader).operations
@@ -289,7 +325,7 @@ class SettingsTests(unittest.TestCase):
         self.assertAlmostEqual(scale, .1)
         positions = [tuple(float(v)*scale/worker.MM for v in args)
                      for args, op in ops if op == b'm']
-        self.assertEqual(len(positions), 10)
+        self.assertEqual(len(positions), 12)
         for (x, y), (left, bottom) in zip(positions[::2], expected):
             self.assertAlmostEqual(x, left/10, places=6)
             self.assertAlmostEqual(y, bottom/10, places=6)
@@ -312,26 +348,26 @@ class SettingsTests(unittest.TestCase):
         row['BottomRun']['EndLeftMm'] = 15
         self.assertEqual(worker.mark_positions(worker.generation_settings(settings)), [(10, 10)])
 
-    def test_right_inset_and_fixed_truncation_use_image_bounds(self):
+    def test_right_inset_and_fixed_span_use_image_bounds(self):
         settings = self.settings()
         settings.update(MakeHole=True, HoleMarkKind='DOT', TargetWidthMm=94, MakeWood=True, WoodExtraMm=10)
         settings['HolePlacements'] = [dict(
             TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
             TopRun=dict(Mode='UNIFORM', Count=10, StartLeftMm=2, StartTopMm=2,
                         EndRightMm=2, EndTopMm=2),
-            BottomRun=dict(Mode='FIXED', Count=10, StartLeftMm=80, StartTopMm=90, SpacingMm=10),
+            BottomRun=dict(Mode='FIXED', Count=10, StartLeftMm=12, StartTopMm=90, SpacingMm=35),
         )]
         result, reader, _ = self.generate(settings)
-        self.assertEqual(result['MarkCount'], 12)
+        self.assertEqual(result['MarkCount'], 13)
         snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
         self.assertEqual(worker.mark_positions(snapshot['settings']),
-                         [(12 + step*10, 98) for step in range(10)] + [(90, 10), (100, 10)])
+                         [(12 + step*10, 98) for step in range(10)] + [(22, 10), (57, 10), (92, 10)])
 
-        settings['HolePlacements'][0]['BottomRun']['SpacingMm'] = 14
+        settings['HolePlacements'][0]['BottomRun']['SpacingMm'] = 80
         result, reader, _ = self.generate(settings)
-        self.assertEqual(result['MarkCount'], 12)
+        self.assertEqual(result['MarkCount'], 11)
         snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
-        self.assertEqual(worker.mark_positions(snapshot['settings'])[-1], (104, 10))
+        self.assertEqual(worker.mark_positions(snapshot['settings'])[-1], (22, 10))
 
     def test_bottom_runs_measure_vertical_coordinates_from_image_bottom(self):
         settings = self.settings()
@@ -346,23 +382,23 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(result['MarkCount'], 3)
         self.assertEqual(worker.mark_positions(snapshot['settings']), [(2, 10), (50, 12), (98, 14)])
 
-        placement['BottomRun'] = dict(Mode='FIXED', Count=10, StartLeftMm=90, StartBottomMm=2, SpacingMm=5)
+        placement['BottomRun'] = dict(Mode='FIXED', Count=10, StartLeftMm=40, StartBottomMm=2, SpacingMm=10)
         result, reader, _ = self.generate(settings)
         snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
         self.assertEqual(result['MarkCount'], 3)
-        self.assertEqual(worker.mark_positions(snapshot['settings']), [(90, 10), (95, 10), (100, 10)])
+        self.assertEqual(worker.mark_positions(snapshot['settings']), [(40, 10), (50, 10), (60, 10)])
 
-    def test_side_runs_use_right_insets_and_fixed_spacing_stops_at_image_bottom(self):
+    def test_side_runs_use_right_insets_and_fixed_span(self):
         settings = self.settings()
         settings.update(MakeHole=True, HoleMarkKind='DOT', OutputRipScale=10, EdgeLeftMm=3, EdgeBottomMm=5)
         placement = dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
                          LeftRun=dict(Mode='UNIFORM', Count=3, StartLeftMm=2, StartTopMm=2,
                                       EndLeftMm=4, EndBottomMm=6),
-                         RightRun=dict(Mode='FIXED', Count=10, StartRightMm=3, StartTopMm=80, SpacingMm=10))
+                         RightRun=dict(Mode='FIXED', Count=10, StartRightMm=3, StartTopMm=20, SpacingMm=25))
         settings['HolePlacements'] = [placement]
         result, reader, _ = self.generate(settings)
         snapshot = json.loads(reader.metadata['/PineTreeGenerationSettings'])
-        positions = [(5, 103), (6, 57), (7, 11), (100, 25), (100, 15), (100, 5)]
+        positions = [(5, 103), (6, 57), (7, 11), (100, 85), (100, 55), (100, 25)]
         self.assertEqual(result['MarkCount'], len(positions))
         self.assertEqual(worker.mark_positions(snapshot['settings']), positions)
         ops = ContentStream(reader.pages[0].get_contents(), reader).operations
@@ -377,6 +413,34 @@ class SettingsTests(unittest.TestCase):
                                      EndRightMm=5, EndBottomMm=2)
         self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-3:],
                          [(100, 103), (99, 55), (98, 7)])
+
+    def test_fixed_spacing_uses_quotient_as_interval_count_on_both_axes(self):
+        settings = self.settings()
+        settings.update(MakeHole=True, HoleMarkKind='DOT', TargetWidthMm=1100, TargetHeightMm=1100)
+        fixed = dict(Mode='FIXED', Count=0, SpacingMm=80)
+        settings['HolePlacements'] = [
+            dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+                 TopRun=dict(fixed, StartLeftMm=20, StartTopMm=20),
+                 BottomRun=dict(fixed, StartLeftMm=20, StartBottomMm=20)),
+            dict(TypeCode='CUSTOM_SPACING', ImageCoordinates=True,
+                 LeftRun=dict(fixed, StartLeftMm=20, StartTopMm=20),
+                 RightRun=dict(fixed, StartRightMm=20, StartTopMm=20)),
+        ]
+        result, reader, _ = self.generate(settings)
+        axis = [20 + i*1060/13 for i in range(14)]
+        positions = ([(x, y) for y in (1080, 20) for x in axis]
+                     + [(x, y) for x in (20, 1080) for y in reversed(axis)])
+        self.assertEqual(result['MarkCount'], len(positions))
+        ops = ContentStream(reader.pages[0].get_contents(), reader).operations
+        centers = [tuple(round(float(v)/worker.MM, 6) for v in args) for args, op in ops if op == b'm']
+        self.assertEqual(len(centers), 2 * len(positions))
+        for actual, expected in zip(centers[::2], positions):
+            for coordinate, units in zip(actual, expected):
+                self.assertAlmostEqual(coordinate, units, places=5)
+
+        settings['HolePlacements'][0]['TopRun']['SpacingMm'] = .001
+        with self.assertRaisesRegex(ValueError, '2,000'):
+            self.generate(settings)
 
     def test_uniform_runs_skip_preexisting_perpendicular_endpoints_in_row_order(self):
         settings = self.settings()
@@ -407,8 +471,8 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-2:],
                          [(96, 98), (96, 2)])
         vertical['RightRun'] = dict(Mode='FIXED', Count=2, StartRightMm=2, StartTopMm=2, SpacingMm=20)
-        self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-2:],
-                         [(98, 98), (98, 78)])
+        self.assertEqual(worker.mark_positions(worker.generation_settings(settings))[-5:],
+                         [(98, 98), (98, 74), (98, 50), (98, 26), (98, 2)])
 
     def test_dot_diameters_follow_delivery_pdf_scale(self):
         for scale, rip_scale in ((1, 1), (10, 10), (10, 1)):

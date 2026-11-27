@@ -448,10 +448,9 @@ def generation_settings(raw=None):
         raise ValueError("출력 크기는 14,400mm 이하여야 합니다.")
     if s["FitMode"] not in ("CONTAIN", "COVER"):
         raise ValueError("지원하지 않는 배치방식입니다.")
-    if s["MakeCutline"] and (min(s[k] for k in ("CutInsetTopMm", "CutInsetBottomMm", "CutInsetLeftMm", "CutInsetRightMm")) < 0
-            or s["CutInsetLeftMm"]+s["CutInsetRightMm"] >= finished_width+(s["EdgeLeftMm"]+s["EdgeRightMm"] if s["CutInsetsFromPage"] else 0)
-            or s["CutInsetTopMm"]+s["CutInsetBottomMm"] >= finished_height+(s["EdgeTopMm"]+s["EdgeBottomMm"] if s["CutInsetsFromPage"] else 0)):
-        raise ValueError("재단 여백은 0 이상이며 좌우·상하 합은 출력 폭·길이보다 작아야 합니다.")
+    if s["MakeCutline"] and (abs(s["CutInsetLeftMm"])+abs(s["CutInsetRightMm"]) >= finished_width+(s["EdgeLeftMm"]+s["EdgeRightMm"] if s["CutInsetsFromPage"] else 0)
+            or abs(s["CutInsetTopMm"])+abs(s["CutInsetBottomMm"]) >= finished_height+(s["EdgeTopMm"]+s["EdgeBottomMm"] if s["CutInsetsFromPage"] else 0)):
+        raise ValueError("재단 여백을 적용한 가로·세로 길이는 0보다 커야 합니다.")
     if s["MakeCutline"]:
         if not 0 < s["LineWidthMm"] <= 10:
             raise ValueError("재단선 두께는 0 초과 10mm 이하로 입력해주세요.")
@@ -553,14 +552,16 @@ def run_coordinate(run, near_key, far_key, size):
 
 
 def hole_run_endpoints(run, width, height, vertical):
-    if not isinstance(run, dict) or type(run.get("Count")) is not int or not 1 <= run["Count"] <= 2000:
-        raise ValueError("타공 개수는 1~2,000개로 입력해주세요.")
-    count = run["Count"]
+    if not isinstance(run, dict):
+        raise ValueError("타공 간격 설정이 올바르지 않습니다.")
     left = run_coordinate(run, "StartLeftMm", "StartRightMm", width)
     top = run_coordinate(run, "StartTopMm", "StartBottomMm", height)
     if not valid_coordinate(left, width) or not valid_coordinate(top, height):
         raise ValueError("타공 시작 위치가 완성품의 가로·세로 범위를 벗어났습니다.")
     if run.get("Mode") == "UNIFORM":
+        count = run.get("Count")
+        if type(count) is not int or not 1 <= count <= 2000:
+            raise ValueError("타공 개수는 1~2,000개로 입력해주세요.")
         end_left = run_coordinate(run, "EndLeftMm", "EndRightMm", width)
         end_top = run_coordinate(run, "EndTopMm", "EndBottomMm", height)
         if not valid_coordinate(end_left, width) or not valid_coordinate(end_top, height):
@@ -571,12 +572,12 @@ def hole_run_endpoints(run, width, height, vertical):
         spacing = run.get("SpacingMm")
         if type(spacing) not in (int, float) or not math.isfinite(spacing) or spacing <= 0:
             raise ValueError("고정간격은 0mm보다 커야 합니다.")
-        actual_count = 1
         start, limit = (top, height) if vertical else (left, width)
-        while actual_count < count and valid_coordinate(start + actual_count * spacing, limit):
-            actual_count += 1
-        count = actual_count
-        offset = (count - 1) * spacing
+        offset = max(0, limit - 2 * start)
+        quotient = offset / spacing + 1e-9
+        if quotient >= 2000:
+            raise ValueError("타공마크는 최대 2,000개까지 생성할 수 있습니다. 간격을 늘려주세요.")
+        count = math.floor(quotient) + 1
         end_left, end_top = (left, top + offset) if vertical else (left + offset, top)
     else:
         raise ValueError("타공 간격 방식을 선택해주세요.")
@@ -623,11 +624,9 @@ def run_mark_positions(s, run, width, height, image_coordinates, vertical, perpe
     count, left, top, end_left, end_top = hole_run_endpoints(run, width, height, vertical)
     origin_y = origin_bottom + height
     start = (origin_x + left, origin_y - top)
-    if run["Mode"] == "FIXED":
-        if vertical:
-            return [(start[0], start[1] - i*run["SpacingMm"]) for i in range(count)]
-        return [(start[0] + i*run["SpacingMm"], start[1]) for i in range(count)]
     end = (origin_x + end_left, origin_y - end_top)
+    if run["Mode"] == "FIXED":
+        return [start] if count == 1 else uniform_mark_positions(start, end, count, ())
     return uniform_mark_positions(start, end, count, perpendicular_marks)
 
 
@@ -641,7 +640,8 @@ def mark_positions(s):
         if runs:
             row_runs = {False: [], True: []}
             for run, vertical in runs:
-                points = run_mark_positions(s, run, width, height, image_coordinates, vertical, earlier_runs[not vertical])
+                points = run_mark_positions(s, run, width, height, image_coordinates, vertical,
+                                            earlier_runs[not vertical])
                 marks.extend(points)
                 row_runs[vertical].extend(points)
             for direction, points in row_runs.items():
@@ -780,24 +780,19 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
     factor = (max if s["FitMode"] == "COVER" else min)(image_width/sw, image_height/sh)
     w, h = sw*factor, sh*factor
     x, y = image_left+(image_width-w)/2, image_bottom+(image_height-h)/2
-    # Image expansion scales the complete artwork to the requested outer bounds.
-    # Finishing geometry still uses the original finished dimensions/trim box.
-    scale_x = scale_y = factor
-    if s["ExpandImage"]:
-        image_left -= left
-        image_bottom -= bottom
-        image_width += left + s["EdgeRightMm"]*MM
-        image_height += bottom + s["EdgeTopMm"]*MM
-        scale_x, scale_y = image_width/sw, image_height/sh
-        x, y = image_left, image_bottom
-        w, h = image_width, image_height
+
     # Keep the main artwork at page level. Wrapping this AI's existing non-isolated
     # transparency groups in another Form changes soft-mask compositing in PDFium.
     imported = copy.copy(source)
     imported.cropbox = RectangleObject(region)
-    page.merge_transformed_page(imported, Transformation((scale_x, 0, 0, scale_y, x-x0*scale_x, y-y0*scale_y)))
+    page.merge_transformed_page(imported, Transformation((factor, 0, 0, factor, x-x0*factor, y-y0*factor)))
     main_content = (f"q {image_left:.8f} {image_bottom:.8f} {image_width:.8f} {image_height:.8f} re W n\n".encode("ascii")
                     + page.get_contents().get_data() + b"\nQ\n")
+    if s["ExpandImage"] and (pw > tw or ph > th):
+        # Paint the area outside the trim box white without touching the artwork or finishing area.
+        white_margin = (f"q 1 g 0 0 {pw:.8f} {ph:.8f} re "
+                        f"{left:.8f} {bottom:.8f} {tw:.8f} {th:.8f} re f* Q\n")
+        main_content = white_margin.encode("ascii") + main_content
     resources = page["/Resources"]
     # Extend only edge strips; the main design remains a vector at its exact scale.
     # Contain letterboxing stays white when the source aspect ratio differs.
@@ -911,11 +906,19 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
         instructions += [f"q {cx-radius:.8f} {cy-radius:.8f} {5*MM:.8f} {5*MM:.8f} re W n 0 J {white_name} gs {hole_color} {1.5*MM:.8f} w {cross}",
                          f"{dot_state} gs {dot_color} 1 w {cross} Q"]
     if s["MakeCutline"]:
-        cut_left, cut_bottom = (0 if s["CutInsetsFromPage"] else left)+s["CutInsetLeftMm"]*MM, (0 if s["CutInsetsFromPage"] else bottom)+s["CutInsetBottomMm"]*MM
-        cut_width = (pw if s["CutInsetsFromPage"] else tw)-(s["CutInsetLeftMm"]+s["CutInsetRightMm"])*MM
-        cut_height = (ph if s["CutInsetsFromPage"] else th)-(s["CutInsetTopMm"]+s["CutInsetBottomMm"])*MM
-        page.trimbox = RectangleObject([cut_left, cut_bottom, cut_left+cut_width, cut_bottom+cut_height])
-        instructions.append(f"q {white_name} gs {cut_stroke_color} {s['LineWidthMm']*MM:.8f} w {cut_left:.8f} {cut_bottom:.8f} {cut_width:.8f} {cut_height:.8f} re S Q")
+        base_left, base_bottom, base_right, base_top = (
+            (0, 0, pw, ph) if s["CutInsetsFromPage"] else (left, bottom, left+tw, bottom+th))
+        inset_left, inset_bottom, inset_right, inset_top = (
+            s[f"CutInset{side}Mm"]*MM for side in ("Left", "Bottom", "Right", "Top"))
+        cut_left = (max(x, image_left) if inset_left < 0 else base_left)+abs(inset_left)
+        cut_bottom = (max(y, image_bottom) if inset_bottom < 0 else base_bottom)+abs(inset_bottom)
+        cut_right = (min(x+w, image_left+image_width) if inset_right < 0 else base_right)-abs(inset_right)
+        cut_top = (min(y+h, image_bottom+image_height) if inset_top < 0 else base_top)-abs(inset_top)
+        if cut_right <= cut_left or cut_top <= cut_bottom:
+            raise ValueError("재단 여백을 적용한 가로·세로 길이는 0보다 커야 합니다.")
+        stroke = s["LineWidthMm"]*MM
+        page.trimbox = RectangleObject([cut_left, cut_bottom, cut_right, cut_top])
+        instructions.append(f"q {white_name} gs {cut_stroke_color} {stroke:.8f} w {cut_left:.8f} {cut_bottom:.8f} {cut_right-cut_left:.8f} {cut_top-cut_bottom:.8f} re S Q")
     content = DecodedStreamObject()
     content.set_data(main_content + ("\n".join(instructions) + "\n").encode("ascii"))
     page[NameObject("/Contents")] = writer._add_object(content)

@@ -59,6 +59,13 @@ namespace PineTree.UserControlsOrder
             this.tbEdgeBottom = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeLeft = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeRight = new C1.Win.C1InputPanel.InputNumericBox();
+            this.inputLabel11 = new C1.Win.C1InputPanel.InputLabel();
+            this.inputSeparator3 = new C1.Win.C1InputPanel.InputSeparator();
+            this.chkCoating1 = new C1.Win.C1InputPanel.InputCheckBox();
+            this.chkCoating2 = new C1.Win.C1InputPanel.InputCheckBox();
+            this.chkCoating3 = new C1.Win.C1InputPanel.InputCheckBox();
+            this.chkCoating4 = new C1.Win.C1InputPanel.InputCheckBox();
+            this.chkCoating5 = new C1.Win.C1InputPanel.InputCheckBox();
             this.btnPreview = new C1.Win.C1InputPanel.InputButton();
             this.inputGroupHeader2 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.cbWork = new C1.Win.C1InputPanel.InputComboBox();
@@ -72,13 +79,8 @@ namespace PineTree.UserControlsOrder
             this.inputOption10 = new C1.Win.C1InputPanel.InputOption();
             this.btnAdd = new C1.Win.C1InputPanel.InputButton();
             this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
-            this.inputLabel11 = new C1.Win.C1InputPanel.InputLabel();
-            this.inputSeparator3 = new C1.Win.C1InputPanel.InputSeparator();
-            this.chkCoating1 = new C1.Win.C1InputPanel.InputCheckBox();
-            this.chkCoating2 = new C1.Win.C1InputPanel.InputCheckBox();
-            this.chkCoating3 = new C1.Win.C1InputPanel.InputCheckBox();
-            this.chkCoating4 = new C1.Win.C1InputPanel.InputCheckBox();
-            this.chkCoating5 = new C1.Win.C1InputPanel.InputCheckBox();
+            this.chkAll = new C1.Win.C1InputPanel.InputCheckBox();
+            this.tbEdgeAll = new C1.Win.C1InputPanel.InputNumericBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -161,10 +163,12 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.inputLabel8);
             this.c1InputPanel1.Items.Add(this.inputLabel9);
             this.c1InputPanel1.Items.Add(this.inputLabel10);
+            this.c1InputPanel1.Items.Add(this.chkAll);
             this.c1InputPanel1.Items.Add(this.tbEdgeTop);
             this.c1InputPanel1.Items.Add(this.tbEdgeBottom);
             this.c1InputPanel1.Items.Add(this.tbEdgeLeft);
             this.c1InputPanel1.Items.Add(this.tbEdgeRight);
+            this.c1InputPanel1.Items.Add(this.tbEdgeAll);
             this.c1InputPanel1.Items.Add(this.inputLabel11);
             this.c1InputPanel1.Items.Add(this.inputSeparator3);
             this.c1InputPanel1.Items.Add(this.chkCoating1);
@@ -334,7 +338,6 @@ namespace PineTree.UserControlsOrder
             // 
             // inputLabel10
             // 
-            this.inputLabel10.Break = C1.Win.C1InputPanel.BreakType.Row;
             this.inputLabel10.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
             this.inputLabel10.Name = "inputLabel10";
             this.inputLabel10.Padding = new System.Windows.Forms.Padding(37, 5, 0, 0);
@@ -361,8 +364,63 @@ namespace PineTree.UserControlsOrder
             // 
             // tbEdgeRight
             // 
+            this.tbEdgeRight.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbEdgeRight.Name = "tbEdgeRight";
             this.tbEdgeRight.Width = 60;
+            // 
+            // inputLabel11
+            // 
+            this.inputLabel11.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
+            this.inputLabel11.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.inputLabel11.Name = "inputLabel11";
+            this.inputLabel11.Padding = new System.Windows.Forms.Padding(10, 20, 0, 0);
+            this.inputLabel11.Text = "코팅";
+            // 
+            // inputSeparator3
+            // 
+            this.inputSeparator3.Height = 27;
+            this.inputSeparator3.Name = "inputSeparator3";
+            this.inputSeparator3.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
+            this.inputSeparator3.Width = 335;
+            // 
+            // chkCoating1
+            // 
+            this.chkCoating1.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.chkCoating1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkCoating1.Name = "chkCoating1";
+            this.chkCoating1.Padding = new System.Windows.Forms.Padding(32, 7, 2, 2);
+            this.chkCoating1.Text = "무광";
+            // 
+            // chkCoating2
+            // 
+            this.chkCoating2.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.chkCoating2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkCoating2.Name = "chkCoating2";
+            this.chkCoating2.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
+            this.chkCoating2.Text = "유광";
+            // 
+            // chkCoating3
+            // 
+            this.chkCoating3.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.chkCoating3.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkCoating3.Name = "chkCoating3";
+            this.chkCoating3.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
+            this.chkCoating3.Text = "배면";
+            // 
+            // chkCoating4
+            // 
+            this.chkCoating4.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.chkCoating4.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkCoating4.Name = "chkCoating4";
+            this.chkCoating4.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
+            this.chkCoating4.Text = "반광";
+            // 
+            // chkCoating5
+            // 
+            this.chkCoating5.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkCoating5.Name = "chkCoating5";
+            this.chkCoating5.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
+            this.chkCoating5.Text = "PP";
             // 
             // btnPreview
             // 
@@ -451,59 +509,23 @@ namespace PineTree.UserControlsOrder
             this.inputLabel4.Padding = new System.Windows.Forms.Padding(30, 5, 0, 0);
             this.inputLabel4.Text = "입력된 후가공을 수정하려면 항목을 더블클릭하세요";
             // 
-            // inputLabel11
+            // chkAll
             // 
-            this.inputLabel11.Font = new System.Drawing.Font("굴림", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.inputLabel11.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.inputLabel11.Name = "inputLabel11";
-            this.inputLabel11.Padding = new System.Windows.Forms.Padding(10, 20, 0, 0);
-            this.inputLabel11.Text = "코팅";
+            this.chkAll.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkAll.Name = "chkAll";
+            this.chkAll.Padding = new System.Windows.Forms.Padding(47, 5, 0, 0);
+            this.chkAll.Text = "모두";
             // 
-            // inputSeparator3
+            // tbEdgeAll
             // 
-            this.inputSeparator3.Height = 27;
-            this.inputSeparator3.Name = "inputSeparator3";
-            this.inputSeparator3.Padding = new System.Windows.Forms.Padding(0, 20, 0, 0);
-            this.inputSeparator3.Width = 335;
-            // 
-            // chkCoating1
-            // 
-            this.chkCoating1.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.chkCoating1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.chkCoating1.Name = "chkCoating1";
-            this.chkCoating1.Padding = new System.Windows.Forms.Padding(32, 7, 2, 2);
-            this.chkCoating1.Text = "무광";
-            // 
-            // chkCoating2
-            // 
-            this.chkCoating2.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.chkCoating2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.chkCoating2.Name = "chkCoating2";
-            this.chkCoating2.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
-            this.chkCoating2.Text = "유광";
-            // 
-            // chkCoating3
-            // 
-            this.chkCoating3.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.chkCoating3.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.chkCoating3.Name = "chkCoating3";
-            this.chkCoating3.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
-            this.chkCoating3.Text = "배면";
-            // 
-            // chkCoating4
-            // 
-            this.chkCoating4.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.chkCoating4.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.chkCoating4.Name = "chkCoating4";
-            this.chkCoating4.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
-            this.chkCoating4.Text = "반광";
-            // 
-            // chkCoating5
-            // 
-            this.chkCoating5.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.chkCoating5.Name = "chkCoating5";
-            this.chkCoating5.Padding = new System.Windows.Forms.Padding(12, 7, 2, 2);
-            this.chkCoating5.Text = "PP";
+            this.tbEdgeAll.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbEdgeAll.Name = "tbEdgeAll";
+            this.tbEdgeAll.Padding = new System.Windows.Forms.Padding(5, 0, 0, 0);
+            this.tbEdgeAll.Width = 65;
             // 
             // UcOrder수성_그룹B
             // 
@@ -572,5 +594,7 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputCheckBox chkCoating3;
         private C1.Win.C1InputPanel.InputCheckBox chkCoating4;
         private C1.Win.C1InputPanel.InputCheckBox chkCoating5;
+        private C1.Win.C1InputPanel.InputCheckBox chkAll;
+        private C1.Win.C1InputPanel.InputNumericBox tbEdgeAll;
     }
 }

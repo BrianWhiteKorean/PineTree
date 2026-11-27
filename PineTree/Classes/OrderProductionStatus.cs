@@ -45,9 +45,11 @@ namespace PineTree.Classes
             switch (normalized)
             {
                 case "신규":
+                case "미작업":
                     status = OrderProductionStatus.New;
                     return true;
                 case "디자인":
+                case "접수":
                     status = OrderProductionStatus.Design;
                     return true;
                 case "출력중":

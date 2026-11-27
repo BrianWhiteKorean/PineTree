@@ -158,7 +158,7 @@ namespace PineTree.UserControlsOrder
             string endVerticalSide = run.EndBottomMm.HasValue ? "하" : "상";
             return run.Mode == "UNIFORM"
                 ? $"{name} 균등 {run.Count}개 · {start} → ({endSide} {run.EndRightMm ?? run.EndLeftMm:0.###}, {endVerticalSide} {run.EndBottomMm ?? run.EndTopMm:0.###})"
-                : $"{name} 고정 최대 {run.Count}개 · {start}에서 {run.SpacingMm:0.###}mm 간격";
+                : $"{name} 고정 반대쪽까지 · {start}에서 기준 간격 {run.SpacingMm:0.###}mm";
         }
 
         private static string InsetText(double inset, bool enabled)

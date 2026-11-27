@@ -44,7 +44,8 @@ namespace PineTree.UserControls
         Link,
         CheckBox,
         Image,
-        Button
+        Button,
+        ImageButton
     }
 
     public class PagedGridCellClickEventArgs : EventArgs
@@ -93,6 +94,7 @@ namespace PineTree.UserControls
 
         public event EventHandler PageChanged;
         public event EventHandler SelectionChanged;
+        public event EventHandler<PagedGridCellClickEventArgs> HeaderClicked;
         public event EventHandler<PagedGridCellClickEventArgs> CellClicked;
         public event EventHandler<PagedGridCellClickEventArgs> CellDoubleClicked;
 
@@ -190,6 +192,21 @@ namespace PineTree.UserControls
             if (e.Button == MouseButtons.Left)
             {
                 Focus();
+                if (e.Y >= 0 && e.Y < HeaderHeight)
+                {
+                    int x = HorizontalPadding;
+                    foreach (PagedGridColumn column in _columns)
+                    {
+                        int width = GetColumnWidth(column);
+                        if (e.X >= x && e.X < x + width)
+                        {
+                            HeaderClicked?.Invoke(this, new PagedGridCellClickEventArgs(-1, column.Key, null));
+                            break;
+                        }
+                        x += width;
+                    }
+                    return;
+                }
             }
 
             foreach (PagerHitArea hitArea in _pagerHitAreas)
@@ -211,7 +228,8 @@ namespace PineTree.UserControls
             if (cellClick != null)
             {
                 PagedGridCell cell = GetCell(cellClick.Row, cellClick.ColumnKey);
-                if (cell.CellType == PagedGridCellType.Button && e.Button != MouseButtons.Left)
+                if ((cell.CellType == PagedGridCellType.Button || cell.CellType == PagedGridCellType.ImageButton)
+                    && e.Button != MouseButtons.Left)
                 {
                     return;
                 }
@@ -476,7 +494,7 @@ namespace PineTree.UserControls
                 return;
             }
 
-            if (cell.CellType == PagedGridCellType.Image)
+            if (cell.CellType == PagedGridCellType.Image || cell.CellType == PagedGridCellType.ImageButton)
             {
                 if (cell.Image != null)
                 {

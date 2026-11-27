@@ -69,6 +69,9 @@ SELECT
     RepresentativeName,
     Phone,
     BusinessNum,
+    Address1,
+    Address2,
+    ZipCode,
     IsActive
 FROM Customers
 WHERE SeqNo = @SeqNo";
@@ -144,7 +147,8 @@ WHERE CustCode = @CustCode";
             return count > 0;
         }
 
-        public static void InsertCustomer(string custCode, string eCountCustomerCode, string customerName, string representativeName, string phone, string businessNum)
+        public static void InsertCustomer(string custCode, string eCountCustomerCode, string customerName, string representativeName,
+            string phone, string businessNum, string address1, string address2, string zipCode)
         {
             string sql = @"
 INSERT INTO Customers
@@ -155,6 +159,9 @@ INSERT INTO Customers
     RepresentativeName,
     Phone,
     BusinessNum,
+    Address1,
+    Address2,
+    ZipCode,
     NormalizedCustomerName,
     IsActive
 )
@@ -166,6 +173,9 @@ VALUES
     @RepresentativeName,
     @Phone,
     @BusinessNum,
+    @Address1,
+    @Address2,
+    @ZipCode,
     @NormalizedCustomerName,
     1
 )";
@@ -178,11 +188,15 @@ VALUES
                 new ParamValuePair("@RepresentativeName", EmptyToNull(representativeName)),
                 new ParamValuePair("@Phone", EmptyToNull(phone)),
                 new ParamValuePair("@BusinessNum", EmptyToNull(businessNum)),
+                new ParamValuePair("@Address1", EmptyToNull(address1)),
+                new ParamValuePair("@Address2", EmptyToNull(address2)),
+                new ParamValuePair("@ZipCode", EmptyToNull(zipCode)),
                 new ParamValuePair("@NormalizedCustomerName", NormalizeCustomerName(customerName))
             });
         }
 
-        public static void UpdateCustomer(long seqNo, string custCode, string eCountCustomerCode, string customerName, string representativeName, string phone, string businessNum)
+        public static void UpdateCustomer(long seqNo, string custCode, string eCountCustomerCode, string customerName,
+            string representativeName, string phone, string businessNum, string address1, string address2, string zipCode)
         {
             string sql = @"
 UPDATE Customers
@@ -193,6 +207,9 @@ SET
     RepresentativeName = @RepresentativeName,
     Phone = @Phone,
     BusinessNum = @BusinessNum,
+    Address1 = @Address1,
+    Address2 = @Address2,
+    ZipCode = @ZipCode,
     NormalizedCustomerName = @NormalizedCustomerName
 WHERE SeqNo = @SeqNo";
 
@@ -205,6 +222,9 @@ WHERE SeqNo = @SeqNo";
                 new ParamValuePair("@RepresentativeName", EmptyToNull(representativeName)),
                 new ParamValuePair("@Phone", EmptyToNull(phone)),
                 new ParamValuePair("@BusinessNum", EmptyToNull(businessNum)),
+                new ParamValuePair("@Address1", EmptyToNull(address1)),
+                new ParamValuePair("@Address2", EmptyToNull(address2)),
+                new ParamValuePair("@ZipCode", EmptyToNull(zipCode)),
                 new ParamValuePair("@NormalizedCustomerName", NormalizeCustomerName(customerName))
             });
         }

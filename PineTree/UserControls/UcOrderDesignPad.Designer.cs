@@ -47,7 +47,7 @@
             this.cbDeliveryType = new C1.Win.C1InputPanel.InputComboBox();
             this.inputLabel21 = new C1.Win.C1InputPanel.InputLabel();
             this.tbDeliveryFee = new C1.Win.C1InputPanel.InputNumericBox();
-            this.btnAddress = new C1.Win.C1InputPanel.InputButton();
+            this.btnConsignee = new C1.Win.C1InputPanel.InputButton();
             this.tbZipcode = new C1.Win.C1InputPanel.InputTextBox();
             this.tbAddress = new C1.Win.C1InputPanel.InputTextBox();
             this.inputLabel14 = new C1.Win.C1InputPanel.InputLabel();
@@ -120,14 +120,15 @@
             this.cbItem = new C1.Win.C1InputPanel.InputComboBox();
             this.inputGroupHeader7 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.tbSpec = new C1.Win.C1InputPanel.InputTextBox();
-            this.btnOrderHist = new C1.Win.C1InputPanel.InputButton();
-            this.btnCustList = new C1.Win.C1InputPanel.InputButton();
+            this.inputGroupHeader6 = new C1.Win.C1InputPanel.InputGroupHeader();
+            this.tbOrderName = new C1.Win.C1InputPanel.InputTextBox();
             this.c1InputPanel6 = new C1.Win.C1InputPanel.C1InputPanel();
             this.inputGroupHeader8 = new C1.Win.C1InputPanel.InputGroupHeader();
             this.rbEquipment1 = new C1.Win.C1InputPanel.InputRadioButton();
             this.rbEquipment2 = new C1.Win.C1InputPanel.InputRadioButton();
-            this.inputGroupHeader6 = new C1.Win.C1InputPanel.InputGroupHeader();
-            this.tbOrderName = new C1.Win.C1InputPanel.InputTextBox();
+            this.btnOrderHist = new C1.Win.C1InputPanel.InputButton();
+            this.btnCustList = new C1.Win.C1InputPanel.InputButton();
+            this.tbConsignee = new C1.Win.C1InputPanel.InputTextBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1InputPanel1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
@@ -194,7 +195,8 @@
             this.c1InputPanel1.Items.Add(this.cbDeliveryType);
             this.c1InputPanel1.Items.Add(this.inputLabel21);
             this.c1InputPanel1.Items.Add(this.tbDeliveryFee);
-            this.c1InputPanel1.Items.Add(this.btnAddress);
+            this.c1InputPanel1.Items.Add(this.btnConsignee);
+            this.c1InputPanel1.Items.Add(this.tbConsignee);
             this.c1InputPanel1.Items.Add(this.tbZipcode);
             this.c1InputPanel1.Items.Add(this.tbAddress);
             this.c1InputPanel1.Items.Add(this.inputLabel14);
@@ -345,26 +347,28 @@
             this.tbDeliveryFee.Name = "tbDeliveryFee";
             this.tbDeliveryFee.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
             // 
-            // btnAddress
+            // btnConsignee
             // 
-            this.btnAddress.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.btnAddress.Name = "btnAddress";
-            this.btnAddress.Padding = new System.Windows.Forms.Padding(6, 0, 0, 0);
-            this.btnAddress.Text = "배송주소";
-            this.btnAddress.Click += new System.EventHandler(this.btnAddress_Click);
+            this.btnConsignee.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.btnConsignee.Name = "btnConsignee";
+            this.btnConsignee.Padding = new System.Windows.Forms.Padding(6, 3, 0, 0);
+            this.btnConsignee.Text = "주문자 및 배송 정보";
+            this.btnConsignee.Click += new System.EventHandler(this.btnConsignee_Click);
             // 
             // tbZipcode
             // 
+            this.tbZipcode.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbZipcode.Name = "tbZipcode";
-            this.tbZipcode.Padding = new System.Windows.Forms.Padding(2, 0, 0, 0);
+            this.tbZipcode.Padding = new System.Windows.Forms.Padding(73, 3, 0, 0);
             this.tbZipcode.ReadOnly = true;
-            this.tbZipcode.Width = 175;
+            this.tbZipcode.Width = 135;
             // 
             // tbAddress
             // 
             this.tbAddress.Name = "tbAddress";
-            this.tbAddress.Padding = new System.Windows.Forms.Padding(73, 3, 0, 0);
-            this.tbAddress.Width = 420;
+            this.tbAddress.Padding = new System.Windows.Forms.Padding(3, 3, 0, 0);
+            this.tbAddress.ReadOnly = true;
+            this.tbAddress.Width = 280;
             // 
             // inputLabel14
             // 
@@ -1181,20 +1185,21 @@
             this.tbSpec.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
             this.tbSpec.Width = 470;
             // 
-            // btnOrderHist
+            // inputGroupHeader6
             // 
-            this.btnOrderHist.Image = ((System.Drawing.Image)(resources.GetObject("btnOrderHist.Image")));
-            this.btnOrderHist.Name = "btnOrderHist";
-            this.btnOrderHist.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.btnOrderHist.Text = "과거주문";
+            this.inputGroupHeader6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(213)))), ((int)(((byte)(247)))), ((int)(((byte)(253)))));
+            this.inputGroupHeader6.Name = "inputGroupHeader6";
+            this.inputGroupHeader6.Text = "주문명";
             // 
-            // btnCustList
+            // tbOrderName
             // 
-            this.btnCustList.Break = C1.Win.C1InputPanel.BreakType.None;
-            this.btnCustList.Image = ((System.Drawing.Image)(resources.GetObject("btnCustList.Image")));
-            this.btnCustList.Name = "btnCustList";
-            this.btnCustList.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
-            this.btnCustList.Text = "검색";
+            this.tbOrderName.AcceptsReturn = true;
+            this.tbOrderName.Height = 54;
+            this.tbOrderName.Multiline = true;
+            this.tbOrderName.Name = "tbOrderName";
+            this.tbOrderName.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
+            this.tbOrderName.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
+            this.tbOrderName.Width = 470;
             // 
             // c1InputPanel6
             // 
@@ -1234,21 +1239,27 @@
             this.rbEquipment2.Padding = new System.Windows.Forms.Padding(2, 10, 2, 2);
             this.rbEquipment2.Text = "라텍스";
             // 
-            // inputGroupHeader6
+            // btnOrderHist
             // 
-            this.inputGroupHeader6.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(213)))), ((int)(((byte)(247)))), ((int)(((byte)(253)))));
-            this.inputGroupHeader6.Name = "inputGroupHeader6";
-            this.inputGroupHeader6.Text = "주문명";
+            this.btnOrderHist.Image = ((System.Drawing.Image)(resources.GetObject("btnOrderHist.Image")));
+            this.btnOrderHist.Name = "btnOrderHist";
+            this.btnOrderHist.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.btnOrderHist.Text = "과거주문";
             // 
-            // tbOrderName
+            // btnCustList
             // 
-            this.tbOrderName.AcceptsReturn = true;
-            this.tbOrderName.Height = 54;
-            this.tbOrderName.Multiline = true;
-            this.tbOrderName.Name = "tbOrderName";
-            this.tbOrderName.Padding = new System.Windows.Forms.Padding(0, 3, 0, 0);
-            this.tbOrderName.VerticalAlign = C1.Win.C1InputPanel.InputContentAlignment.Spread;
-            this.tbOrderName.Width = 470;
+            this.btnCustList.Break = C1.Win.C1InputPanel.BreakType.None;
+            this.btnCustList.Image = ((System.Drawing.Image)(resources.GetObject("btnCustList.Image")));
+            this.btnCustList.Name = "btnCustList";
+            this.btnCustList.Padding = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.btnCustList.Text = "검색";
+            // 
+            // tbConsignee
+            // 
+            this.tbConsignee.Name = "tbConsignee";
+            this.tbConsignee.Padding = new System.Windows.Forms.Padding(3, 3, 0, 0);
+            this.tbConsignee.ReadOnly = true;
+            this.tbConsignee.Width = 115;
             // 
             // UcOrderDesignPad
             // 
@@ -1395,7 +1406,7 @@
         private C1.Win.C1Input.C1Button btnFlip;
         private C1.Win.C1Input.C1Button btn90CCW;
         private C1.Win.C1InputPanel.InputTextBox tbZipcode;
-        private C1.Win.C1InputPanel.InputButton btnAddress;
+        private C1.Win.C1InputPanel.InputButton btnConsignee;
         private C1.Win.C1InputPanel.InputTextBox tbAddress;
         private C1.Win.C1Input.C1Button btnWorkOrder;
         private C1.Win.C1InputPanel.InputGroupHeader inputGroupHeader6;
@@ -1404,5 +1415,6 @@
         private C1.Win.C1InputPanel.InputGroupHeader inputGroupHeader8;
         private C1.Win.C1InputPanel.InputRadioButton rbEquipment1;
         private C1.Win.C1InputPanel.InputRadioButton rbEquipment2;
+        private C1.Win.C1InputPanel.InputTextBox tbConsignee;
     }
 }
