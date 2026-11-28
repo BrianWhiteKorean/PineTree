@@ -83,6 +83,38 @@ class SettingsTests(unittest.TestCase):
                 s['CutInsetLeftMm'] = width+6
                 with self.assertRaises(ValueError): self.generate(s)
 
+    def test_directional_cutlines_stroke_only_nonzero_sides(self):
+        cases = (
+            ({}, ()),
+            ({'Top': 3}, ((0, 77, 100, 77),)),
+            ({'Bottom': 5}, ((0, 5, 100, 5),)),
+            ({'Left': 7}, ((7, 0, 7, 80),)),
+            ({'Right': 11}, ((89, 0, 89, 80),)),
+            ({'Top': 3, 'Bottom': 5}, ((0, 77, 100, 77), (0, 5, 100, 5))),
+            ({'Top': 3, 'Bottom': 5, 'Left': 7, 'Right': 11},
+             ((7, 77, 89, 77), (7, 5, 89, 5), (7, 5, 7, 77), (89, 5, 89, 77))),
+        )
+        for rip_scale in (1, 10):
+            for insets, expected in cases:
+                with self.subTest(rip_scale=rip_scale, insets=insets):
+                    settings = self.settings()
+                    settings.update(TargetHeightMm=80, MakeCutline=True, CutlineBySide=True,
+                                    CutInsetsFromPage=True, OutputRipScale=rip_scale)
+                    settings.update({f'CutInset{side}Mm': value for side, value in insets.items()})
+                    result, reader, _ = self.generate(settings)
+                    page = reader.pages[0]
+                    ops = ContentStream(page.get_contents(), reader).operations
+                    strokes = [index for index, (_, op) in enumerate(ops) if op == b'S']
+                    self.assertEqual(len(strokes), len(expected))
+                    for index, points in zip(strokes, expected):
+                        start, end = ops[index-2:index]
+                        self.assertEqual((start[1], end[1]), (b'm', b'l'))
+                        for actual, mm in zip(start[0]+end[0], points):
+                            self.assertAlmostEqual(float(actual)/worker.MM, mm, places=5)
+                    self.assertEqual(worker.has_thru(page['/Resources']), bool(insets))
+                    self.assertAlmostEqual(result['OutputWidthMm'], 100/rip_scale)
+                    self.assertAlmostEqual(result['OutputHeightMm'], 80/rip_scale)
+
     def test_negative_cut_insets_move_inside_image_without_resizing_pdf(self):
         for rip_scale in (1, 10):
             with self.subTest(rip_scale=rip_scale):
@@ -104,12 +136,14 @@ class SettingsTests(unittest.TestCase):
     def test_negative_cut_insets_follow_visible_image_inside_letterbox(self):
         settings = self.settings()
         settings.update(MakeCutline=True, CutInsetsFromPage=True,
-                        CutInsetTopMm=-3, CutInsetBottomMm=-4)
+                        CutInsetTopMm=-3, CutInsetBottomMm=-4, CutlineBySide=True)
         _, reader, _ = self.generate(settings)
         page = reader.pages[0]
         self.assertAlmostEqual(float(page.trimbox.bottom)/worker.MM, 29, places=5)
         self.assertAlmostEqual(float(page.trimbox.top)/worker.MM, 72, places=5)
         self.assertAlmostEqual(float(page.mediabox.height)/worker.MM, 100, places=5)
+        ops = ContentStream(page.get_contents(), reader).operations
+        self.assertEqual(sum(op == b'S' for _, op in ops), 2)
         settings.update(CutInsetBottomMm=80)
         with self.assertRaisesRegex(ValueError, '0보다'):
             self.generate(settings)
@@ -120,7 +154,7 @@ class SettingsTests(unittest.TestCase):
                 settings = self.settings()
                 settings.update(MakeCutline=True, CutlineColorMode='BLACK', SpotColorName='IgnoredCut',
                                 OutputRipScale=rip_scale, LineWidthMm=.25,
-                                CutInsetsFromPage=True, CutInsetLeftMm=7)
+                                CutInsetsFromPage=True, CutlineBySide=True, CutInsetLeftMm=7)
                 _, reader, _ = self.generate(settings)
                 page = reader.pages[0]
                 self.assertFalse(worker.has_thru(page['/Resources'], spot_name='IgnoredCut'))
@@ -128,8 +162,8 @@ class SettingsTests(unittest.TestCase):
                 self.assertAlmostEqual(float(page.trimbox.left)/worker.MM, 7/rip_scale, places=5)
                 ops = ContentStream(page.get_contents(), reader).operations
                 stroke_index = max(index for index, (_, op) in enumerate(ops) if op == b'S')
-                self.assertEqual(ops[stroke_index-3], ([0, 0, 0, 1], b'K'))
-                width = float(ops[stroke_index-2][0][0])/worker.MM
+                self.assertEqual(ops[stroke_index-4], ([0, 0, 0, 1], b'K'))
+                width = float(ops[stroke_index-3][0][0])/worker.MM
                 factor = next(float(args[0]) for args, op in ops if op == b'cm') if rip_scale == 10 else 1
                 self.assertAlmostEqual(width*factor, .25/rip_scale, places=7)
 

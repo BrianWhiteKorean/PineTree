@@ -31,7 +31,7 @@ namespace PineTree.UserControlsOrder
             {
                 var input = sides[i];
                 PostProcessDialogBinding.SourceNumber(input, insets[i] ?? inset, sourceScaleDivisor, minimum: minimumInsetMm);
-                input.ToolTipText = "원본 축척 기준 mm. 음수는 이미지 경계에서 입력한 거리만큼 안쪽으로 재단선을 이동합니다.";
+                input.ToolTipText = "원본 축척 기준 mm. 0이면 해당 방향의 재단선을 생략합니다. 음수는 이미지 경계에서 입력한 거리만큼 안쪽에 선을 그립니다.";
                 input.Enabled = !draft.Parameters.FromSource;
             }
             PostProcessDialogBinding.SourceNumber(tbAll, 0m, sourceScaleDivisor, minimum: minimumInsetMm);
@@ -43,7 +43,7 @@ namespace PineTree.UserControlsOrder
             };
             chkAll.CheckedChanged += applyAll;
             tbAll.ValueChanged += applyAll;
-            cbCutType.ToolTipText = "입력한 사방 여백에 맞춰 사각 재단선을 생성합니다.";
+            cbCutType.ToolTipText = "여백이 0이 아닌 방향마다 재단선을 생성합니다.";
             tbColorName.ToolTipText = "커팅용 별색 채널 이름. 고객사 샘플: thru";
             tbColorName.Text = draft.Parameters.SpotColorName;
             tbLineWidth.Enabled = cbSpot.Enabled = !draft.Parameters.FromSource;

@@ -55,10 +55,12 @@ namespace PineTree.UserControlsOrder
             this.inputLabel8 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel9 = new C1.Win.C1InputPanel.InputLabel();
             this.inputLabel10 = new C1.Win.C1InputPanel.InputLabel();
+            this.chkAll = new C1.Win.C1InputPanel.InputCheckBox();
             this.tbEdgeTop = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeBottom = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeLeft = new C1.Win.C1InputPanel.InputNumericBox();
             this.tbEdgeRight = new C1.Win.C1InputPanel.InputNumericBox();
+            this.tbEdgeAll = new C1.Win.C1InputPanel.InputNumericBox();
             this.inputLabel11 = new C1.Win.C1InputPanel.InputLabel();
             this.inputSeparator3 = new C1.Win.C1InputPanel.InputSeparator();
             this.chkCoating1 = new C1.Win.C1InputPanel.InputCheckBox();
@@ -79,8 +81,7 @@ namespace PineTree.UserControlsOrder
             this.inputOption10 = new C1.Win.C1InputPanel.InputOption();
             this.btnAdd = new C1.Win.C1InputPanel.InputButton();
             this.inputLabel4 = new C1.Win.C1InputPanel.InputLabel();
-            this.chkAll = new C1.Win.C1InputPanel.InputCheckBox();
-            this.tbEdgeAll = new C1.Win.C1InputPanel.InputNumericBox();
+            this.chkUpload = new C1.Win.C1InputPanel.InputCheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.c1SplitContainer1)).BeginInit();
             this.c1SplitContainer1.SuspendLayout();
             this.c1SplitterPanel1.SuspendLayout();
@@ -177,6 +178,7 @@ namespace PineTree.UserControlsOrder
             this.c1InputPanel1.Items.Add(this.chkCoating4);
             this.c1InputPanel1.Items.Add(this.chkCoating5);
             this.c1InputPanel1.Items.Add(this.btnPreview);
+            this.c1InputPanel1.Items.Add(this.chkUpload);
             this.c1InputPanel1.Items.Add(this.inputGroupHeader2);
             this.c1InputPanel1.Items.Add(this.cbWork);
             this.c1InputPanel1.Items.Add(this.btnAdd);
@@ -343,6 +345,13 @@ namespace PineTree.UserControlsOrder
             this.inputLabel10.Padding = new System.Windows.Forms.Padding(37, 5, 0, 0);
             this.inputLabel10.Text = "우측";
             // 
+            // chkAll
+            // 
+            this.chkAll.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkAll.Name = "chkAll";
+            this.chkAll.Padding = new System.Windows.Forms.Padding(47, 5, 0, 0);
+            this.chkAll.Text = "모두";
+            // 
             // tbEdgeTop
             // 
             this.tbEdgeTop.Break = C1.Win.C1InputPanel.BreakType.None;
@@ -367,6 +376,17 @@ namespace PineTree.UserControlsOrder
             this.tbEdgeRight.Break = C1.Win.C1InputPanel.BreakType.None;
             this.tbEdgeRight.Name = "tbEdgeRight";
             this.tbEdgeRight.Width = 60;
+            // 
+            // tbEdgeAll
+            // 
+            this.tbEdgeAll.Maximum = new decimal(new int[] {
+            1000,
+            0,
+            0,
+            0});
+            this.tbEdgeAll.Name = "tbEdgeAll";
+            this.tbEdgeAll.Padding = new System.Windows.Forms.Padding(5, 0, 0, 0);
+            this.tbEdgeAll.Width = 65;
             // 
             // inputLabel11
             // 
@@ -424,13 +444,14 @@ namespace PineTree.UserControlsOrder
             // 
             // btnPreview
             // 
+            this.btnPreview.Break = C1.Win.C1InputPanel.BreakType.None;
             this.btnPreview.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
             this.btnPreview.Height = 50;
             this.btnPreview.Image = ((System.Drawing.Image)(resources.GetObject("btnPreview.Image")));
             this.btnPreview.Name = "btnPreview";
             this.btnPreview.Padding = new System.Windows.Forms.Padding(30, 15, 0, 0);
             this.btnPreview.Text = "출력 미리보기";
-            this.btnPreview.Width = 342;
+            this.btnPreview.Width = 280;
             // 
             // inputGroupHeader2
             // 
@@ -509,23 +530,12 @@ namespace PineTree.UserControlsOrder
             this.inputLabel4.Padding = new System.Windows.Forms.Padding(30, 5, 0, 0);
             this.inputLabel4.Text = "입력된 후가공을 수정하려면 항목을 더블클릭하세요";
             // 
-            // chkAll
+            // chkUpload
             // 
-            this.chkAll.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
-            this.chkAll.Name = "chkAll";
-            this.chkAll.Padding = new System.Windows.Forms.Padding(47, 5, 0, 0);
-            this.chkAll.Text = "모두";
-            // 
-            // tbEdgeAll
-            // 
-            this.tbEdgeAll.Maximum = new decimal(new int[] {
-            1000,
-            0,
-            0,
-            0});
-            this.tbEdgeAll.Name = "tbEdgeAll";
-            this.tbEdgeAll.Padding = new System.Windows.Forms.Padding(5, 0, 0, 0);
-            this.tbEdgeAll.Width = 65;
+            this.chkUpload.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(41)))), ((int)(((byte)(73)))));
+            this.chkUpload.Name = "chkUpload";
+            this.chkUpload.Padding = new System.Windows.Forms.Padding(10, 38, 2, 2);
+            this.chkUpload.Text = "서버에 업로드";
             // 
             // UcOrder수성_그룹B
             // 
@@ -596,5 +606,6 @@ namespace PineTree.UserControlsOrder
         private C1.Win.C1InputPanel.InputCheckBox chkCoating5;
         private C1.Win.C1InputPanel.InputCheckBox chkAll;
         private C1.Win.C1InputPanel.InputNumericBox tbEdgeAll;
+        private C1.Win.C1InputPanel.InputCheckBox chkUpload;
     }
 }

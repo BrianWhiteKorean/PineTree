@@ -248,6 +248,7 @@ namespace PineTree.PdfEngine
         public double ScrollBottomMm { get; set; } = 5;
         public bool MakeCutline { get; set; }
         public bool CutInsetsFromPage { get; set; }
+        public bool CutlineBySide { get; set; }
         public double CutInsetTopMm { get; set; }
         public double CutInsetBottomMm { get; set; }
         public double CutInsetLeftMm { get; set; }

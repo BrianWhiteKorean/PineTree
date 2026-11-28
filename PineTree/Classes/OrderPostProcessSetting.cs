@@ -111,7 +111,7 @@ namespace PineTree.Classes
         {
             var p = Parameters;
             if (ProcessCode == "AL_SCROLL") return string.Format("상 여백 {0:0.###}·하 여백 {1:0.###}mm / 재단선 {2:0.###}mm / 별색 {3}", p.ScrollTopMm, p.ScrollBottomMm, p.LineWidthMm, p.SpotColorName);
-            if (ProcessCode == "CUT" && p.CutInsetTopMm.HasValue) return string.Format("사방 재단 / {0:0.###}mm / 여백 상 {1:0.###}·하 {2:0.###}·좌 {3:0.###}·우 {4:0.###}mm{5}",
+            if (ProcessCode == "CUT" && p.HasCutInsets()) return string.Format("방향별 재단 / {0:0.###}mm / 여백 상 {1:0.###}·하 {2:0.###}·좌 {3:0.###}·우 {4:0.###}mm{5}",
                 p.LineWidthMm, p.CutInsetTopMm ?? 0m, p.CutInsetBottomMm ?? 0m, p.CutInsetLeftMm ?? 0m, p.CutInsetRightMm ?? 0m, p.FromSource ? " (원본 포함)" : "");
             if (ProcessCode == "CUT") return string.Format("{0} / 사방 외곽선 / {1:0.###}mm / 별색 {2}{3}", p.TypeCode == "EXACT" ? "정재단" : "일반 재단", p.LineWidthMm, p.SpotColorName, p.FromSource ? " (원본 포함)" : "");
             if (ProcessCode == "HOLE")
@@ -201,6 +201,10 @@ namespace PineTree.Classes
         public decimal? CutInsetBottomMm { get; set; }
         public decimal? CutInsetLeftMm { get; set; }
         public decimal? CutInsetRightMm { get; set; }
+        public bool HasCutInsets()
+        {
+            return CutInsetTopMm.HasValue || CutInsetBottomMm.HasValue || CutInsetLeftMm.HasValue || CutInsetRightMm.HasValue;
+        }
         public string ColorMode { get; set; } = "SPOT";
         public string SpotColorName { get; set; } = "thru";
         public bool FromSource { get; set; }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Linq;
 using PineTree.Classes;
 using PineTree.UserControlsOrder;
 
@@ -8,6 +9,48 @@ namespace PineTree.UserControls
     public partial class UcOrderDesignPad
     {
         private OrderPreviewSnapshot m_savedSourcePreview;
+        private object[] m_initialDraftInputs;
+
+        internal bool HasDraftChanges =>
+            m_orderItems.Rows.Count > 0 ||
+            !string.IsNullOrEmpty(m_sourceDocument.ReferencePath) ||
+            m_sourceDocument.ServerFile != null ||
+            !m_initialDraftInputs.SequenceEqual(CaptureDraftInputs());
+
+        private object[] CaptureDraftInputs()
+        {
+            var editor = m_orderEditor as IOrderItemEditor;
+            return new object[]
+            {
+                m_orderId,
+                m_linkedOrderId,
+                tbCustName.Text,
+                tbCustCode.Text,
+                GetDateValue(dtmOrder.Value),
+                GetDateValue(dtmDelivery.Value),
+                cbChannel.Text,
+                cbDeliveryType.Text,
+                GetDecimal(tbDeliveryFee.Value),
+                m_shippingDetails?.ConsigneeName ?? string.Empty,
+                m_shippingDetails?.ConsigneePhone ?? string.Empty,
+                m_shippingDetails?.ConsigneeZipCode ?? string.Empty,
+                m_shippingDetails?.ConsigneeAddress ?? string.Empty,
+                m_shippingDetails?.ConsigneeDetailAddress ?? string.Empty,
+                m_shippingDetails?.ShipperName ?? string.Empty,
+                m_shippingDetails?.ShipperPhone ?? string.Empty,
+                m_shippingDetails?.ShipperZipCode ?? string.Empty,
+                m_shippingDetails?.ShipperAddress ?? string.Empty,
+                m_shippingDetails?.ShipperDetailAddress ?? string.Empty,
+                tbRemark.Text,
+                tbOrderName.Text,
+                GetSelectedEquipmentName(),
+                GetSelectedPriceCategory(),
+                cbCategoryName.Text,
+                cbItem.Text,
+                GetDecimal(tbQty.Value),
+                editor?.CaptureEditorState().ToJson()
+            };
+        }
 
         private void UpdateAutomaticSpecification()
         {

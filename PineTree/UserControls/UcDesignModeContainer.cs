@@ -9,6 +9,9 @@ namespace PineTree.UserControls
     {
         private readonly UcOrderDesignPad _orderDesigner;
 
+        internal bool IsSavingOrder => _orderDesigner.IsSavingOrder;
+        internal bool HasDraftChanges => _orderDesigner.HasDraftChanges;
+
         public event EventHandler OrderSaved;
         public event EventHandler ManagementModeRequested;
 

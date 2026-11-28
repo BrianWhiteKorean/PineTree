@@ -150,11 +150,13 @@ namespace PineTree.Dialogs
 
         private void LoginDlg_Load(object sender, EventArgs e)
         {
-            LoadLastUserID();
             ReadConfig();
 #if DEBUG
             tbUserID.Text = "b";
             tbPassword.Text = "1";
+#else
+            tbUserID.Clear();
+            tbPassword.Clear();
 #endif
             tbUserID.Focus();
         }
@@ -187,21 +189,6 @@ namespace PineTree.Dialogs
             }
         }
 
-
-        private void LoadLastUserID()
-        {
-            try
-            {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegKeyPath))
-                {
-                    tbUserID.Text = key?.GetValue(LastUserKeyName) as string ?? string.Empty;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"마지막 로그인 아이디 읽기 실패: {ex.Message}");
-            }
-        }
 
         /// <summary>
         /// 성공한 로그인 아이디를 레지스트리에 저장합니다.

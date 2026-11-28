@@ -369,7 +369,8 @@ def generation_settings(raw=None):
     s = {"TargetWidthMm": 600, "TargetHeightMm": 1800, "OutputRipScale": 1, "FitMode": "CONTAIN", "ExpandImage": False, "SourceRotationDegreesClockwise": 0, "SourceFlipHorizontal": False,
          "EdgeTopMm": 0, "EdgeBottomMm": 0, "EdgeLeftMm": 0, "EdgeRightMm": 0,
          "MakeAlScroll": False, "ScrollTopMm": 5, "ScrollBottomMm": 5,
-         "CutInsetsFromPage": False, "CutInsetTopMm": 0, "CutInsetBottomMm": 0, "CutInsetLeftMm": 0, "CutInsetRightMm": 0,
+         "CutInsetsFromPage": False, "CutlineBySide": False,
+         "CutInsetTopMm": 0, "CutInsetBottomMm": 0, "CutInsetLeftMm": 0, "CutInsetRightMm": 0,
          "MakeCutline": True, "LineWidthMm": .18, "CutlineColorMode": "SPOT", "SpotColorName": "thru", "MakeHole": True,
          "HoleBackgroundColor": "#FFFFFF", "HoleMarkerColor": "#000000", "HoleMarkKind": "CROSS", "HoleType": "FOUR_CORNERS", "MarkLeftRightMm": 20, "MarkTopBottomMm": 20, "HoleEdges": None, "HolePlacements": None, "HoleSpacingMm": 500,
          "MakeWood": False, "WoodExtraMm": 0, "MakeWoodDesignLine": False, "WoodDesignOffsetMm": 0,
@@ -393,9 +394,11 @@ def generation_settings(raw=None):
             raise ValueError("유효한 숫자가 아닙니다: " + key)
     if s["OutputRipScale"] < 1:
         raise ValueError("RIP 출력 배율은 1 이상이어야 합니다.")
-    for key in ("SourceFlipHorizontal", "CutInsetsFromPage", "ExpandImage", "MakeAlScroll", "MakeCutline", "MakeHole", "MakeWood", "MakeWoodDesignLine", "MakeWoodTopBottom", "MakeWoodTopBottomDesignLine"):
+    for key in ("SourceFlipHorizontal", "CutInsetsFromPage", "CutlineBySide", "ExpandImage", "MakeAlScroll", "MakeCutline", "MakeHole", "MakeWood", "MakeWoodDesignLine", "MakeWoodTopBottom", "MakeWoodTopBottomDesignLine"):
         if not isinstance(s[key], bool):
             raise ValueError("생성 여부는 true/false 값이어야 합니다.")
+    if s["CutlineBySide"] and not any(s[f"CutInset{side}Mm"] for side in ("Top", "Bottom", "Left", "Right")):
+        s["MakeCutline"] = False
     if isinstance(s["SourceRotationDegreesClockwise"], bool) or s["SourceRotationDegreesClockwise"] not in (0, 90, 180, 270):
         raise ValueError("원본 회전은 0, 90, 180, 270도여야 합니다.")
     s["SpotColorName"] = str(s["SpotColorName"]).strip() or "thru"
@@ -918,7 +921,18 @@ def generate_pdf(reader, page_index, region, destination, settings=None, writer=
             raise ValueError("재단 여백을 적용한 가로·세로 길이는 0보다 커야 합니다.")
         stroke = s["LineWidthMm"]*MM
         page.trimbox = RectangleObject([cut_left, cut_bottom, cut_right, cut_top])
-        instructions.append(f"q {white_name} gs {cut_stroke_color} {stroke:.8f} w {cut_left:.8f} {cut_bottom:.8f} {cut_right-cut_left:.8f} {cut_top-cut_bottom:.8f} re S Q")
+        if s["CutlineBySide"]:
+            edges = (
+                (inset_top, cut_left, cut_top, cut_right, cut_top),
+                (inset_bottom, cut_left, cut_bottom, cut_right, cut_bottom),
+                (inset_left, cut_left, cut_bottom, cut_left, cut_top),
+                (inset_right, cut_right, cut_bottom, cut_right, cut_top),
+            )
+            cut_path = " ".join(f"{x1:.8f} {y1:.8f} m {x2:.8f} {y2:.8f} l S"
+                                for inset, x1, y1, x2, y2 in edges if inset != 0)
+        else:
+            cut_path = f"{cut_left:.8f} {cut_bottom:.8f} {cut_right-cut_left:.8f} {cut_top-cut_bottom:.8f} re S"
+        instructions.append(f"q {white_name} gs {cut_stroke_color} {stroke:.8f} w {cut_path} Q")
     content = DecodedStreamObject()
     content.set_data(main_content + ("\n".join(instructions) + "\n").encode("ascii"))
     page[NameObject("/Contents")] = writer._add_object(content)

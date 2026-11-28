@@ -27,6 +27,11 @@ internal static class PreviewUploadFailureRegression
         public Func<string, Task<OrderServerFile>> Upload { get; set; }
         protected override Task<OrderServerFile> UploadOrderFileAsync(string path) { return Upload(path); }
     }
+    private sealed class LatexBannerEditor : UcOrder라텍스_그룹A, IFakeUpload
+    {
+        public Func<string, Task<OrderServerFile>> Upload { get; set; }
+        protected override Task<OrderServerFile> UploadOrderFileAsync(string path) { return Upload(path); }
+    }
     private static object Call(UserControl editor, string name, params object[] args)
     { return editor.GetType().BaseType.GetMethod(name, Flags).Invoke(editor, args); }
     private static object Field(UserControl editor, string name)
@@ -47,7 +52,7 @@ internal static class PreviewUploadFailureRegression
         Check(OrderFileStorageService.GetTransferFailureMessage(CertificateError()).Contains("HTTPS 인증서"), "TLS chain has a useful message");
         Check(OrderFileStorageService.GetTransferFailureMessage(new TaskCanceledException()).Contains("응답 시간"), "timeout is distinguished from UI cancellation");
         Check(OrderFileStorageService.GetTransferFailureMessage(new WebException("dns", WebExceptionStatus.NameResolutionFailure)).Contains("연결할 수 없습니다"), "network connection message");
-        foreach (var editor in new UserControl[] { new PetEditor(), new BannerEditor() })
+        foreach (var editor in new UserControl[] { new PetEditor(), new BannerEditor(), new LatexBannerEditor() })
         using (editor)
         {
             host.Controls.Add(editor);
@@ -59,6 +64,21 @@ internal static class PreviewUploadFailureRegression
             Call(editor, "CommitPostProcess", -1, OrderPostProcessSetting.Create("HOLE"));
             var settings = (PdfGenerationSettings)Call(editor, "ReadPdfGenerationSettings");
             settings.OutputRipScale = 10;
+            var uploadToggle = Field(editor, "chkUpload");
+            var checkedProperty = uploadToggle.GetType().GetProperty("Checked");
+            Check(!(bool)checkedProperty.GetValue(uploadToggle, null), "preview upload is unchecked by default");
+            int localUploadAttempts = 0;
+            ((IFakeUpload)editor).Upload = path =>
+            {
+                localUploadAttempts++;
+                return Task.FromResult(Uploaded(path));
+            };
+            string localOutput = Path.Combine(folder, editor.GetType().Name + "-local.pdf");
+            var local = await (Task<OrderDocumentResult>)Call(editor, "GeneratePreviewPdfAsync", localOutput, settings);
+            Check(File.Exists(local.OutputPath) && localUploadAttempts == 0, "unchecked preview generates a PDF without uploading");
+            Check(Field(editor, "_sourceServerFile") == null && Field(editor, "_outputServerFile") == null, "local preview records no server files");
+
+            checkedProperty.SetValue(uploadToggle, true, null);
             foreach (int failAt in new[] { 1, 2, 0 })
             {
                 int uploads = 0;
@@ -69,7 +89,8 @@ internal static class PreviewUploadFailureRegression
                     return Task.FromResult(Uploaded(path));
                 };
                 string output = Path.Combine(folder, editor.GetType().Name + "-" + failAt + ".pdf");
-                var result = await (Task<OrderDocumentResult>)Call(editor, "GenerateAndUploadPdfAsync", output, settings);
+                var result = await (Task<OrderDocumentResult>)Call(editor, "GeneratePreviewPdfAsync", output, settings);
+                Check(uploads == (failAt == 1 ? 1 : 2), "checked preview attempts to upload source and output");
                 Check(File.Exists(result.OutputPath), "upload failure preserves generated PDF");
                 Check(result.OutputRipScale == 10 && Math.Abs(result.OutputWidthMm * 10 -
                     (settings.FinishedWidthMm() + settings.EdgeLeftMm + settings.EdgeRightMm)) < .00001,

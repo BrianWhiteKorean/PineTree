@@ -12,7 +12,8 @@ namespace PineTree.Dialogs
         private const string AllText = "[전체]";
         private bool _loadingCategories;
         private bool _loadingCategoryNames;
-        private readonly string _accessoryPriceCategory;
+        private readonly bool _accessoriesOnly;
+        private readonly string _custCode;
 
         public long SelectedPriceItemSeqNo { get; private set; }
 
@@ -43,13 +44,19 @@ namespace PineTree.Dialogs
         }
 
         public DialogPriceItemList(string priceItemName, string custCode, string custName)
-            : this(priceItemName, custCode, custName, null)
+            : this(priceItemName, custCode, custName, false)
         {
         }
 
         public DialogPriceItemList(string priceItemName, string custCode, string custName, string accessoryPriceCategory)
+            : this(priceItemName, custCode, custName, true)
         {
-            _accessoryPriceCategory = accessoryPriceCategory;
+        }
+
+        private DialogPriceItemList(string priceItemName, string custCode, string custName, bool accessoriesOnly)
+        {
+            _accessoriesOnly = accessoriesOnly;
+            _custCode = custCode;
             InitializeComponent();
             Text = "품목 선택";
             InitEvent();
@@ -118,11 +125,11 @@ namespace PineTree.Dialogs
         {
             try
             {
-                string priceCategory = _accessoryPriceCategory ?? GetSelectedValue(cbCategory);
+                string priceCategory = GetSelectedValue(cbCategory);
                 string categoryName = GetSelectedValue(cbCategoryName);
-                DataTable priceItems = _accessoryPriceCategory == null
-                    ? PriceItemRepository.GetBasicPriceItems(priceCategory, categoryName, tbItemName.Text)
-                    : PriceItemRepository.GetBasicAccessoryPriceItems(priceCategory, categoryName, tbItemName.Text);
+                DataTable priceItems = _accessoriesOnly
+                    ? PriceItemRepository.GetAccessoryPriceItems(priceCategory, categoryName, tbItemName.Text, _custCode)
+                    : PriceItemRepository.GetBasicPriceItems(priceCategory, categoryName, tbItemName.Text);
                 PrepareGridData(priceItems);
 
                 FGrid1.DataSource = priceItems;
@@ -140,20 +147,12 @@ namespace PineTree.Dialogs
             try
             {
                 cbCategory.Items.Clear();
-                if (_accessoryPriceCategory != null)
-                {
-                    cbCategory.Items.Add(_accessoryPriceCategory);
-                    cbCategory.SelectedIndex = 0;
-                    cbCategory.Enabled = false;
-                }
-                else
-                {
-                    cbCategory.Items.Add(AllText);
-                    DataTable categories = PriceItemRepository.GetPriceCategories();
+                cbCategory.Items.Add(AllText);
+                cbCategory.Enabled = true;
+                using (DataTable categories = _accessoriesOnly ? GetAccessoryCategories(null, "PriceCategory") : PriceItemRepository.GetPriceCategories())
                     foreach (DataRow row in categories.Rows)
                         cbCategory.Items.Add(row["PriceCategory"].ToString());
-                    SelectComboItem(cbCategory, selectedText);
-                }
+                SelectComboItem(cbCategory, selectedText);
             }
             finally
             {
@@ -193,8 +192,8 @@ namespace PineTree.Dialogs
                 cbCategoryName.Items.Add(AllText);
                 cbCategoryName.SelectedIndex = 0;
 
-                string priceCategory = _accessoryPriceCategory ?? GetSelectedValue(cbCategory);
-                DataTable categoryNames = PriceItemRepository.GetCategoryNames(priceCategory);
+                string priceCategory = GetSelectedValue(cbCategory);
+                DataTable categoryNames = _accessoriesOnly ? GetAccessoryCategories(priceCategory, "CategoryName") : PriceItemRepository.GetCategoryNames(priceCategory);
                 foreach (DataRow row in categoryNames.Rows)
                 {
                     string categoryName = row["CategoryName"].ToString();
@@ -216,9 +215,15 @@ namespace PineTree.Dialogs
             }
         }
 
+        private DataTable GetAccessoryCategories(string priceCategory, string column)
+        {
+            using (DataTable items = PriceItemRepository.GetAccessoryPriceItems(priceCategory, null, null, _custCode))
+                return items.DefaultView.ToTable(true, column);
+        }
+
         private string GetSelectedValue(C1.Win.C1Input.C1ComboBox comboBox)
         {
-            string value = comboBox.Text.Trim();
+            string value = System.Net.WebUtility.HtmlDecode(comboBox.Text).Trim();
             if (value == AllText)
             {
                 return string.Empty;
@@ -265,6 +270,8 @@ namespace PineTree.Dialogs
             FGrid1.AllowSorting = AllowSortingEnum.SingleColumn;
             FGrid1.SelectionMode = SelectionModeEnum.Row;
 
+            SetColumn("ItemType", string.Empty, 0, TextAlignEnum.CenterCenter, false);
+            SetColumn("Material", string.Empty, 0, TextAlignEnum.CenterCenter, false);
             SetColumn("SeqNo", string.Empty, 0, TextAlignEnum.CenterCenter, false);
             SetColumn("PriceItemPriceId", string.Empty, 0, TextAlignEnum.CenterCenter, false);
             SetColumn("No", "번호", 35, TextAlignEnum.CenterCenter, true);

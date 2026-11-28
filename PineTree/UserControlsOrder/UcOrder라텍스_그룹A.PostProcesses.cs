@@ -156,7 +156,7 @@ namespace PineTree.UserControlsOrder
                     settings.MakeCutline = !_sourceHasCutline;
                     settings.CutlineColorMode = p.ColorMode;
                     settings.LineWidthMm = (double)p.LineWidthMm; settings.SpotColorName = p.SpotColorName;
-                    settings.CutInsetsFromPage = p.CutInsetTopMm.HasValue || p.CutInsetBottomMm.HasValue || p.CutInsetLeftMm.HasValue || p.CutInsetRightMm.HasValue;
+                    settings.CutInsetsFromPage = settings.CutlineBySide = p.HasCutInsets();
                     settings.CutInsetTopMm = (double)(p.CutInsetTopMm ?? 0m);
                     settings.CutInsetBottomMm = (double)(p.CutInsetBottomMm ?? 0m);
                     settings.CutInsetLeftMm = (double)(p.CutInsetLeftMm ?? 0m);

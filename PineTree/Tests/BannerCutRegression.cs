@@ -59,6 +59,7 @@ internal static class BannerCutRegression
                         Check(Convert.ToDouble(Get(pdf,(string)pair[0]))==(double)pair[1],"PDF receives "+pair[0]);
                     Check((double)Get(pdf,"EdgeTopMm")==0 && (double)Get(pdf,"TargetWidthMm")==724,"no page expansion or target resize");
                     Check((bool)Get(pdf,"CutInsetsFromPage"),"explicit banner margins use final page edges");
+                    Check((bool)Get(pdf,"CutlineBySide"),"shared cut dialog enables independent side lines");
                     pdf.GetType().GetMethod("Validate").Invoke(pdf,null);
                     other.GetType().GetField("_sourceWidthMm",F).SetValue(other,100m);
                     other.GetType().GetField("_sourceHeightMm",F).SetValue(other,80m);

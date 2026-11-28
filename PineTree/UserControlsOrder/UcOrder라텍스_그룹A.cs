@@ -188,6 +188,7 @@ namespace PineTree.UserControlsOrder
         public UcOrder라텍스_그룹A()
         {
             InitializeComponent();
+            chkUpload.Checked = false;
             _updatingInputs = true;
             InitializePdfInputs();
             InitializePostProcesses();
@@ -435,6 +436,7 @@ namespace PineTree.UserControlsOrder
             double finishedHeight = (double)FinishedHeightMm();
             double outputHeight = finishedHeight + PdfNumber(tbEdgeTop, 0) + PdfNumber(tbEdgeBottom, 0);
             btnPreview.Enabled = !busy && !_inspecting && _sourceDetails != null;
+            chkUpload.Enabled = !busy && !_inspecting;
             bool pageReady = !_inspecting;
             foreach (var input in new[] { tbEdgeTop, tbEdgeBottom, tbEdgeLeft, tbEdgeRight })
                 input.Enabled = !busy && pageReady;
@@ -583,7 +585,7 @@ namespace PineTree.UserControlsOrder
                 settings.Validate();
                 string folder = Path.Combine(Path.GetTempPath(), "PineTreePdfPreview", Guid.NewGuid().ToString("N"));
                 output = Path.Combine(folder, Path.GetFileNameWithoutExtension(_sourcePath) + "_대지" + (_workingPage + 1) + "_출력용.pdf");
-                var result = await GenerateAndUploadPdfAsync(output, settings);
+                var result = await GeneratePreviewPdfAsync(output, settings);
                 if (_documentsDisposed) { DeletePreviewFile(output); return; }
                 if (!string.IsNullOrEmpty(_serverUploadWarning))
                     MessageBox.Show(this, "출력 PDF는 생성되었지만 서버 업로드에 실패했습니다.\r\n로컬 미리보기를 표시합니다.\r\n\r\n" + _serverUploadWarning,
@@ -604,9 +606,9 @@ namespace PineTree.UserControlsOrder
             return GeneratePdfCoreAsync(output, settings, false);
         }
 
-        private Task<OrderDocumentResult> GenerateAndUploadPdfAsync(string output, PdfGenerationSettings settings)
+        private Task<OrderDocumentResult> GeneratePreviewPdfAsync(string output, PdfGenerationSettings settings)
         {
-            return GeneratePdfCoreAsync(output, settings, true);
+            return GeneratePdfCoreAsync(output, settings, chkUpload.Checked);
         }
 
         private async Task<OrderDocumentResult> GeneratePdfCoreAsync(string output, PdfGenerationSettings settings, bool uploadToServer)

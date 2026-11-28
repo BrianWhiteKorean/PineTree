@@ -43,6 +43,7 @@ namespace PineTree.UserControls
         public event EventHandler CancelRequested;
 
         public bool OrderFound { get; private set; } = true;
+        internal bool IsSavingOrder => m_isSaving;
 
         public UcOrderDesignPad()
         {
@@ -56,6 +57,7 @@ namespace PineTree.UserControls
             InitOrderCombos();
 
             dtmOrder.Value = dtmDelivery.Value = DateTime.Today;
+            m_initialDraftInputs = CaptureDraftInputs();
         }
 
         public UcOrderDesignPad(long seqNo)
@@ -73,6 +75,7 @@ namespace PineTree.UserControls
             inputGroupHeader1.Text = "주문 수정";
             m_DialogMode = DialogMode.Edit;
             LoadOrder();
+            m_initialDraftInputs = CaptureDraftInputs();
         }
 
         private void ApplyDesignPadVisualStyle()
@@ -129,6 +132,7 @@ namespace PineTree.UserControls
             ResetOrderPricing();
             UpdateOrderItemTotals();
             UpdateSelectedOrderEditor();
+            m_initialDraftInputs = CaptureDraftInputs();
         }
 
         private void InitOrderCombos()
@@ -231,6 +235,10 @@ namespace PineTree.UserControls
                 tbCustCode.Text = string.Empty;
             };
             tbCustName.TextBox.KeyDown += tbCustName_KeyDown;
+            tbCustName.TextBox.PreviewKeyDown += delegate(object sender, PreviewKeyDownEventArgs e) {
+                // Search before normal forward-Tab navigation; Shift+Tab still moves back.
+                if (e.KeyData == Keys.Tab) ApplyCustomerByCustNameSearch();
+            };
         }
 
         private void InitOrderEditor()
@@ -914,19 +922,7 @@ namespace PineTree.UserControls
 
         private void ShowPriceItemListDialog(string itemName)
         {
-            if (string.IsNullOrWhiteSpace(m_sSelectedCustCode))
-            {
-                MessageBox.Show("거래처를 먼저 선택해주세요.", "품목 선택", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            string priceCategory = GetSelectedPriceCategory();
-            if (string.IsNullOrWhiteSpace(priceCategory))
-            {
-                MessageBox.Show("장비의 대분류를 선택해주세요.", "품목 선택", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            using (DialogPriceItemList dialog = new DialogPriceItemList(itemName, m_sSelectedCustCode, tbCustName.Text, priceCategory))
+            using (DialogPriceItemList dialog = new DialogPriceItemList(itemName, m_sSelectedCustCode, tbCustName.Text, (string)null))
             {
                 PositionPriceItemDialog(dialog);
 

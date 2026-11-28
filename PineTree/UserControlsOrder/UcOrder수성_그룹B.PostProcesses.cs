@@ -175,8 +175,8 @@ namespace PineTree.UserControlsOrder
                     settings.CutlineColorMode = p.ColorMode;
                     settings.LineWidthMm = (double)p.LineWidthMm; settings.SpotColorName = p.SpotColorName;
                     var inset = scroll != null && !p.FromSource ? scrollCutInsetMm : 0m;
-                    settings.CutInsetsFromPage = scroll == null
-                        && (p.CutInsetTopMm.HasValue || p.CutInsetBottomMm.HasValue || p.CutInsetLeftMm.HasValue || p.CutInsetRightMm.HasValue);
+                    settings.CutlineBySide = p.HasCutInsets();
+                    settings.CutInsetsFromPage = scroll == null && settings.CutlineBySide;
                     settings.CutInsetTopMm = (double)(p.CutInsetTopMm ?? inset);
                     settings.CutInsetBottomMm = (double)(p.CutInsetBottomMm ?? inset);
                     settings.CutInsetLeftMm = (double)(p.CutInsetLeftMm ?? inset);

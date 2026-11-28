@@ -72,23 +72,32 @@ namespace PineTree.Forms
             };
             _modeButton = CreateModeButton("modeButton", "디자인 모드로 변경");
             _modeButton.FlatAppearance.BorderSize = 0;
-            _modeButton.Click += ModeButton_Click;
+            _modeButton.Click += delegate { SwitchMode(!_isManagementMode); };
             _modeSwitchPanel.Controls.Add(_modeButton);
             panel1.Controls.Add(_modeSwitchPanel);
             _modeSwitchPanel.BringToFront();
 
+            const int preserveButtonWidth = 250;
+            const int buttonGap = 10;
+            int designSwitchWidth = UiTheme.ModeSwitchAreaWidth + preserveButtonWidth + buttonGap;
             _rightModeSwitchPanel = new Panel
             {
                 Name = "rightModeSwitchPanel",
                 BackColor = UiTheme.TopBarBackground,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(panel1.ClientSize.Width - UiTheme.ModeSwitchAreaWidth, 0),
-                Size = new Size(UiTheme.ModeSwitchAreaWidth, UiTheme.TopBarHeight),
+                Location = new Point(panel1.ClientSize.Width - designSwitchWidth, 0),
+                Size = new Size(designSwitchWidth, UiTheme.TopBarHeight),
                 Visible = false
             };
             var rightModeButton = CreateModeButton("rightModeButton", "관리 모드로 변경");
             rightModeButton.FlatAppearance.BorderSize = 0;
-            rightModeButton.Click += ModeButton_Click;
+            var preserveModeButton = CreateModeButton("preserveModeButton", "관리모드로 변경(작업내용 보존)");
+            preserveModeButton.FlatAppearance.BorderSize = 0;
+            preserveModeButton.Width = preserveButtonWidth;
+            preserveModeButton.Click += ModeButton_Click;
+            rightModeButton.Left = preserveModeButton.Right + buttonGap;
+            rightModeButton.Click += DiscardDesignWorkButton_Click;
+            _rightModeSwitchPanel.Controls.Add(preserveModeButton);
             _rightModeSwitchPanel.Controls.Add(rightModeButton);
             panel1.Controls.Add(_rightModeSwitchPanel);
         }
@@ -113,8 +122,31 @@ namespace PineTree.Forms
 
         private void ModeButton_Click(object sender, EventArgs e)
         {
+            SwitchMode(false);
+        }
+
+        private void DiscardDesignWorkButton_Click(object sender, EventArgs e)
+        {
+            SwitchMode(true);
+        }
+
+        private void SwitchMode(bool discardDesignWork)
+        {
             try
             {
+                UcDesignModeContainer discardedContainer = discardDesignWork && !_isManagementMode ? _designModeContainer : null;
+                if (discardedContainer != null && discardedContainer.IsSavingOrder)
+                {
+                    MessageBox.Show(this, "주문 저장이 완료된 후 다시 눌러주세요.", "화면 전환",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (discardedContainer != null && discardedContainer.HasDraftChanges &&
+                    MessageBox.Show(this, "현재 작업을 초기화하고 관리모드로 돌아갑니다. 계속할까요?", "화면 전환",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                    return;
+
                 bool previousWaitCursor = UseWaitCursor;
                 Cursor previousCursor = Cursor.Current;
                 try
@@ -122,6 +154,11 @@ namespace PineTree.Forms
                     UseWaitCursor = true;
                     Cursor.Current = Cursors.WaitCursor;
                     SetManagementMode(!_isManagementMode);
+                    if (discardedContainer != null)
+                    {
+                        _designModeContainer = null;
+                        discardedContainer.Dispose();
+                    }
                     Update();
                 }
                 finally

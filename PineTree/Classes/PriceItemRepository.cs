@@ -178,8 +178,45 @@ ORDER BY c.CustName, c.CustCode";
 
         public static DataTable GetBasicAccessoryPriceItems(string priceCategory, string categoryName, string priceItemName)
         {
-            if (string.IsNullOrWhiteSpace(priceCategory)) throw new ArgumentException("카테고리를 선택해주세요.");
             return GetPriceItems(priceCategory, categoryName, priceItemName, null, false, true, accessoriesOnly: true);
+        }
+
+        public static DataTable GetAccessoryPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode)
+        {
+            using (var candidates = GetPriceItems(priceCategory, categoryName, priceItemName, custCode, false, false, accessoriesOnly: true))
+                return SelectAccessoryPrices(candidates, custCode);
+        }
+
+        private static string AccessoryPriceKey(DataRow row)
+        {
+            var key = new StringBuilder();
+            foreach (string column in new[] { "PriceCategory", "CategoryName", "PriceItemName", "SpecText", "UnitName", "BillingBasis", "Material" })
+            {
+                string value = Convert.ToString(row[column]).Trim();
+                if (column == "PriceItemName") value = NormalizePriceItemName(value);
+                key.Append(value.Length).Append(':').Append(value);
+            }
+            return key.ToString();
+        }
+
+        private static DataTable SelectAccessoryPrices(DataTable candidates, string custCode)
+        {
+            string customer = (custCode ?? string.Empty).Trim();
+            var dedicatedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in candidates.Rows)
+                if (customer.Length > 0 && string.Equals(Convert.ToString(row["CustCode"]).Trim(), customer, StringComparison.OrdinalIgnoreCase)
+                    && row["CurrentUnitPrice"] != DBNull.Value)
+                    dedicatedKeys.Add(AccessoryPriceKey(row));
+
+            var result = candidates.Clone();
+            foreach (DataRow row in candidates.Rows)
+            {
+                string owner = Convert.ToString(row["CustCode"]).Trim();
+                if (owner.Length == 0 ? !dedicatedKeys.Contains(AccessoryPriceKey(row))
+                    : customer.Length > 0 && string.Equals(owner, customer, StringComparison.OrdinalIgnoreCase) && row["CurrentUnitPrice"] != DBNull.Value)
+                    result.ImportRow(row);
+            }
+            return result;
         }
 
         private static DataTable GetPriceItems(string priceCategory, string categoryName, string priceItemName, string custCode, bool dedicatedOnly, bool basicOnly, bool nullCustomerOnly = false, int? equipmentId = null, bool productsOnly = false, bool accessoriesOnly = false)
@@ -198,6 +235,7 @@ ORDER BY c.CustName, c.CustCode";
                 sql.AppendLine("    ) AS HasProcessRule,");
             }
             sql.AppendLine("    pi.SeqNo,");
+            if (accessoriesOnly) sql.AppendLine("    pi.ItemType, pi.Material,");
             sql.AppendLine("    pi.CustCode,");
             sql.AppendLine("    c.CustName AS SpecialCustName,");
             sql.AppendLine("    pi.PriceCategory,");
@@ -234,11 +272,11 @@ ORDER BY c.CustName, c.CustCode";
             sql.AppendLine("WHERE pi.IsActive = 1");
 
             if (accessoriesOnly)
-                sql.AppendLine("AND COALESCE(pi.ItemType, '') <> 'PRODUCT'");
+                sql.AppendLine("AND TRIM(pi.Material) IN ('부품', '구성품')");
 
-            if (productsOnly)
+            if (productsOnly || (accessoriesOnly && !basicOnly))
             {
-                sql.AppendLine("AND pi.ItemType = 'PRODUCT'");
+                if (productsOnly) sql.AppendLine("AND pi.ItemType = 'PRODUCT'");
                 sql.AppendLine("AND (pi.CustCode = @CustCode OR pi.CustCode IS NULL OR TRIM(pi.CustCode) = '')");
                 parameters.Add(new ParamValuePair("@CustCode", (custCode ?? string.Empty).Trim()));
             }

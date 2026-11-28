@@ -77,7 +77,8 @@ internal static class BannerServerFilesRegression
             var hole=app.GetType("PineTree.Classes.OrderPostProcessSetting").GetMethod("Create").Invoke(null,new object[]{"HOLE"});
             Call(editor,"CommitPostProcess",-1,hole);
             var settings=Call(editor,"ReadPdfGenerationSettings");
-            var generation=(Task)Call(editor,"GenerateAndUploadPdfAsync",Path.Combine(folder,"server-output.pdf"),settings);
+            Set(Field(editor,"chkUpload"),"Checked",true);
+            var generation=(Task)Call(editor,"GeneratePreviewPdfAsync",Path.Combine(folder,"server-output.pdf"),settings);
             Check((bool)Get(editor,"IsProcessing"),"generation/upload locks editor and order save");
             await generation;
             saved=Capture(editor);
